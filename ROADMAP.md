@@ -46,7 +46,7 @@ Remaining work, each independently scoped:
   only) is an internal setting of `GeneralViewLayoutStrategy`. Expose it through `RenderOptions` and the
   `render` command, with help text, requirements, and user-guide text.
 - **Rendering engine (`DemaConsulting.Rendering`) items.** Rich-text rows with bold keywords (issue
-  #99), port glyphs on box edges (issue #100), and connector end labels (issue #101); a source-end
+  #99); a source-end
   marker on graph edges (so the strategy no longer reverses connectors after layout, and the strategy's
   `ClearEndDecorations` pass, which keeps a clean straight leg at an owner-end glyph, can be retired); a
   tight-tree layering that keeps a wide drawing compact; control of the shape of the
@@ -100,21 +100,49 @@ Remaining gaps, each independently scoped:
 
 ### Sequence View dynamics
 
-- Combined-fragment boxes (alt/opt/loop); async/reply
-  message styling.
 - **Sequence dynamic-view compatibility check (known limitation of `DynamicViewSynthesizer`,
   the Core Rendering Internal subsystem behind `render --view-type <kind> --view-target
   <qualified-name>`):** its `--view-type sequence` pre-check accepts
   any target with at least one nested `message` usage (the cheap, necessary-but-not-sufficient
-  approximation of "at least one lifeline" — the AST has no dedicated lifeline node, so a full
-  message-edge-walk validation was deliberately not implemented). A target with lifelines but
+  approximation of "at least one lifeline and message" — a full message-edge-walk validation was
+  deliberately not implemented). A target with lifelines but
   zero resolvable messages passes this pre-check yet still renders the near-blank canonical
   `LayoutTree` sentinel. Closing this gap requires either a full message-edge-walk validation in
   `DynamicViewSynthesizer` or surfacing `SequenceViewLayoutStrategy`'s own lifeline-resolution
   result back to the synthesizer.
+- **Proxies, found and lost messages, and successions (issue #106).** The SysML v2 sequence notation
+  also has proxies (a dot on a lifeline for an event), dashed succession arrows, and messages from or to
+  nowhere; the Sequence View draws lifelines and messages only. Sequence ports on a lifeline are not drawn
+  either, and the engine needs a proxy marker for the dot.
 
-**Scope:** `SequenceViewLayoutStrategy`, renderer shape primitives (note).
-**Visual gate:** sequence shows a fragment.
+**Scope:** `SequenceViewLayoutStrategy`; the event-occurrence data is already in the syntax tree.
+**Visual gate:** a lifeline shows a proxy dot for each event, and a found message starts at a dot.
+
+### Interconnection View: remaining notation
+
+Ports, connector end labels, and the connector kinds are drawn in the SysML v2 notation. Remaining work,
+each independently scoped (issue #100 stays open for the port items; the end labels of issue #101 are
+delivered for binary connections):
+
+- **Proxy ports and nested ports.** A proxy port (a port that stands for a part inside the box) and a
+  port with nested ports are drawn as plain ports with no proxy marker and no nested glyphs; the engine
+  needs the proxy glyph and nested-port placement.
+- **N-ary connection dot.** A connection with more than two ends is not drawn with the junction dot of the
+  notation; the engine needs a connector junction.
+- **Root-frame delegation connectors.** A connector to a port of the frame of the root is not routed; the
+  ports of the frame are drawn but no connector reaches them.
+- **Shared-port fan-out (engine).** A port that several connectors name is drawn as one glyph per
+  connector, because the engine splits a shared port per edge; the strategy labels it once.
+- **Unconnected ports (engine).** The engine does not emit a port that no edge names, so the strategy
+  places those itself after the layout.
+- **Connector label corridor (engine).** The layer corridor reserves room for end labels and outward port
+  labels but not for the midpoint label of a connector, so a connector label can land on a port label and
+  the strategy widens the corridor by hand; the reserved room also leaves the diagrams below the
+  checklist's share of the canvas for blocks (B5).
+
+**Scope:** `InterconnectionViewLayoutStrategy`, `LayeredPlacement`; most items need `DemaConsulting.Rendering`
+support first.
+**Visual gate:** a port shared by two connectors is one glyph, and a connector reaches a frame port.
 
 ### Interconnection View: genuine cross-boundary connector routing
 
