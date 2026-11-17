@@ -5291,6 +5291,112 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A namespace import and a recursive import of the same package, written by one importer, are
+    ///     two distinct relationships: both edges are drawn between the same two folders, each with its
+    ///     own label, and neither replaces the other.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Imports_NamespaceAndRecursiveOfSamePackage_DrawTwoEdgesWithDistinctLabels()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package A { part def X; }
+            package B { import A::*; import A::**; part def Y; }
+            """);
+
+        // Assert
+        var imports = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed).ToList();
+        Assert.Equal(2, imports.Count);
+        var namespaceImport = Assert.Single(imports, l => l.MidpointLabel == "«import»*");
+        var recursiveImport = Assert.Single(imports, l => l.MidpointLabel == "«import»**");
+        var importer = FindBox(layout.Nodes, "B");
+        var imported = FindBox(layout.Nodes, "A");
+        foreach (var edge in imports)
+        {
+            // The edge ends on the imported folder and starts within the importing folder's span
+            Assert.True(OnBorder(edge.Waypoints[^1].X, edge.Waypoints[^1].Y, imported));
+            Assert.InRange(edge.Waypoints[0].X, importer.X, importer.X + importer.Width);
+        }
+
+        // Assert: the two parallel edges do not run exactly on top of each other
+        Assert.NotEqual(
+            namespaceImport.Waypoints.Select(p => (p.X, p.Y)),
+            recursiveImport.Waypoints.Select(p => (p.X, p.Y)));
+    }
+
+    /// <summary>
+    ///     A membership import and a namespace import that resolve to the same imported box are two
+    ///     distinct relationships and draw two edges with distinct labels.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Imports_MembershipAndNamespaceOfSameTarget_DrawTwoEdgesWithDistinctLabels()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package A { part def X; }
+            package B { import A::X; import A::X::*; part def Y; }
+            """);
+
+        // Assert: both imports end at the box of X
+        var imports = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed).ToList();
+        Assert.Equal(2, imports.Count);
+        Assert.Single(imports, l => l.MidpointLabel == "«import»");
+        Assert.Single(imports, l => l.MidpointLabel == "«import»*");
+    }
+
+    /// <summary>
+    ///     Two identical imports (same importer, same imported namespace, same kind) draw one edge.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Imports_ExactDuplicate_DrawsOneEdge()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package A { part def X; }
+            package B { import A::*; import A::*; part def Y; }
+            """);
+
+        // Assert
+        var imports = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed).ToList();
+        var edge = Assert.Single(imports);
+        Assert.Equal("«import»*", edge.MidpointLabel);
+    }
+
+    /// <summary>
+    ///     A <c>satisfy</c> and a <c>verify</c> relationship between the same pair of boxes are two
+    ///     distinct relationships and draw two edges with their own keyword labels, while a repeated
+    ///     <c>satisfy</c> of the same pair draws one edge.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_SatisfyAndVerifyOfSamePair_DrawTwoEdgesAndRepeatsCoalesce()
+    {
+        // Arrange
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::req"] = new SysmlFeatureNode { Name = "req", QualifiedName = "P::req", FeatureKeyword = "requirement" },
+                ["P::V"] = new SysmlDefinitionNode { Name = "V", QualifiedName = "P::V", DefinitionKeyword = "verification def" }
+            },
+            Index = new SemanticIndex(
+            [
+                new SysmlEdge("P::V", "P::req", SysmlEdgeKind.Satisfy),
+                new SysmlEdge("P::V::obj", "P::req", SysmlEdgeKind.Verify),
+                new SysmlEdge("P::V", "P::req", SysmlEdgeKind.Satisfy)
+            ])
+        };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        var lines = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron).ToList();
+        Assert.Equal(2, lines.Count);
+        Assert.Single(lines, l => l.MidpointLabel == "«satisfy»");
+        Assert.Single(lines, l => l.MidpointLabel == "«verify»");
+    }
+
+    /// <summary>
     ///     An import of the standard library (no rendered endpoint) and an import between a package and a
     ///     package nested in it draw no edge and produce no warning.
     /// </summary>

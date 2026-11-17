@@ -1808,13 +1808,17 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Adds <paramref name="edge"/> unless an identical edge (same endpoints and kind) is already present.
+    /// Adds <paramref name="edge"/> unless an identical edge (same endpoints, kind and label) is
+    /// already present. The label is part of the key because it carries the distinction between two
+    /// relationships of one kind between the same pair of endpoints, such as a namespace import
+    /// (<c>«import»*</c>) and a recursive import (<c>«import»**</c>) of the same package.
     /// </summary>
     private static void AddOnce(List<ModelEdge> edges, ModelEdge edge)
     {
         if (!edges.Exists(e => e.SourceQualified == edge.SourceQualified &&
                                e.TargetQualified == edge.TargetQualified &&
-                               e.Kind == edge.Kind))
+                               e.Kind == edge.Kind &&
+                               e.Label == edge.Label))
         {
             edges.Add(edge);
         }

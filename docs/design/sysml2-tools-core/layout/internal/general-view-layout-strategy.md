@@ -297,8 +297,9 @@ Then `workspace.Index.AllEdges` is walked once:
   reported.
 - `Satisfy` and `Verify` map each endpoint to the *nearest rendered box* with `ResolveNearestBox`
   (the name itself, else the longest rendered `::` prefix), because the relating element is often a
-  nested declaration such as an objective or a subject. The edge is added once per source, target, and
-  kind (`AddOnce`) with the label `«satisfy»` or `«verify»`; an unrendered endpoint or a same-box
+  nested declaration such as an objective or a subject. The edge is added once per source, target,
+  kind, and label (`AddOnce`; a `satisfy` and a `verify` of the same pair are two edges) with the label
+  `«satisfy»` or `«verify»`; an unrendered endpoint or a same-box
   result draws nothing, silently, as the relationships are an overlay on content a view may scope out.
 - `AddImportEdges` finds the imports by walking the `Children` of every declaration for
   `SysmlImportNode` (an import node has no qualified name of its own, so it carries no usable source in
@@ -306,7 +307,10 @@ Then `workspace.Index.AllEdges` is walked once:
   package endpoint is its folder (`folder:<name>`), a definition or usage endpoint its box. An
   unrendered endpoint (including the standard library), an import of itself, and an import between a
   namespace and a namespace nested in it draw nothing. The label is `«import»`, `«import»*` for a
-  namespace import, and `«import»**` for a recursive one; no visibility indicator is drawn, because the
+  namespace import, and `«import»**` for a recursive one. Edges are added with `AddOnce`, keyed by
+  source, target, kind, and label, so imports of different kinds that reach the same endpoints (such as
+  `import A::*;` with `import A::**;`) each keep their edge and label, while an exact repeat draws one
+  edge; no visibility indicator is drawn, because the
   default (private) visibility cannot be told from an explicit one.
 
 **Resolving a reference to a box (`TypeResolver`).** Because packages may reuse a simple name for

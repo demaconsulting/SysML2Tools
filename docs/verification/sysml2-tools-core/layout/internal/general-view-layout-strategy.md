@@ -637,13 +637,24 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_Verify_NestedSourceMapsToNearestRenderedBox`:
   `verify` is labeled `«verify»`; a verifying declaration nested in a rendered box maps to the nearest
   rendered box on its path
+- `GeneralViewLayoutStrategy_BuildLayout_SatisfyAndVerifyOfSamePair_DrawTwoEdgesAndRepeatsCoalesce`:
+  a `satisfy` and a `verify` between the same pair of boxes draw two edges labeled `«satisfy»` and
+  `«verify»`; a repeated `satisfy` of the pair draws one edge
 - `GeneralViewLayoutStrategy_BuildLayout_Imports_ProduceDashedOpenArrowEdgesLabeledByKind`:
   Membership, namespace, and recursive imports draw dashed open-arrowhead lines from the importing folder
   to the imported folder or box, labeled `«import»`, `«import»*`, and `«import»**`
 - `GeneralViewLayoutStrategy_BuildLayout_Imports_StdlibAndContainedNamespace_DrawNoEdge`:
   An import of the standard library and an import between a package and a package nested in it draw no
   edge and produce no warning
-- `GeneralViewLayoutStrategy_BuildLayout_BarePackageExpose_DrawsEmptyPackageNode`:
+- `GeneralViewLayoutStrategy_BuildLayout_Imports_NamespaceAndRecursiveOfSamePackage_DrawTwoEdgesWithDistinctLabels`:
+  `import A::*;` and `import A::**;` in one package draw two edges between the same folders, labeled
+  `«import»*` and `«import»**`
+- `GeneralViewLayoutStrategy_BuildLayout_Imports_MembershipAndNamespaceOfSameTarget_DrawTwoEdgesWithDistinctLabels`:
+  `import A::X;` and `import A::X::*;` resolve to the same imported box and draw two edges labeled
+  `«import»` and `«import»*`
+- `GeneralViewLayoutStrategy_BuildLayout_Imports_ExactDuplicate_DrawsOneEdge`:
+  Two identical imports draw one edge
+
   `expose Pkg;` draws exactly one folder-shaped package node labeled `Pkg` with no children
 - `GeneralViewLayoutStrategy_BuildLayout_BarePackageExposeWithDepthLimitOne_HasNoTruncationIndicator`:
   with a depth limit of 1 the empty package node still has no children (no `…` truncation indicator)
