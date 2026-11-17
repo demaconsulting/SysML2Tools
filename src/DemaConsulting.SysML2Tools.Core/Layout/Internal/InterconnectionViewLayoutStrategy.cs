@@ -721,11 +721,11 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             var glyph = Bounds.Of(NotationMetrics.PortGlyphBounds(port));
             minX = Math.Min(minX, glyph.Left);
             maxX = Math.Max(maxX, glyph.Right);
-            if (NotationMetrics.IsOutwardLabel(port))
+            var label = OutwardLabelBounds(port, theme);
+            if (label is { } l)
             {
-                var label = Bounds.Of(NotationMetrics.PortOutwardLabelBounds(port, port.ExternalLabel!, theme));
-                minX = Math.Min(minX, label.Left);
-                maxX = Math.Max(maxX, label.Right);
+                minX = Math.Min(minX, l.Left);
+                maxX = Math.Max(maxX, l.Right);
             }
         }
 
@@ -811,11 +811,21 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     private static IEnumerable<Bounds> PortFootprint(LayoutPort port, Theme theme)
     {
         yield return Bounds.Of(NotationMetrics.PortGlyphBounds(port));
-        if (NotationMetrics.IsOutwardLabel(port))
+        if (OutwardLabelBounds(port, theme) is { } label)
         {
-            yield return Bounds.Of(NotationMetrics.PortOutwardLabelBounds(port, port.ExternalLabel!, theme));
+            yield return label;
         }
     }
+
+    /// <summary>
+    /// Returns the bounds of a port's outside label, or <see langword="null"/> when the label is not drawn
+    /// outward or the port carries no label text (a repeated glyph of a shared keyed port is unlabeled; the
+    /// first glyph carries the single label).
+    /// </summary>
+    private static Bounds? OutwardLabelBounds(LayoutPort port, Theme theme) =>
+        NotationMetrics.IsOutwardLabel(port) && port.ExternalLabel is { } text
+            ? Bounds.Of(NotationMetrics.PortOutwardLabelBounds(port, text, theme))
+            : null;
 
     /// <summary>
     /// Finds the best slot for one port on one face of a part: scans downward from below the title area
@@ -869,9 +879,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         Theme theme)
     {
         var glyph = Bounds.Of(NotationMetrics.PortGlyphBounds(port));
-        Bounds? label = NotationMetrics.IsOutwardLabel(port)
-            ? Bounds.Of(NotationMetrics.PortOutwardLabelBounds(port, port.ExternalLabel!, theme))
-            : null;
+        Bounds? label = OutwardLabelBounds(port, theme);
 
         var count = 0;
         for (var j = 0; j < boxes.Count; j++)

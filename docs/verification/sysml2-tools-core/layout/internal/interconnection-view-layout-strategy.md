@@ -253,6 +253,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_InheritedTypeAndInlinePorts_AreResolved` | Own, type, and supertype ports |
 | `InterconnectionView_BuildLayout_UnconnectedDeclaredPort_IsDrawnOnBoxBorderWithoutOverlap` | Spare ports |
 | `InterconnectionView_BuildLayout_PortWithTwoConnections_LabelAppearsOnce` | One label per shared port |
+| `InterconnectionView_BuildLayout_SharedPortAndUnconnectedPort_LaysOutClear` | Shared plus spare port |
 | `InterconnectionView_BuildLayout_RootFramePorts_DrawnOnFrameBorder` | Frame ports and canvas room |
 | `InterconnectionView_BuildLayout_ReferencePart_HasDashedOutlineAndRefKeyword` | Dashed `ref part` box |
 | `InterconnectionView_BuildLayout_ItemActionStateOccurrenceUsages_AreNodes` | Four more node kinds |

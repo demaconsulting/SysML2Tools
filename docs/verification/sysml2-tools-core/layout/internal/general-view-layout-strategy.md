@@ -520,7 +520,8 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   Attribute and port compartments under the row-only policy, with centered italic titles
 - `GeneralViewLayoutStrategy_BuildLayout_EventOccurrenceUsage_IsNotACompartmentRow`:
   A part def owning an attribute and an `event occurrence` usage draws only the `attributes` compartment;
-  the event occurrence is sequence data and is not listed as a row- `GeneralViewLayoutStrategy_BuildLayout_Compartments_AreInCanonicalOrder`:
+  the event occurrence is sequence data and is not listed as a row
+- `GeneralViewLayoutStrategy_BuildLayout_Compartments_AreInCanonicalOrder`:
   A part def declaring an item, port, enum value, part, and attribute (in that order) plus
   documentation lists `doc`, `attributes`, `enums`, `parts`, `ports`, `items` in that order
 - `GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge`:

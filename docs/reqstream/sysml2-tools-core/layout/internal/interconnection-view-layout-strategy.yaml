@@ -512,6 +512,7 @@ sections:
           the layout, where the positions of the boxes, ports, and lines are final.
         tests:
           - InterconnectionView_BuildLayout_UnconnectedDeclaredPort_IsDrawnOnBoxBorderWithoutOverlap
+          - InterconnectionView_BuildLayout_SharedPortAndUnconnectedPort_LaysOutClear
           - InterconnectionView_BuildLayout_MotorRigGalleryModel_ShowsPortNotation
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-RootFramePorts

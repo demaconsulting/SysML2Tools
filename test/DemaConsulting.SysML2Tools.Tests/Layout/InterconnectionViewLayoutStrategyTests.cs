@@ -1184,6 +1184,40 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A part with a shared declared port (one port, two connectors; its repeated glyph carries no
+    ///     label) and an unconnected declared port lays out without throwing, and the unconnected port is
+    ///     placed clear of the shared port's glyphs and its single label.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_SharedPortAndUnconnectedPort_LaysOutClear()
+    {
+        // Arrange: a.shared feeds both b and c; a.spare is declared but never connected
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def A { out port shared : P; out port spare : P; }
+                part def B { in port bi : P; }
+                part def C { in port ci : P; }
+                part def Rig {
+                    part a : A; part b : B; part c : C;
+                    connection c1 connect a.shared to b.bi;
+                    connection c2 connect a.shared to c.ci;
+                }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+
+        // Assert: the shared port is labeled once, the spare port is drawn, and nothing overlaps
+        Assert.Single(ports, p => p.ExternalLabel == "shared : P");
+        Assert.Equal(5, ports.Count);
+        var spare = PortNamed(ports, "spare : P");
+        Assert.Equal(PortSide.Right, spare.Side);
+        AssertPortsClear(layout, ports);
+    }
+
+    /// <summary>
     ///     The declared ports of the root definition are drawn on the frame's border (left face, or right
     ///     face for an <c>out</c> port), below its header, and the canvas makes room for their labels.
     /// </summary>
@@ -1725,8 +1759,9 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var footprints = new List<(string Name, LabelPlacement Glyph, LabelPlacement? Label)>();
         foreach (var port in ports)
         {
-            var label = NotationMetrics.IsOutwardLabel(port)
-                ? NotationMetrics.PortOutwardLabelBounds(port, port.ExternalLabel!, theme)
+            // A repeated glyph of a shared port has no label of its own (the first glyph carries it)
+            var label = NotationMetrics.IsOutwardLabel(port) && port.ExternalLabel is { } text
+                ? NotationMetrics.PortOutwardLabelBounds(port, text, theme)
                 : (LabelPlacement?)null;
             footprints.Add((port.ExternalLabel ?? "?", NotationMetrics.PortGlyphBounds(port), label));
         }
