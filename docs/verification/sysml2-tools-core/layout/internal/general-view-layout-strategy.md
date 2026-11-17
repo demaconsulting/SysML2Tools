@@ -447,8 +447,9 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_TopDown_ConnectorsBetweenRootFolders_StayInsideCanvas`:
   Every waypoint of every connector lies inside the canvas (guards the canvas fit)
 - `GeneralViewLayoutStrategy_BuildLayout_OwnerFanOut_EndDecorationsHaveCleanApproach`:
-  A charger-like owner with two part usages: both filled diamonds end a lane with a final straight leg of
-  at least the diamond length plus the corner radius
+  A charger-like owner with two part usages: both filled diamonds are drawn, and every one that ends a lane
+  has a final straight leg of at least the diamond length plus the corner radius (the engine may route a
+  connector straight, which needs no approach)
 - `GeneralViewLayoutStrategy_BuildLayout_SpecializationAndReferenceUsageFanOut_EndDecorationsHaveCleanApproach`:
   A hollow diamond, a filled diamond, and a specialization triangle on one owner face all have a clean
   approach

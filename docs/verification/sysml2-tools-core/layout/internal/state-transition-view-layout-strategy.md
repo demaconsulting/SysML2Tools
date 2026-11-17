@@ -114,7 +114,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_LongLabel_OverhangingLeft_IsContainedByFrame` | Left overhang moves content right |
 | `StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes` | Elevator labels clear of all |
 | `StateTransitionView_BuildLayout_HeaterGalleryModel_LabelsAreClear` | Heater labels clear of all |
-| `StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_AreWidenedApart` | Sibling labels widen the state |
+| `StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_AreWidenedApart` | Sibling labels stay clear of each other and the state border |
 | `StateTransitionView_BuildLayout_NoLabelCollision_KeepsNaturalWidth` | No collision, natural width |
 | `StateTransitionView_BuildLayout_FrameBottom_IsOneMarginBelowContent` | Frame bottom one margin below |
 | `StateTransitionView_BuildLayout_ElevatorGalleryModel_ShowsCompartmentsLabelsAndFinal` | Gallery notation |

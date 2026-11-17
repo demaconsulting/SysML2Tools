@@ -46,6 +46,14 @@ crossed-circle terminate badge (`BadgeShape.CrossedCircle`), the send and accept
 box (`BoxCornerIcon`), obstacle-aware connector label placement (`ConnectorLabelPlacer`), and the
 `LayoutGraphEdge.TargetEnd` end decoration that sizes the final approach of a back edge.
 
+Version 0.3.0-beta.4 of the family (the minimum version SysML2Tools builds against) adds the SysML v2
+port and connector end notation that the Interconnection and Sequence views rely on: the
+`PortAppearance` of a graph port (direction arrow, outlined glyph, dashed reference outline, and outward
+`name : Type` label placement), `LineEndLabel` end labels (role name above and multiplicity below the
+line end) on graph edges and layout lines, and the rounded, keyword-carrying lifeline header. It also
+aligns the ports that several edges share on one box face straight, so the connectors between such
+boxes no longer end with a small bend.
+
 ### Verification Approach
 
 `DemaConsulting.Rendering` is verified by self-validation evidence from the SysML2Tools CI

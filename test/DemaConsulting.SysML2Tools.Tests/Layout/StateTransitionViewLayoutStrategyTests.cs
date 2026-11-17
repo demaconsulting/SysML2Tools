@@ -1109,9 +1109,10 @@ public sealed class StateTransitionViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     Two transitions with the same wide label that arrive on one face of a narrow state are
-    ///     spread by widening that state until their labels no longer collide, so neither label ends
-    ///     up on the state's border.
+    ///     Two transitions with the same wide label that arrive on one face of a narrow state keep
+    ///     their labels clear of each other and of the state's border: the engine (0.3.0-beta.4)
+    ///     aligns the arrival ports straight, and the strategy widens the state only when the labels
+    ///     would still collide.
     /// </summary>
     [Fact]
     public void StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_AreWidenedApart()
@@ -1129,7 +1130,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
 
         // Assert
         AssertLabelsClear(layout, Themes.Light);
-        Assert.True(c.Width > 100.0, "State c must be widened to spread its two arrival anchors.");
+        Assert.True(c.Width >= 100.0, "State c must keep at least its natural width.");
     }
 
     /// <summary>A state whose labels do not collide keeps its natural width.</summary>
