@@ -6056,5 +6056,64 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Contains("Hub", labels);
         Assert.DoesNotContain("Part", labels);
     }
+
+    /// <summary>
+    ///     Every occurrence-kind usage drawn as a node of its own keeps its typing: the box carries the
+    ///     <c>name : Type</c> label and a feature-typing edge (hollow triangle with two dots) runs from
+    ///     the usage to its definition. Requirement, concern, use case, analysis, verification, case
+    ///     and calc usages previously lost the typing.
+    /// </summary>
+    /// <param name="usageKeyword">The usage keyword as written in the source.</param>
+    /// <param name="definitionKeyword">The matching definition keyword as written in the source.</param>
+    [Theory]
+    [InlineData("part", "part def")]
+    [InlineData("item", "item def")]
+    [InlineData("occurrence", "occurrence def")]
+    [InlineData("action", "action def")]
+    [InlineData("state", "state def")]
+    [InlineData("requirement", "requirement def")]
+    [InlineData("concern", "concern def")]
+    [InlineData("use case", "use case def")]
+    [InlineData("analysis", "analysis def")]
+    [InlineData("verification", "verification def")]
+    [InlineData("case", "case def")]
+    [InlineData("calc", "calc def")]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_OccurrenceKindUsage_ShowsTypingLabelAndEdge(
+        string usageKeyword,
+        string definitionKeyword)
+    {
+        // Act: a definition and a usage of the same kind, typed by it
+        var layout = await LayOutUnscopedAsync(
+            $"package P {{ {definitionKeyword} Def; {usageKeyword} u : Def; }}",
+            policy: NodePolicy.AllUsages);
+
+        // Assert: the usage box reads "u : Def" and a typing edge joins it to the definition
+        var usageBox = FindBox(layout.Nodes, "u");
+        Assert.Equal("u : Def", usageBox.Label);
+        var typingEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typingEdge, usageBox, FindBox(layout.Nodes, "Def")));
+    }
+
+    /// <summary>
+    ///     With the Pilot policy a nested requirement usage (<c>requirement r : R;</c>) is a node of its
+    ///     own labeled <c>r : R</c> with a feature-typing edge to <c>R</c> (issue #113).
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedRequirementUsage_ShowsTypingLabelAndEdge()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package P {
+                requirement def R;
+                part def Holder { requirement r : R; }
+            }
+            """);
+
+        // Assert
+        var usageBox = FindBox(layout.Nodes, "r");
+        Assert.Equal("r : R", usageBox.Label);
+        var typingEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typingEdge, usageBox, FindBox(layout.Nodes, "R")));
+    }
 }
 

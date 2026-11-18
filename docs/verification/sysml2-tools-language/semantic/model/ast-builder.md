@@ -224,6 +224,8 @@ external services or additional configuration are required beyond a standard .NE
 | `else` succession sets `IsElse` | `WorkspaceLoader_LoadAsync_ElseSuccession_SetsIsElse` |
 | `terminate` node | `WorkspaceLoader_LoadAsync_TerminateNode_ProducesTerminateFeature` |
 | Action usage typing and multiplicity | `WorkspaceLoader_LoadAsync_ActionUsage_CapturesTypingAndMultiplicity` |
+| Typing kept per kind | `WorkspaceLoader_LoadAsync_OccurrenceKindUsage_CapturesFeatureTypingAndEdge` |
+| Requirement typing, multiplicity | `WorkspaceLoader_LoadAsync_RequirementUsage_CapturesTypingAndMultiplicity` |
 | Accept/send payload text | `WorkspaceLoader_LoadAsync_AcceptSendNodes_CapturePayloadText` |
 | Connection end names, multiplicities | `WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities` |
 | Binding end role names and multiplicities | `WorkspaceLoader_LoadAsync_BindingEnds_CaptureRoleNames` |

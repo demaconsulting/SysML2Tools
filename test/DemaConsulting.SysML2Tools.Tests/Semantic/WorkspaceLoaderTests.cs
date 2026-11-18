@@ -7239,6 +7239,65 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     Every occurrence-kind usage keeps its feature typing: the AST node carries the raw typing
+    ///     text and the resolver records a typing edge to the definition, with no diagnostics.
+    ///     Requirement, concern, constraint, use case, analysis, verification, case and calc usages
+    ///     previously lost the typing (or were not captured at all).
+    /// </summary>
+    /// <param name="usageKeyword">The usage keyword as written in the source.</param>
+    /// <param name="definitionKeyword">The matching definition keyword as written in the source.</param>
+    /// <param name="featureKeyword">The <see cref="SysmlFeatureNode.FeatureKeyword"/> the usage is captured under.</param>
+    [Theory]
+    [InlineData("part", "part def", "part")]
+    [InlineData("item", "item def", "item")]
+    [InlineData("occurrence", "occurrence def", "occurrence")]
+    [InlineData("action", "action def", "action")]
+    [InlineData("state", "state def", "state")]
+    [InlineData("requirement", "requirement def", "requirement")]
+    [InlineData("concern", "concern def", "concern")]
+    [InlineData("constraint", "constraint def", "constraint")]
+    [InlineData("use case", "use case def", "use case")]
+    [InlineData("analysis", "analysis def", "analysis")]
+    [InlineData("verification", "verification def", "verification")]
+    [InlineData("case", "case def", "case")]
+    [InlineData("calc", "calc def", "calc")]
+    public async Task WorkspaceLoader_LoadAsync_OccurrenceKindUsage_CapturesFeatureTypingAndEdge(
+        string usageKeyword,
+        string definitionKeyword,
+        string featureKeyword)
+    {
+        // Arrange / Act: one definition of the kind and one usage typed by it
+        var result = await LoadModelsAsync($"package P {{ {definitionKeyword} Def; {usageKeyword} u : Def; }}");
+
+        // Assert: the usage is captured with its keyword and typing, and the typing edge resolves
+        var usage = FeatureAt(result, "P::u");
+        Assert.Equal(featureKeyword, usage.FeatureKeyword);
+        Assert.Equal("Def", usage.FeatureTyping);
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "P::u", "P::Def"));
+        Assert.Empty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     A requirement usage keeps its multiplicity along with its typing, like a generic usage.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RequirementUsage_CapturesTypingAndMultiplicity()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                requirement def R;
+                requirement many : R [2];
+            }
+            """);
+
+        // Assert
+        var usage = FeatureAt(result, "P::many");
+        Assert.Equal("R", usage.FeatureTyping);
+        Assert.Equal("[2]", usage.Multiplicity);
+    }
+
+    /// <summary>
     ///     A user package named like a standard-library package (<c>Parts</c>) contributes
     ///     user-origin members: its own members are not in <see cref="SysmlWorkspace.StdlibNames"/>
     ///     (which holds exactly the embedded seed's qualified names), while real standard-library

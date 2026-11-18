@@ -27,6 +27,11 @@ stack with `::` to form the fully-qualified name.
 | `VisitAllocationUsage` | `AllocationUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "allocation"`) |
 | `VisitSatisfyRequirementUsage` | `SatisfyRequirementUsageContext` | `SysmlSatisfyNode` |
 | `VisitRequirementUsage` | `RequirementUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "requirement"`) |
+| `VisitCaseUsage` | `CaseUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "case"`) |
+| `VisitAnalysisCaseUsage` | `AnalysisCaseUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "analysis"`) |
+| `VisitVerificationCaseUsage` | `VerificationCaseUsageContext` | `SysmlFeatureNode` (`"verification"`) |
+| `VisitUseCaseUsage` | `UseCaseUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "use case"`) |
+| `VisitCalculationUsage` | `CalculationUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "calc"`) |
 | `VisitDependency` | `DependencyContext` | `SysmlDependencyNode` |
 | `VisitBindingConnectorAsUsage` | `BindingConnectorAsUsageContext` | `SysmlConnectionNode` (kind `binding`) |
 | `VisitInterfaceUsage` | `InterfaceUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "interface"`) |
@@ -427,10 +432,24 @@ Note: unlike the transition-related walk in `FindVerificationMembers` above, thi
 construction — it is precisely because it now visits into `requirementBody`/`caseBody` subtrees
 that the null-suppression safeguard above is required.
 
-`VisitStateUsage` additionally calls `ExtractFeatureTyping(decl?.featureSpecializationPart())` and
-sets the result on the constructed `SysmlFeatureNode`'s `FeatureTyping` property — previously this
-was always left `null` for state usages, unlike every other usage kind built via `BuildUsageNode`.
-This is a prerequisite for `StateTransitionViewLayoutStrategy`'s expose-scoping root selection
+`VisitStateUsage` additionally calls `ExtractSpecialization(decl?.featureSpecializationPart())` and
+sets the result's typing and multiplicity on the constructed `SysmlFeatureNode` — previously
+only the `FeatureTyping` was captured, and the requirement, concern and constraint usages
+captured neither, unlike every other usage kind built via `BuildUsageNode`.
+`ExtractSpecialization` is the shared helper returning a `FeatureSpecialization`
+(`Typing`, `Multiplicity`) used by every usage builder outside
+`BuildUsageNode`: the action, state, requirement, concern, constraint (including the
+require/assume constraint members) and case-kind (`case`, `analysis`, `verification`, `use case`)
+and `calc` usage builders, so a `requirement r : R;` keeps `R` as its `FeatureTyping` and the
+resolver records the `Typing` edge that the General view draws as a `r : R` label and a
+feature-typing edge (#113). Redefinition and subsetting clauses of these usages are deliberately
+not captured: resolving them needs the implicit specialization of actions, states and
+requirements (#93), and capturing them now would only add unresolved-reference warnings for valid
+models. The case-kind and `calc` usage builders (`BuildCaseUsageNode`,
+`VisitCalculationUsage`) mirror the definition-side builders: they capture the name, the
+typing and multiplicity and (for the case kinds) the nested verified-requirement names, but do not
+collect the body's other members. Before this change those usages produced no node at all.
+The state-usage typing is also a prerequisite for `StateTransitionViewLayoutStrategy`'s expose-scoping root selection
 (which resolves an exposed usage's type via its `Typing` edge) and for
 `ReferenceResolver.TryResolveInheritedActionMember` (below) to find the enclosing usage's
 supertype when its source has no explicit `state usage : Type { ... }` form.

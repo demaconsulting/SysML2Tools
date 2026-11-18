@@ -771,15 +771,15 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         var declaration = context.actionUsageDeclaration();
-        var specializationPart = declaration?.usageDeclaration()?.featureSpecializationPart();
+        var specialization = ExtractSpecialization(declaration?.usageDeclaration()?.featureSpecializationPart());
         return ApplyFeatureNotation(
             new SysmlFeatureNode
             {
                 Name = name,
                 QualifiedName = QualifyName(name),
                 FeatureKeyword = "action",
-                FeatureTyping = ExtractFeatureTyping(specializationPart),
-                Multiplicity = ExtractMultiplicity(specializationPart),
+                FeatureTyping = specialization.Typing,
+                Multiplicity = specialization.Multiplicity,
             },
             declaration?.usageDeclaration(),
             declaration?.valuePart());
@@ -1233,6 +1233,94 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <inheritdoc/>
+    public override SysmlNode? VisitCaseUsage(SysMLv2Parser.CaseUsageContext context)
+    {
+        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "case", context.caseBody());
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAnalysisCaseUsage(SysMLv2Parser.AnalysisCaseUsageContext context)
+    {
+        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "analysis", context.caseBody());
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitVerificationCaseUsage(SysMLv2Parser.VerificationCaseUsageContext context)
+    {
+        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "verification", context.caseBody());
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitUseCaseUsage(SysMLv2Parser.UseCaseUsageContext context)
+    {
+        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "use case", null);
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitCalculationUsage(SysMLv2Parser.CalculationUsageContext context)
+    {
+        var declaration = context.actionUsageDeclaration();
+        var name = GetDeclaredName(declaration?.usageDeclaration()?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var specialization = ExtractSpecialization(declaration?.usageDeclaration()?.featureSpecializationPart());
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = QualifyName(name),
+                FeatureKeyword = "calc",
+                FeatureTyping = specialization.Typing,
+                Multiplicity = specialization.Multiplicity,
+            },
+            declaration?.usageDeclaration(),
+            declaration?.valuePart());
+    }
+
+    /// <summary>
+    ///     Builds the <see cref="SysmlFeatureNode"/> of a <c>case</c>/<c>analysis</c>/<c>verification</c>/
+    ///     <c>use case</c> usage (grammar shape <c>occurrenceUsagePrefix KEYWORD
+    ///     constraintUsageDeclaration caseBody</c>), capturing its declared name, feature typing and
+    ///     multiplicity, and (when a body is supplied) its nested
+    ///     verified-requirement names. Mirrors the definition-side builders, which do not collect the
+    ///     case body's other members; an unnamed usage yields no node, like the other usage builders.
+    /// </summary>
+    /// <param name="declaration">The usage's declaration, or null when it has none.</param>
+    /// <param name="keyword">The feature keyword (e.g. <c>"analysis"</c>).</param>
+    /// <param name="body">The case body to scan for <c>verify</c> members, or null to skip the scan.</param>
+    private SysmlFeatureNode? BuildCaseUsageNode(
+        SysMLv2Parser.ConstraintUsageDeclarationContext? declaration,
+        string keyword,
+        Antlr4.Runtime.Tree.IParseTree? body)
+    {
+        var decl = declaration?.usageDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var specialization = ExtractSpecialization(decl?.featureSpecializationPart());
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = QualifyName(name),
+                FeatureKeyword = keyword,
+                FeatureTyping = specialization.Typing,
+                Multiplicity = specialization.Multiplicity,
+                VerifiedRequirementNames = body is not null
+                    ? FindVerificationMembers(body)
+                    : Array.Empty<string>(),
+            },
+            decl,
+            declaration?.valuePart());
+    }
+
+    /// <inheritdoc/>
     public override SysmlNode? VisitPartUsage(SysMLv2Parser.PartUsageContext context)
     {
         return BuildUsageNode(context.usage(), "part");
@@ -1466,12 +1554,17 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ? FindVerificationMembers(body)
             : Array.Empty<string>();
 
+        var specialization = ExtractSpecialization(
+            context.constraintUsageDeclaration()?.usageDeclaration()?.featureSpecializationPart());
+
         return ApplyFeatureNotation(
             new SysmlFeatureNode
             {
                 Name = name,
                 QualifiedName = name is not null ? QualifyName(name) : null,
                 FeatureKeyword = "requirement",
+                FeatureTyping = specialization.Typing,
+                Multiplicity = specialization.Multiplicity,
                 VerifiedRequirementNames = verifiedRequirementNames,
                 Children = children,
                 Annotations = annotations,
@@ -1505,12 +1598,17 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ? FindVerificationMembers(body)
             : Array.Empty<string>();
 
+        var specialization = ExtractSpecialization(
+            context.constraintUsageDeclaration()?.usageDeclaration()?.featureSpecializationPart());
+
         return ApplyFeatureNotation(
             new SysmlFeatureNode
             {
                 Name = name,
                 QualifiedName = name is not null ? QualifyName(name) : null,
                 FeatureKeyword = "concern",
+                FeatureTyping = specialization.Typing,
+                Multiplicity = specialization.Multiplicity,
                 VerifiedRequirementNames = verifiedRequirementNames,
                 Children = children,
                 Annotations = annotations,
@@ -1594,6 +1692,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         var name = GetDeclaredName(usage.constraintUsageDeclaration()?.usageDeclaration()?.identification());
         var expressionText = usage.calculationBody()?.GetText();
+        var specialization = ExtractSpecialization(
+            usage.constraintUsageDeclaration()?.usageDeclaration()?.featureSpecializationPart());
 
         return ApplyFeatureNotation(
             new SysmlFeatureNode
@@ -1601,6 +1701,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 Name = name,
                 QualifiedName = name is not null ? QualifyName(name) : null,
                 FeatureKeyword = keyword,
+                FeatureTyping = specialization.Typing,
+                Multiplicity = specialization.Multiplicity,
                 ExpressionText = expressionText,
             },
             usage.constraintUsageDeclaration()?.usageDeclaration(),
@@ -1617,6 +1719,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         // the raw calculationBody expression text.
         var name = GetDeclaredName(context.constraintUsageDeclaration()?.usageDeclaration()?.identification());
         var expressionText = context.calculationBody()?.GetText();
+        var specialization = ExtractSpecialization(
+            context.constraintUsageDeclaration()?.usageDeclaration()?.featureSpecializationPart());
 
         return ApplyFeatureNotation(
             new SysmlFeatureNode
@@ -1624,6 +1728,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 Name = name,
                 QualifiedName = name is not null ? QualifyName(name) : null,
                 FeatureKeyword = "constraint",
+                FeatureTyping = specialization.Typing,
+                Multiplicity = specialization.Multiplicity,
                 ExpressionText = expressionText,
             },
             context.constraintUsageDeclaration()?.usageDeclaration(),
@@ -1735,7 +1841,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         // Typing edge was ever recorded for state usages. This is necessary so
         // ReferenceResolver's inherited-pseudostate-feature fallback (start/done) can walk from
         // this usage to its state def and on to Actions::Action via the Supertype chain.
-        var typing = ExtractFeatureTyping(decl?.featureSpecializationPart());
+        var specialization = ExtractSpecialization(decl?.featureSpecializationPart());
 
         // Collect the state body (nested state usages and transitions) as children, mirroring
         // VisitStateDefinition. Anonymous ("state x;") usages have no body items to collect.
@@ -1749,7 +1855,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 Name = name,
                 QualifiedName = QualifyName(name),
                 FeatureKeyword = "state",
-                FeatureTyping = typing,
+                FeatureTyping = specialization.Typing,
+                Multiplicity = specialization.Multiplicity,
                 Children = children,
                 Annotations = annotations,
                 IsParallel = context.stateUsageBody()?.PARALLEL() is not null,
@@ -2137,6 +2244,28 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         return ApplyFeatureNotation(node, decl, usage.usageCompletion()?.valuePart());
     }
+
+    /// <summary>
+    ///     The feature-specialization data (<c>:</c> typing and multiplicity) captured from a usage
+    ///     declaration.
+    /// </summary>
+    /// <param name="Typing">The first feature-typing reference, or null when untyped.</param>
+    /// <param name="Multiplicity">The multiplicity text, or null.</param>
+    private readonly record struct FeatureSpecialization(string? Typing, string? Multiplicity);
+
+    /// <summary>
+    ///     Extracts the <see cref="FeatureSpecialization"/> of a usage declaration's
+    ///     <c>featureSpecializationPart</c>. Shared by every usage builder that produces a
+    ///     <see cref="SysmlFeatureNode"/> outside <see cref="BuildUsageNode"/> (requirement, concern,
+    ///     constraint, action, state, and the case-kind usages), so each keeps the feature typing and
+    ///     multiplicity that a generic usage keeps. Redefinition and subsetting clauses are
+    ///     deliberately not captured here: resolving them needs the implicit specialization of
+    ///     actions, states and requirements that is not modeled (#93), so capturing them would only
+    ///     add unresolved-reference warnings for valid models.
+    /// </summary>
+    private static FeatureSpecialization ExtractSpecialization(
+        SysMLv2Parser.FeatureSpecializationPartContext? fsp) =>
+        new(ExtractFeatureTyping(fsp), ExtractMultiplicity(fsp));
 
     /// <summary>
     ///     Shared notation-data enrichment applied by every builder that produces a
