@@ -59,7 +59,8 @@ sections:
         title: >-
           When a view declares a render target of asTreeDiagram, asInterconnectionDiagram,
           asGeneralDiagram, asStateTransitionDiagram, asActionFlowDiagram, asSequenceDiagram, or
-          asGridDiagram (optionally qualified as Views::<name>), DiagramTypeRouter shall select the
+          asGridDiagram (the standard asTreeDiagram and asInterconnectionDiagram optionally qualified as
+          Views::<name>), DiagramTypeRouter shall select the
           corresponding layout strategy, taking precedence over its view definition and the
           name/supertype heuristic.
         justification: |

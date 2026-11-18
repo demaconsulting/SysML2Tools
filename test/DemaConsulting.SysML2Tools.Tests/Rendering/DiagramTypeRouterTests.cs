@@ -382,8 +382,11 @@ public sealed class DiagramTypeRouterTests
     }
 
     /// <summary>
-    /// A <c>Views::</c>-qualified render target — the form SysML v2.0 requires, since the
-    /// <c>Views</c> package is not implicitly imported — selects the same strategy as its bare name.
+    /// A <c>Views::</c>-qualified render target selects the same strategy as its bare name. Only
+    /// <c>asTreeDiagram</c> and <c>asInterconnectionDiagram</c> are members of the standard <c>Views</c>
+    /// package (the form SysML v2.0 requires, since <c>Views</c> is not implicitly imported); the other
+    /// cases verify the router's tolerance of the tool-extension tokens, which are not valid SysML when
+    /// qualified.
     /// </summary>
     /// <param name="renderTarget">The qualified render target text.</param>
     /// <param name="expected">The expected strategy type.</param>

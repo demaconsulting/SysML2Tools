@@ -217,7 +217,7 @@ sysml2tools render model.sysml --view-type general --view-target Pkg::Vehicle --
 
 - `--view-type <kind>` — one of `general`, `interconnection`, `state`, `action`, `sequence`,
   `grid`, `browser`. Selects the same layout strategy `DiagramTypeRouter` would select for a
-  declared view's `render Views::asGeneralDiagram;`/`Views::asInterconnectionDiagram;`/etc. member — see
+  declared view's `render` member (for example `render Views::asInterconnectionDiagram;`) — see
   "View Body Statements" below.
 - `--view-target <qualified-name>` — the element to render. Must resolve in the workspace, must
   not be a standard-library element, and must not be a `view`/`viewpoint`/`import`/`metadata`/
@@ -279,14 +279,16 @@ it then inherits that definition's diagram type, its `render` member, and its `f
 The diagram type is chosen in this order:
 
 1. The view's own `render` member: `render Views::asTreeDiagram;` (browser) or
-   `render Views::asInterconnectionDiagram;`, plus the tool-defined `asGeneralDiagram`,
-   `asStateTransitionDiagram`, `asActionFlowDiagram`, `asSequenceDiagram`, and `asGridDiagram`.
-   SysML v2.0 does not implicitly import the `Views` package, so write the target qualified
+   `render Views::asInterconnectionDiagram;`. Only these two are members of the standard SysML v2
+   `Views` package, which SysML v2.0 does not implicitly import, so write the target qualified
    (`render Views::asTreeDiagram;`) or add `private import Views::*;` and use the bare name; both
    select the same diagram (a bare name without an import is still tolerated, although the OMG
-   Pilot Implementation rejects it as an unresolved reference). `asElementTable` and
-   `asTextualNotation` have no
-   matching diagram and are ignored.
+   Pilot Implementation rejects it as an unresolved reference). SysML2Tools additionally recognizes
+   the raw names `asGeneralDiagram`, `asStateTransitionDiagram`, `asActionFlowDiagram`,
+   `asSequenceDiagram`, and `asGridDiagram` as a tool extension: they are not `Views` members,
+   must not be qualified with `Views::`, and a model that uses them does not validate with the OMG
+   Pilot Implementation. `asElementTable` and `asTextualNotation` have no matching diagram and
+   are ignored.
 2. The view's view definition, nearest first: a definition's `render` member, or a standard view
    definition.
 3. Otherwise, a tool-defined fallback that looks for `Interconnection`, `StateTransition`/`State`,
@@ -531,11 +533,13 @@ entire workspace:
   whether the entry's own form was otherwise non-recursive), with a diagnostic identifying the
   failed expression and reason.
 - `render <target>;` — per the SysML v2 grammar, this names a rendering style/format (e.g.
-  `asTreeDiagram`, `asElementTable`). `render Views::asTreeDiagram;`, `render
-  Views::asInterconnectionDiagram;`, `render Views::asGeneralDiagram;`,
-  `render Views::asStateTransitionDiagram;`, `render Views::asActionFlowDiagram;`,
-  `render Views::asSequenceDiagram;`, and `render Views::asGridDiagram;` (or the bare names after
-  `private import Views::*;`) now
+  `asTreeDiagram`, `asElementTable`). `render Views::asTreeDiagram;` and
+  `render Views::asInterconnectionDiagram;` (the two standard `Views` members; or the bare names after
+  `private import Views::*;`) select the Browser and Interconnection strategies. SysML2Tools also
+  recognizes `render asGeneralDiagram;`, `render asStateTransitionDiagram;`,
+  `render asActionFlowDiagram;`, `render asSequenceDiagram;`, and `render asGridDiagram;` as a tool
+  extension (raw names, not `Views` members; models using them do not validate with the OMG Pilot
+  Implementation). All seven tokens
   each select their corresponding layout strategy, taking precedence over the name/supertype
   heuristic `DiagramTypeRouter` otherwise applies (the same tokens the `--view-type` dynamic-view
   flag maps to — see "Dynamic (Ad-Hoc) Views" above). Every other rendering-style name
