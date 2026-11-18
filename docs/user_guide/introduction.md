@@ -1077,7 +1077,7 @@ the same order, so either format can be relied on for automated comparisons.
 | `--include-stdlib` | Include OMG standard library elements in results |
 | `--depth <#>` | Markdown heading depth (1-6, default: 1); Markdown output only, no effect on `--format json` |
 | `--heading <text>` | Replaces default `# query <verb>[: <element>]`; Markdown only, no effect on JSON |
-| `--strict-unresolved` | Report unresolved references as errors, not warnings (exit code 1 if any) |
+| `--strict-unresolved` | Report unresolved references as errors instead of warnings (exit code 1 when present) |
 
 # Exporting
 
@@ -1115,7 +1115,7 @@ sysml2tools export "src/**/*.sysml" --target Vehicle::Engine --filter "@Deprecat
 | `--include-stdlib` | Include OMG stdlib decls/edges (excluded by default); diagnostics are never stdlib-filtered |
 | `--target <qualified-name>` | Restrict output to the containment subtree rooted at this element |
 | `--filter <expr>` | Narrow output using a Phase 1 filter expression |
-| `--strict-unresolved` | Export unresolved references as errors (`Severity` 2), not warnings (1); exit code is 0 |
+| `--strict-unresolved` | Report unresolved references as errors (`Severity` 2 in the JSON; exit code unaffected) |
 
 ## Target Scoping and Filter Narrowing
 

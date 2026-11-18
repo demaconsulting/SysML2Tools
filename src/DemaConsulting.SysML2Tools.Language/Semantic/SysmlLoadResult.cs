@@ -9,13 +9,13 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 ///     Result of loading a SysML/KerML workspace including semantic analysis.
 /// </summary>
 /// <param name="Workspace">
-///     The semantic workspace. Always non-null when returned by <see cref="WorkspaceLoader.LoadAsync"/>;
+///     The semantic workspace. Always non-null when returned by <see cref="WorkspaceLoader.LoadAsync(IEnumerable{string}, Model.SymbolTable?)"/>;
 ///     see the property's <c>remarks</c> below for details.
 /// </param>
 /// <param name="Diagnostics">All diagnostics (parse errors, semantic warnings; unresolved-reference errors under strict mode) from the load operation.</param>
 /// <remarks>
 ///     <see cref="Workspace"/> is non-null for every result returned by
-///     <see cref="WorkspaceLoader.LoadAsync"/> today — even a workspace containing only parse
+///     <see cref="WorkspaceLoader.LoadAsync(IEnumerable{string}, Model.SymbolTable?)"/> today — even a workspace containing only parse
 ///     errors still returns a (possibly empty) <see cref="SysmlWorkspace"/>. Check
 ///     <see cref="HasErrors"/> (or filter <see cref="Diagnostics"/> by <c>Severity</c>) to detect
 ///     problems; do not rely on <c>Workspace is null</c> as an error signal.

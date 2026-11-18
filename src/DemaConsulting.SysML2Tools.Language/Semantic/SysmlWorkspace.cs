@@ -14,7 +14,7 @@ public sealed class SysmlWorkspace
     ///     Initializes a new, empty <see cref="SysmlWorkspace"/>.
     /// </summary>
     /// <remarks>
-    ///     In normal usage, prefer <see cref="WorkspaceLoader.LoadAsync"/>, which constructs and
+    ///     In normal usage, prefer <see cref="WorkspaceLoader.LoadAsync(IEnumerable{string}, Model.SymbolTable?)"/>, which constructs and
     ///     populates a workspace from source files.
     /// </remarks>
     public SysmlWorkspace()

@@ -11,7 +11,7 @@ namespace DemaConsulting.SysML2Tools.Stdlib;
 /// pre-compiling the embedded KerML/SysML standard library at build time (see
 /// <c>StdlibGen</c>), so it is available on first call without re-parsing the library source.
 /// The returned symbol table is the required seed for
-/// <see cref="Semantic.WorkspaceLoader.LoadAsync"/> — without it, user models that reference
+/// <see cref="Semantic.WorkspaceLoader.LoadAsync(IEnumerable{string}, Semantic.Model.SymbolTable?)"/> — without it, user models that reference
 /// standard-library types (e.g. <c>ScalarValues::Real</c>, <c>Base::Anything</c>) fail to
 /// resolve.
 /// </remarks>

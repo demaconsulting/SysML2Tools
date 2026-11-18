@@ -406,6 +406,7 @@ internal static class ExportCommand
         context.WriteLine(ExportStrings.Export_OptionTarget2);
         context.WriteLine(ExportStrings.Export_OptionFilter1);
         context.WriteLine(ExportStrings.Export_OptionFilter2);
-        context.WriteLine(ExportStrings.Export_OptionStrictUnresolved);
+        context.WriteLine(ExportStrings.Export_OptionStrictUnresolved1);
+        context.WriteLine(ExportStrings.Export_OptionStrictUnresolved2);
     }
 }

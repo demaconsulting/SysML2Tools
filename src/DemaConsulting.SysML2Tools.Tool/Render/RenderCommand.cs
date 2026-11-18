@@ -343,7 +343,8 @@ internal static class RenderCommand
         context.WriteLine(RenderStrings.Render_OptionViewTarget);
         context.WriteLine(RenderStrings.Render_OptionFilter);
         context.WriteLine(RenderStrings.Render_OptionWalkDepth);
-        context.WriteLine(RenderStrings.Render_OptionStrictUnresolved);
+        context.WriteLine(RenderStrings.Render_OptionStrictUnresolved1);
+        context.WriteLine(RenderStrings.Render_OptionStrictUnresolved2);
         context.WriteLine("");
     }
 }

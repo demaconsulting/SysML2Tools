@@ -13,7 +13,18 @@ call to `LoadAsync` creates an independent `SymbolTable`.
 
 #### Key Methods
 
-##### `LoadAsync(IEnumerable<string> filePaths, SymbolTable? seedSymbolTable = null, bool strictUnresolved = false)`
+##### `LoadAsync(IEnumerable<string> filePaths, SymbolTable? seedSymbolTable = null)`
+
+The original public signature, retained so that consumers compiled against earlier releases remain
+binary compatible (adding an optional parameter to an existing public method would change its
+metadata signature and cause `MissingMethodException` for those consumers). It is a non-async
+forwarder equivalent to
+`LoadAsync(filePaths, seedSymbolTable, strictUnresolved: false)`, so unresolved references are
+reported as Warnings. The `strictUnresolved` parameter of the three-parameter overload has no
+default so that the two overloads never overlap and `LoadAsync(files)` and
+`LoadAsync(files, seed)` bind unambiguously to this overload.
+
+##### `LoadAsync(IEnumerable<string> filePaths, SymbolTable? seedSymbolTable, bool strictUnresolved)`
 
 1. Creates a `SymbolTable` seeded from `seedSymbolTable` via the copy constructor
    `new SymbolTable(seedSymbolTable.Symbols)` when a seed is provided, or creates an

@@ -74,6 +74,9 @@ internal static class ExportStrings
     /// <summary>Gets the second line of the --filter option description.</summary>
     public static string Export_OptionFilter2 => ResourceManager.GetString(nameof(Export_OptionFilter2))!;
 
-    /// <summary>Gets the --strict-unresolved option line.</summary>
-    public static string Export_OptionStrictUnresolved => ResourceManager.GetString(nameof(Export_OptionStrictUnresolved))!;
+    /// <summary>Gets the first line of the --strict-unresolved option description.</summary>
+    public static string Export_OptionStrictUnresolved1 => ResourceManager.GetString(nameof(Export_OptionStrictUnresolved1))!;
+
+    /// <summary>Gets the second line of the --strict-unresolved option description.</summary>
+    public static string Export_OptionStrictUnresolved2 => ResourceManager.GetString(nameof(Export_OptionStrictUnresolved2))!;
 }

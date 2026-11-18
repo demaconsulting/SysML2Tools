@@ -1,6 +1,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
+using System.Reflection;
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
@@ -1803,7 +1804,7 @@ public sealed class WorkspaceLoaderTests
     ///     The same out-of-order ancestor-chain shape as
     ///     <see cref="WorkspaceLoader_LoadAsync_OutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning"/>,
     ///     but split across two files, with the file containing the redefining feature listed
-    ///     <em>before</em> the file containing its ancestors in <see cref="WorkspaceLoader.LoadAsync"/>'s
+    ///     <em>before</em> the file containing its ancestors in <see cref="WorkspaceLoader.LoadAsync(IEnumerable{string}, SymbolTable?)"/>'s
     ///     file-path array — exercising the cross-file variant of the same document-order hazard,
     ///     since pass 1 iterates file roots in call order.
     /// </summary>
@@ -1997,7 +1998,7 @@ public sealed class WorkspaceLoaderTests
 
     /// <summary>
     ///     An import referencing a nonexistent namespace should produce a Warning diagnostic and
-    ///     must not crash <see cref="WorkspaceLoader.LoadAsync"/>.
+    ///     must not crash <see cref="WorkspaceLoader.LoadAsync(IEnumerable{string}, SymbolTable?)"/>.
     /// </summary>
     [Fact]
     public async Task WorkspaceLoader_LoadAsync_UnresolvedImport_ProducesWarningNoCrash()
@@ -8200,6 +8201,87 @@ public sealed class WorkspaceLoaderTests
                 ("shutdown", 26, 43),
             ],
             reported);
+    }
+
+    /// <summary>
+    ///     Binary-compatibility tripwire: the original public two-parameter overload
+    ///     <c>LoadAsync(IEnumerable&lt;string&gt;, SymbolTable? = null)</c> must remain in the
+    ///     assembly metadata, so a consumer compiled against an earlier release does not throw
+    ///     <see cref="MissingMethodException"/>.
+    /// </summary>
+    [Fact]
+    public void WorkspaceLoader_LoadAsync_OriginalTwoParameterSignature_RemainsPublic()
+    {
+        // Arrange / Act
+        var method = typeof(WorkspaceLoader).GetMethod(
+            nameof(WorkspaceLoader.LoadAsync),
+            BindingFlags.Public | BindingFlags.Static,
+            null,
+            [typeof(IEnumerable<string>), typeof(SymbolTable)],
+            null);
+
+        // Assert
+        Assert.NotNull(method);
+        Assert.Equal(typeof(Task<SysmlLoadResult>), method.ReturnType);
+        var seedParameter = method.GetParameters()[1];
+        Assert.True(seedParameter.IsOptional);
+        Assert.True(seedParameter.HasDefaultValue);
+        Assert.Null(seedParameter.DefaultValue);
+    }
+
+    /// <summary>
+    ///     The original two-parameter overload, invoked through its exact metadata signature, behaves as
+    ///     the three-parameter overload with <c>strictUnresolved: false</c>: an unresolved reference is
+    ///     a Warning, not an Error. The shorter call forms still bind without ambiguity.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_OriginalTwoParameterOverload_ReportsUnresolvedAsWarning()
+    {
+        // Arrange
+        var method = typeof(WorkspaceLoader).GetMethod(
+            nameof(WorkspaceLoader.LoadAsync),
+            BindingFlags.Public | BindingFlags.Static,
+            null,
+            [typeof(IEnumerable<string>), typeof(SymbolTable)],
+            null);
+        Assert.NotNull(method);
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(
+                tempFile,
+                "package P { part def A :> MissingBase; }",
+                TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+
+            // Act
+            var reflected = await (Task<SysmlLoadResult>)method.Invoke(null, [new[] { tempFile }, stdlibTable])!;
+            var oneArgument = await WorkspaceLoader.LoadAsync([tempFile]);
+            var twoArguments = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            var threeArguments = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable, strictUnresolved: false);
+
+            // Assert
+            static List<(string Message, DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity Severity)> Unresolved(
+                SysmlLoadResult result) =>
+                result.Diagnostics
+                    .Where(d => d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal))
+                    .Select(d => (d.Message, d.Severity))
+                    .ToList();
+
+            var expected = Unresolved(threeArguments);
+            Assert.NotEmpty(expected);
+            Assert.All(
+                expected,
+                d => Assert.Equal(DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning, d.Severity));
+            Assert.Equal(expected, Unresolved(reflected));
+            Assert.Equal(expected, Unresolved(twoArguments));
+            Assert.NotEmpty(Unresolved(oneArgument));
+            Assert.False(reflected.HasErrors);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 }
 

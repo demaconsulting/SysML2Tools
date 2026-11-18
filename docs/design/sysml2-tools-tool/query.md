@@ -127,8 +127,10 @@ flowchart TD
 - `--strict-unresolved` is a Tool-only boolean flag, extracted by `QueryCliArgumentParser` and stored
   on `Context.QueryStrictUnresolved`; Core's public `QueryArgumentParser` and `QueryOptions` are
   unchanged and unaware of it, because it controls workspace loading, not query semantics.
-- `PrintGeneralHelp` writes `Query_GeneralOptionStrictUnresolved` after the `--output` lines, and
-  every `PrintVerbHelp` arm writes the same key after its `--output` line, so every `query` help
+- `PrintGeneralHelp` writes `Query_GeneralOptionStrictUnresolved1` and
+  `Query_GeneralOptionStrictUnresolved2` (the second line states exit code 1 for models that have
+  unresolved references) after the `--output` lines, and
+  every `PrintVerbHelp` arm writes the same two keys after its `--output` line, so every `query` help
   screen lists the flag.
 
 #### Output File Option

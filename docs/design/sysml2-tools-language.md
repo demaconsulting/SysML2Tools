@@ -76,7 +76,9 @@ seeded with a pre-populated `SymbolTable` (e.g., the pre-compiled stdlib).
 
 - *Type*: In-process .NET static async method.
 - *Role*: Provider.
-- *Contract*: Accepts `IEnumerable<string> filePaths` and an optional `SymbolTable? seedSymbolTable`;
+- *Contract*: Accepts `IEnumerable<string> filePaths` and an optional `SymbolTable? seedSymbolTable`
+  (an overload additionally accepts a `bool strictUnresolved`; the two-parameter overload is kept for
+  binary compatibility and reports unresolved references as Warnings);
   returns `Task<SysmlLoadResult>`. When `seedSymbolTable` is provided, the workspace is initialized
   with a copy of its symbols before parsing user files. User files are parsed in parallel on the
   thread pool. Reference resolution and supertype walking run on user file AST roots only.

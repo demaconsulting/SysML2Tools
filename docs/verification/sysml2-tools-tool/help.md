@@ -42,6 +42,10 @@ run against the tool's target framework.
   `help query <verb>` for every one of the 12 verbs each list the `--strict-unresolved` option
   and exit with code 0; `help lint` states that unresolved references are warnings by default,
   describes the strict option, and no longer claims that lint accepts no flags.
+- Each command's `--strict-unresolved` help describes that command's own behavior: `help lint`,
+  `help render`, `help query`, and every `help query <verb>` state "(exit code 1 for models that
+  have any)"; `export --help` states "(Severity 2 in the JSON diagnostics; exit code unaffected)"
+  and does not claim exit code 1; the top-level help still lists the flag and all four commands.
 - Existing `-h`/`-?`/`--help` regression tests (`ProgramTests.cs`) continue to pass
   unmodified, confirming no regression in the pre-existing global-flag behavior.
 - `HelpArgumentParser.Parse` in isolation: no arguments → both fields null; `lint`/`render`/
@@ -125,6 +129,14 @@ the 12 verbs contains `--strict-unresolved` and the run exits with code 0. Satis
 usage line `Usage: sysml2tools lint [--strict-unresolved] <files...>`, states that unresolved
 references are warnings, mentions a non-zero exit and the strict option, and does not contain
 the former "accepts no flags of its own" text. Satisfies
+`SysML2Tools-Tool-Help-StrictUnresolvedDocumented`.
+
+**`HelpSubsystem_StrictUnresolved_WordingIsAccuratePerCommand`**: `help lint`, `help render`,
+`help query`, and `help query <verb>` for each of the 12 verbs all contain "Report unresolved
+references as errors instead of warnings" and "(exit code 1 for models that have any)";
+`export --help` contains the same first line plus "Severity 2 in the JSON diagnostics" and "exit
+code unaffected", does not contain the exit-code-1 line, and exits with code 0; the top-level
+`help` still contains `--strict-unresolved` and "lint, render, query, export". Satisfies
 `SysML2Tools-Tool-Help-StrictUnresolvedDocumented`.
 
 #### Regression tests (existing files, updated)

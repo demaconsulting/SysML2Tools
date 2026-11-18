@@ -107,7 +107,9 @@ Entry point for the render command. Steps:
 
 **`PrintHelp(Context context)`**: Prints `render`'s usage line and its nine flags (`--output`,
 `--format`, `--view`, `--auto`, `--view-type`, `--view-target`, `--filter`, `--walk-depth`,
-`--strict-unresolved`).
+`--strict-unresolved`; the last is a two-line description sourced from
+`Render_OptionStrictUnresolved1`/`Render_OptionStrictUnresolved2`, whose second line states the
+exit code 1 for models that have unresolved references).
 This is the single source of truth for both `render --help`
 (dispatched from `Program.RunAsync`'s command-aware help block) and `help render` (dispatched
 from `Help.HelpCommand.Run`); neither entry point duplicates the help text. Every line printed

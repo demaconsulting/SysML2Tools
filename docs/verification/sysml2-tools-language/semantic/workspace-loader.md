@@ -36,6 +36,11 @@ external services, network access, or additional configuration are required beyo
   circular import or cyclic specialization stays a Warning with `strictUnresolved` either way.
 - A user package named like a standard-library package (`Parts`) contributes members that are
   not in `SysmlWorkspace.StdlibNames`, which holds exactly the embedded seed's qualified names.
+- The original public two-parameter overload `LoadAsync(IEnumerable<string>, SymbolTable? = null)`
+  remains in the assembly metadata (public, static, returning `Task<SysmlLoadResult>`, with an
+  optional second parameter defaulting to `null`), so consumers compiled against earlier
+  releases keep working, and it reports an unresolved reference as a Warning exactly as the
+  three-parameter overload does with `strictUnresolved: false`.
 
 #### Test Scenarios
 
@@ -57,6 +62,16 @@ external services, network access, or additional configuration are required beyo
 | `WorkspaceLoader_DefaultUnresolvedSeverity_IsWarning` | — | Default severity constant is Warning |
 | `WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings` | — | Stay Warnings |
 | `WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics` | — | Seeded stdlib adds no diagnostics |
+
+Binary compatibility of the public API is verified by two further tests (listed outside the table because
+of their long names):
+
+- `WorkspaceLoader_LoadAsync_OriginalTwoParameterSignature_RemainsPublic` — a reflection tripwire
+  asserting that the original public static two-parameter overload exists, returns
+  `Task<SysmlLoadResult>`, and has an optional second parameter defaulting to `null`.
+- `WorkspaceLoader_LoadAsync_OriginalTwoParameterOverload_ReportsUnresolvedAsWarning` — invokes that
+  overload through its reflected metadata signature and by direct one- and two-argument calls, and
+  asserts that an unresolved reference is a Warning, identical to `strictUnresolved: false`.
 
 #### Level 10 Gate
 

@@ -16,7 +16,7 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 /// <para>
 /// Real-world SysML v2 models almost universally reference standard-library types (e.g.
 /// <c>ScalarValues::Real</c>, <c>Base::Anything</c>) for primitive attribute types and common
-/// base definitions. <see cref="WorkspaceLoader.LoadAsync"/> should be seeded with
+/// base definitions. <see cref="WorkspaceLoader.LoadAsync(IEnumerable{string}, Model.SymbolTable?)"/> should be seeded with
 /// <c>StdlibProvider.GetSymbolTable()</c> (the Stdlib project's <c>StdlibProvider</c> class) for
 /// any model exercising these; without the seed, such references resolve to unresolved-reference
 /// Warning diagnostics rather than a loaded declaration. Omitting the seed is only appropriate

@@ -105,9 +105,8 @@ sysml2tools lint --strict-unresolved "src/**/*.sysml"
 
 Exit code is non-zero if any errors are present, making it suitable for CI/CD pipelines. Syntax
 errors always are errors. Unresolved references (a name that cannot be resolved) are warnings by default,
-so they do not change the exit code; with `--strict-unresolved` they are errors and the exit code is
-
-1. Circular imports and SysML2Tools-specific `render` selectors (`asGeneralDiagram`,
+so they do not change the exit code; with `--strict-unresolved` they are errors and the command
+exits with code 1. Circular imports and SysML2Tools-specific `render` selectors (`asGeneralDiagram`,
 `asStateTransitionDiagram`, `asActionFlowDiagram`, `asSequenceDiagram`, `asGridDiagram`) are always
 warnings. Diagnostics from the embedded standard library are never reported.
 
@@ -267,7 +266,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | Option | Description |
 | --- | --- |
 | `<globs>` | One or more glob patterns for `.sysml` input files |
-| `--strict-unresolved` | Report unresolved references as errors, not warnings (exit code 1 if any) |
+| `--strict-unresolved` | Report unresolved references as errors instead of warnings (exit code 1 when present) |
 
 ### `render` Options
 
@@ -282,7 +281,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--view-target <name>` | Qualified name of the dynamic view's target element; requires `--view-type` |
 | `--filter <expr>` | Bracket-filter expression narrowing a dynamic view's rendered scope (requires `--view-type`) |
 | `--walk-depth <#>` | Limit rendered nesting depth; truncated parts show `…` |
-| `--strict-unresolved` | Report unresolved references as errors, not warnings (exit code 1 if any) |
+| `--strict-unresolved` | Report unresolved references as errors instead of warnings (exit code 1 when present) |
 
 `--view-type` and `--view-target` must be specified together, and are mutually exclusive with
 `--view`/`--auto`; `--filter` is only valid alongside `--view-type`/`--view-target`.
@@ -304,7 +303,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--include-stdlib` | Include OMG standard library elements in results |
 | `--depth <#>` | Markdown heading depth (1-6, default: 1); Markdown output only, no effect on `--format json` |
 | `--heading <text>` | Replaces default `# query <verb>[: <element>]`; Markdown only, no effect on JSON |
-| `--strict-unresolved` | Report unresolved references as errors, not warnings (exit code 1 if any) |
+| `--strict-unresolved` | Report unresolved references as errors instead of warnings (exit code 1 when present) |
 
 ### `export` Options
 
@@ -316,7 +315,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--include-stdlib` | Include OMG standard library declarations/edges (diagnostics are never stdlib-filtered) |
 | `--target <qualified-name>` | Restrict output to the containment subtree rooted at this element (before `--filter`) |
 | `--filter <expr>` | Narrow output using a Phase 1 filter expression (see `render`'s `--filter`); after `--target` |
-| `--strict-unresolved` | Export unresolved references as errors (`Severity` 2), not warnings (1); exit code is 0 |
+| `--strict-unresolved` | Report unresolved references as errors (`Severity` 2 in the JSON; exit code unaffected) |
 
 ### `help` Options
 

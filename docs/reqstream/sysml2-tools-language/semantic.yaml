@@ -22,6 +22,7 @@ sections:
             children:
               - SysML2Tools-Language-Semantic-WorkspaceLoader-Load
               - SysML2Tools-Language-Semantic-WorkspaceLoader-FileError
+              - SysML2Tools-Language-Semantic-WorkspaceLoader-BinaryCompatibleLoadAsync
             tests:
               - WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace
               - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration

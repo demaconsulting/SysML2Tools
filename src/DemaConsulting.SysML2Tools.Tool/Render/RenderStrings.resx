@@ -91,7 +91,10 @@
   <data name="Render_OptionWalkDepth" xml:space="preserve">
     <value>  --walk-depth &lt;#&gt;   Limit rendered nesting depth; truncated parts show '…'</value>
   </data>
-  <data name="Render_OptionStrictUnresolved" xml:space="preserve">
+  <data name="Render_OptionStrictUnresolved1" xml:space="preserve">
     <value>  --strict-unresolved Report unresolved references as errors instead of warnings</value>
+  </data>
+  <data name="Render_OptionStrictUnresolved2" xml:space="preserve">
+    <value>                      (exit code 1 for models that have any)</value>
   </data>
 </root>

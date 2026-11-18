@@ -105,15 +105,21 @@ sections:
         title: >-
           The top-level help and the help of the lint, render, export, and query commands
           (query's general help and every verb's help) shall list the `--strict-unresolved`
-          option, and the lint help shall state that unresolved references are warnings by
-          default and describe the strict option that makes them errors.
+          option, each command's help shall describe that command's own behavior (lint, render,
+          and query: exit code 1 for models that have unresolved references; export: Severity 2
+          in the JSON diagnostics with the exit code unaffected), and the lint help shall state
+          that unresolved references are warnings by default and describe the strict option that
+          makes them errors.
         justification: |
-          Unresolved references only fail the command when the user opts in, so a user who wants
-          that behavior must be able to find the option, and a user reading the lint help must
-          learn how severities and the exit code work, from whichever help entry point they use.
+          Unresolved references only become errors when the user opts in, so a user who wants
+          that behavior must be able to find the option, and a user reading a command's help must
+          learn what the option actually does for that command (export reports the severity in its
+          JSON but, unlike lint, render, and query, does not change the exit code), from whichever
+          help entry point they use.
         tests:
           - HelpSubsystem_StrictUnresolved_IsDocumentedInEveryAffectedHelp
           - HelpSubsystem_HelpLint_DescribesWarningsAndStrictUnresolved
+          - HelpSubsystem_StrictUnresolved_WordingIsAccuratePerCommand
 
       - id: SysML2Tools-Tool-Help-Grammar
         title: >-

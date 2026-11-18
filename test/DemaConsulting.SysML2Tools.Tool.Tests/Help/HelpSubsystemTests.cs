@@ -318,4 +318,44 @@ public class HelpSubsystemTests
         Assert.Contains("Report unresolved references as errors instead of warnings", output);
         Assert.DoesNotContain("accepts no flags of its own", output);
     }
+
+    /// <summary>
+    ///     Each command's <c>--strict-unresolved</c> help describes that command's own behavior: lint,
+    ///     render, and query (general and every verb) state the exit code 1, while export states that
+    ///     the JSON diagnostics carry Severity 2 and the exit code is unaffected. The top-level help
+    ///     still lists the flag and all four commands.
+    /// </summary>
+    [Fact]
+    public async Task HelpSubsystem_StrictUnresolved_WordingIsAccuratePerCommand()
+    {
+        const string headline = "Report unresolved references as errors instead of warnings";
+        const string exitCodeOne = "(exit code 1 for models that have any)";
+
+        // lint, render and query (general and every verb) report exit code 1
+        foreach (var args in new[]
+                 {
+                     new[] { "help", "lint" },
+                     new[] { "help", "render" },
+                     new[] { "help", "query" },
+                 }.Concat(AllQueryVerbTokens.Select(verb => new[] { "help", "query", verb })))
+        {
+            var (output, _) = await RunAsync(args);
+
+            Assert.Contains(headline, output);
+            Assert.Contains(exitCodeOne, output);
+        }
+
+        // export reports Severity 2 and an unaffected exit code, not exit code 1
+        var (exportOutput, exportExitCode) = await RunAsync("export", "--help");
+        Assert.Contains(headline, exportOutput);
+        Assert.Contains("Severity 2 in the JSON diagnostics", exportOutput);
+        Assert.Contains("exit code unaffected", exportOutput);
+        Assert.DoesNotContain(exitCodeOne, exportOutput);
+        Assert.Equal(0, exportExitCode);
+
+        // the top-level help still lists the flag and all four commands
+        var (topLevelOutput, _) = await RunAsync("help");
+        Assert.Contains("--strict-unresolved", topLevelOutput);
+        Assert.Contains("lint, render, query, export", topLevelOutput);
+    }
 }

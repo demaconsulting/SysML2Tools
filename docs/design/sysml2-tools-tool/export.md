@@ -244,7 +244,10 @@ implemented directly without re-spiking.
 8. Writes to `options.Output` (file) or stdout.
 
 **`PrintHelp(Context context)`**: Prints the `export` usage line, its six options (with an
-explicit note that `--output` names a file, not a directory; the last is `--strict-unresolved`),
+explicit note that `--output` names a file, not a directory; the last is `--strict-unresolved`,
+a two-line description sourced from `Export_OptionStrictUnresolved1`/`Export_OptionStrictUnresolved2`
+whose second line states that unresolved references carry Severity 2 in the JSON diagnostics and
+that the exit code is unaffected),
 and one example invocation,
 sourced from `ExportStrings`.
 

@@ -70,8 +70,8 @@ and a library-function call are not reported, and the exit code is 0. Satisfies
 #### LintSubsystem_UnresolvedReference_ReportsWarningAndExitsZero (LintSubsystemTests.cs)
 
 Verifies that linting a model with an unresolved supertype reference writes the `warning:`
-line to the output, writes nothing containing "error" to the error stream, and sets exit code
-0. Satisfies `SysML2Tools-Tool-Lint-ExitCode` and `SysML2Tools-Tool-Lint-StrictUnresolved`.
+line to the output, writes nothing containing "error" to the error stream, and leaves the exit
+code at 0. Satisfies `SysML2Tools-Tool-Lint-ExitCode` and `SysML2Tools-Tool-Lint-StrictUnresolved`.
 
 #### LintSubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorAndExitsOne (LintSubsystemTests.cs)
 

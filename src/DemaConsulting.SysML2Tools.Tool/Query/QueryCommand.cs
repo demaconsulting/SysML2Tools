@@ -240,7 +240,8 @@ internal static class QueryCommand
         context.WriteLine(QueryStrings.Query_GeneralOptionIncludeConnections);
         context.WriteLine(QueryStrings.Query_GeneralOptionOutput1);
         context.WriteLine(QueryStrings.Query_GeneralOptionOutput2);
-        context.WriteLine(QueryStrings.Query_GeneralOptionStrictUnresolved);
+        context.WriteLine(QueryStrings.Query_GeneralOptionStrictUnresolved1);
+        context.WriteLine(QueryStrings.Query_GeneralOptionStrictUnresolved2);
         context.WriteLine("");
         context.WriteLine(QueryStrings.Query_WorkflowNote1);
         context.WriteLine(QueryStrings.Query_WorkflowNote2);
@@ -299,7 +300,8 @@ internal static class QueryCommand
         context.WriteLine(QueryStrings.Query_OptionHeadingVerb);
         context.WriteLine(QueryStrings.Query_OptionIncludeStdlibVerb);
         context.WriteLine(QueryStrings.Query_OptionOutputVerb);
-        context.WriteLine(QueryStrings.Query_GeneralOptionStrictUnresolved);
+        context.WriteLine(QueryStrings.Query_GeneralOptionStrictUnresolved1);
+        context.WriteLine(QueryStrings.Query_GeneralOptionStrictUnresolved2);
         context.WriteLine("");
         context.WriteLine(QueryStrings.Query_ExampleHeader);
         context.WriteLine(QueryStrings.GetExample(verb));
