@@ -529,6 +529,10 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_NestedRequirementUsage_ShowsTypingLabelAndEdge`:
   A requirement usage nested in a part def, under the Pilot policy, is a node labeled `r : R` with a
   typing edge to `R`
+- `GeneralViewLayoutStrategy_BuildLayout_PackageConstraintUsage_ShowsTypingLabelAndEdge`:
+  A typed constraint usage declared in a package is a node labeled `k : K` with a typing edge to `K`
+- `GeneralViewLayoutStrategy_BuildLayout_NestedConstraintUsage_IsNotANode`:
+  A constraint usage nested in a part def is not a node under the Pilot policy: no box and no typing edge
 - `GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments`:
   Attribute and port compartments under the row-only policy, with centered italic titles
 - `GeneralViewLayoutStrategy_BuildLayout_EventOccurrenceUsage_IsNotACompartmentRow`:

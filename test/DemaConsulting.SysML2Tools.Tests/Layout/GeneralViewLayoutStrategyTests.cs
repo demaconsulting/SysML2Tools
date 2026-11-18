@@ -6115,5 +6115,38 @@ public sealed class GeneralViewLayoutStrategyTests
         var typingEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
         Assert.True(RunsBetween(typingEdge, usageBox, FindBox(layout.Nodes, "R")));
     }
+
+    /// <summary>
+    ///     A typed constraint usage declared directly in a package (<c>constraint k : K;</c>) is drawn
+    ///     as a node labeled <c>k : K</c> with a feature-typing edge to the constraint definition
+    ///     (issue #113). The typing comes from the constraint-usage parser path.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PackageConstraintUsage_ShowsTypingLabelAndEdge()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P { constraint def K; constraint k : K; }");
+
+        // Assert
+        var usageBox = FindBox(layout.Nodes, "k");
+        Assert.Equal("k : K", usageBox.Label);
+        var typingEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typingEdge, usageBox, FindBox(layout.Nodes, "K")));
+    }
+
+    /// <summary>
+    ///     Under the Pilot node policy a constraint usage nested in a definition is never a node of its
+    ///     own: no box is drawn for it, and so no typing edge.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedConstraintUsage_IsNotANode()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P { constraint def K; part def Holder { constraint k : K; } }");
+
+        // Assert
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => b.Label?.StartsWith("k", StringComparison.Ordinal) == true);
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+    }
 }
 
