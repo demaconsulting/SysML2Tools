@@ -271,6 +271,8 @@ sections:
           - WorkspaceLoader_LoadAsync_DoneTarget_ResolvesToStdlibActionMember
           - WorkspaceLoader_LoadAsync_UnknownSuccessionTarget_StillWarnsButDoneDoesNot
           - WorkspaceLoader_LoadAsync_DoneTarget_OutsideActionOrState_StillWarns
+          - WorkspaceLoader_LoadAsync_PrivateInheritedMemberAsSuccessionTarget_StillWarns
+          - WorkspaceLoader_LoadAsync_DoneTarget_InPartDefSpecializingPart_DoesNotUseActionFallback
           - Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-EdgeRawReference

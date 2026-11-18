@@ -300,7 +300,11 @@ below; it yields the same targets implicit specialization would, and #93 can rem
 special case later without changing any observable result.
 
 `TryResolveInheritedActionMember(scope, name, out resolvedName)` is tried only after
-`TryResolveFeatureChain` fails, and only for a `SysmlTransitionNode`'s `Source` or `Target`:
+`TryResolveFeatureChain` fails, and only for a `SysmlTransitionNode`'s `Source` or `Target`. On the
+`Target` side (`pseudoFeaturesOnly`) it is restricted up front to exactly the names `start`/`done`
+and only when the enclosing node is a state or action (definition or usage); no other inherited
+member is looked up for a target, and `done` in any other kind of body (for example a part
+definition) is left to ordinary name resolution. The `Source` side keeps the full sequence below:
 
 1. Looks up the enclosing node via `_symbolTable.Lookup(scope)` — since at the
    point a `SysmlTransitionNode` is visited, `scope` is the enclosing state/usage

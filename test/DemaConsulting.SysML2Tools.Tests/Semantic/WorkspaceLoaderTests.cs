@@ -7019,6 +7019,55 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A succession target naming a <em>private</em> member of the enclosing action's supertype
+    ///     (<c>then hidden;</c>) is not visible to ordinary name resolution and must not be rescued by
+    ///     the <c>start</c>/<c>done</c> fallback: the target-side fallback is limited to exactly
+    ///     those two names, so the reference still warns. The <c>start</c> in the same body resolves.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_PrivateInheritedMemberAsSuccessionTarget_StillWarns()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def Base { private action hidden; }
+                action def A :> Base {
+                    first start;
+                    then hidden;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Contains(result.Diagnostics, d => d.Message == "Unresolved reference: 'hidden'");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message == "Unresolved reference: 'start'");
+    }
+
+    /// <summary>
+    ///     <c>then done</c> inside a part definition that explicitly specializes
+    ///     <c>Parts::Part</c> is not an action or state body, so the pseudo-feature fallback does not
+    ///     apply; it resolves only through ordinary inherited-member lookup, to the part's own
+    ///     <c>Parts::Part::done</c> and never to <c>Actions::Action::done</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DoneTarget_InPartDefSpecializingPart_DoesNotUseActionFallback()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Q :> Parts::Part {
+                    action step;
+                    first step then done;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "P::Q::step", "Parts::Part::done"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Transition, "P::Q::step", "Actions::Action::done"));
+    }
+
+    /// <summary>
     ///     A model that uses none of the new syntax leaves every new member at its default.
     /// </summary>
     [Fact]

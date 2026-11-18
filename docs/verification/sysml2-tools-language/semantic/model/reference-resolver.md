@@ -76,7 +76,9 @@ external services or additional configuration are required beyond a standard .NE
   unresolved-reference diagnostic (`first start then x;`, `then done;`, and
   `transition first x then done;` in action and state bodies). A name that is not `start`/`done`
   and does not resolve (`then missing;`), and `done` outside a state or action, still produce the
-  warning. Connection and binding endpoints never receive this fallback.
+  warning. The target-side fallback never looks up any other inherited member (a private member
+  of a supertype as a target still warns). Connection and binding endpoints never receive this
+  fallback.
 - Every unresolved reference — supertype, subsetting, typing, redefinition, import, `expose`,
   view definition, connector (`connect`/`bind`) endpoint, transition target, metadata type,
   dependency, allocation, `satisfy`, and `verify` — is reported at the one-based line and
@@ -166,4 +168,6 @@ external services or additional configuration are required beyond a standard .NE
 | `then done;` and `then done` transition target | `WorkspaceLoader_LoadAsync_DoneTarget_ResolvesToStdlibActionMember` |
 | Unknown succession target still warns | `WorkspaceLoader_LoadAsync_UnknownSuccessionTarget_StillWarnsButDoneDoesNot` |
 | `done` outside a state/action still warns | `WorkspaceLoader_LoadAsync_DoneTarget_OutsideActionOrState_StillWarns` |
+| Private member as target warns | `WorkspaceLoader_LoadAsync_PrivateInheritedMemberAsSuccessionTarget_StillWarns` |
+| Part def, no fallback | `WorkspaceLoader_LoadAsync_DoneTarget_InPartDefSpecializingPart_DoesNotUseActionFallback` |
 | OMG Transitions corpus fixture | `Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions` |

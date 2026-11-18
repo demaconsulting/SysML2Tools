@@ -741,8 +741,8 @@ internal sealed class ReferenceResolver
         // (e.g. `first start then off;` and `then done;`).
         if (node is SysmlTransitionNode transition)
         {
-            var resolvedSource = ResolveTransitionEnd(transition.Source, file, resolvedInFile, scope, node);
-            var resolvedTarget = ResolveTransitionEnd(transition.Target, file, resolvedInFile, scope, node);
+            var resolvedSource = ResolveTransitionEnd(transition.Source, false, file, resolvedInFile, scope, node);
+            var resolvedTarget = ResolveTransitionEnd(transition.Target, true, file, resolvedInFile, scope, node);
 
             if (resolvedSource is not null && resolvedTarget is not null)
             {
@@ -802,10 +802,14 @@ internal sealed class ReferenceResolver
     ///     <c>then done;</c> / <c>transition first x accept e then done;</c>). They are inherited
     ///     members that ordinary scope/import resolution can never see, since they are not declared
     ///     or imported anywhere in the referencing file. This fallback is deliberately scoped to
-    ///     transition ends only — not connection/binding endpoints or any other reference kind.
+    ///     transition ends only — not connection/binding endpoints or any other reference kind. On the
+    ///     <c>Target</c> side it is further limited to exactly <c>start</c>/<c>done</c> inside a state
+    ///     or action body (definition or usage); the <c>Source</c> side keeps the wider inherited
+    ///     lookup that implicit initial-pseudostate transitions rely on.
     /// </summary>
     private string? ResolveTransitionEnd(
         string? end,
+        bool isTarget,
         LoadedFile file,
         HashSet<string> resolvedInFile,
         string? scope,
@@ -821,7 +825,7 @@ internal sealed class ReferenceResolver
             return resolved;
         }
 
-        if (TryResolveInheritedActionMember(scope, end, out var inherited))
+        if (TryResolveInheritedActionMember(scope, end, pseudoFeaturesOnly: isTarget, out var inherited))
         {
             return inherited;
         }
@@ -837,7 +841,10 @@ internal sealed class ReferenceResolver
     ///     completion idioms like <c>first start then off;</c> and <c>then done;</c>, where
     ///     <c>start</c>/<c>done</c> are real features every action and state inherits from
     ///     <c>Actions::Action</c> (SysML v2.0 Systems Library, <c>Action::start</c>/<c>Action::done</c>; a
-    ///     state is an Action via <c>States::StateAction</c>), not special keywords.
+    ///     state is an Action via <c>States::StateAction</c>), not special keywords. When
+    ///     <paramref name="pseudoFeaturesOnly"/> is set (the <c>Target</c> side) the lookup applies only
+    ///     to the names <c>start</c>/<c>done</c> and only when the enclosing node is a state or action
+    ///     (definition or usage); otherwise it returns <see langword="false"/> immediately.
     ///     <para/>
     ///     Resolution order: (1) if the enclosing node (the current <paramref name="scope"/>)
     ///     has a resolved <see cref="SysmlEdgeKind.Typing"/> edge (e.g. a
@@ -861,6 +868,7 @@ internal sealed class ReferenceResolver
     private bool TryResolveInheritedActionMember(
         string? scope,
         string name,
+        bool pseudoFeaturesOnly,
         out string resolvedName)
     {
         resolvedName = string.Empty;
@@ -872,6 +880,20 @@ internal sealed class ReferenceResolver
 
         var enclosingNode = _symbolTable.Lookup(scope);
         if (enclosingNode is null)
+        {
+            return false;
+        }
+
+        var isStateOrActionKeyword = enclosingNode switch
+        {
+            SysmlFeatureNode { FeatureKeyword: "state" or "action" } => true,
+            SysmlDefinitionNode { DefinitionKeyword: "state def" or "action def" } => true,
+            _ => false,
+        };
+
+        // Target-side use is limited to exactly the well-known pseudo-features inside a state or
+        // action body: no other inherited member, and no other kind of enclosing node, qualifies.
+        if (pseudoFeaturesOnly && (name is not ("start" or "done") || !isStateOrActionKeyword))
         {
             return false;
         }
@@ -905,13 +927,6 @@ internal sealed class ReferenceResolver
         {
             return false;
         }
-
-        var isStateOrActionKeyword = enclosingNode switch
-        {
-            SysmlFeatureNode { FeatureKeyword: "state" or "action" } => true,
-            SysmlDefinitionNode { DefinitionKeyword: "state def" or "action def" } => true,
-            _ => false,
-        };
 
         if (!isStateOrActionKeyword)
         {
