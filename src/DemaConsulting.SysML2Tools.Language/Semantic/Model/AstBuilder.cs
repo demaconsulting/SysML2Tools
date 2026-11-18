@@ -2351,8 +2351,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         body is null ? Array.Empty<ReferenceOccurrence>() : CollectReferenceOccurrences(NamesDeclaredWithin(body), body);
 
     /// <summary>
-    ///     Returns every name declared (by an identification or feature identification) anywhere
-    ///     inside <paramref name="tree"/>.
+    ///     Returns every name declared (by an identification or feature identification) inside
+    ///     <paramref name="tree"/>, without descending into nested bodies (an inline
+    ///     <c>{ in i : T; ... }</c> expression body or a nested calculation/definition body): a
+    ///     name such a body declares is local to it and must not hide a reference outside it.
     /// </summary>
     private static IReadOnlySet<string> NamesDeclaredWithin(Antlr4.Runtime.Tree.IParseTree tree)
     {
@@ -2362,6 +2364,11 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         while (pending.Count > 0)
         {
             var item = pending.Pop();
+            if (!ReferenceEquals(item, tree) &&
+                item is SysMLv2Parser.BodyExpressionContext or SysMLv2Parser.CalculationBodyContext or SysMLv2Parser.DefinitionBodyContext)
+            {
+                continue;
+            }
             var declared = item switch
             {
                 SysMLv2Parser.IdentificationContext identification => GetDeclaredName(identification),
@@ -2985,6 +2992,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             while (pending.Count > 0)
             {
                 var item = pending.Pop();
+                if (item is SysMLv2Parser.BodyExpressionContext)
+                {
+                    // An inline expression body's parameters are local to it.
+                    continue;
+                }
+
                 if (item is SysMLv2Parser.DefaultReferenceUsageContext bare &&
                     bare.usage()?.usageDeclaration()?.identification() is { } identification &&
                     GetDeclaredName(identification) is { } declared)
@@ -3108,7 +3121,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <summary>
-    ///     Collects the reference occurrences of a transition's trigger, guard, and effect — the
+    ///     Collects the reference occurrences of a transition's trigger, guard, and effect (in
+    ///     source order) — the
     ///     parts the transition keeps only as raw text.
     /// </summary>
     private IReadOnlyList<ReferenceOccurrence> TransitionOccurrences(
@@ -3117,8 +3131,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         SysMLv2Parser.EffectBehaviorMemberContext? effect) =>
         CollectReferenceOccurrences(
             DeclaredPayloadNames(trigger?.triggerAction()?.acceptParameterPart()),
-            guard?.ownedExpression(),
             trigger?.triggerAction(),
+            guard?.ownedExpression(),
             effect?.effectBehaviorUsage());
 
     /// <summary>

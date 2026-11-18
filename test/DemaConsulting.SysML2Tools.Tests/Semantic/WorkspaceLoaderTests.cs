@@ -7722,6 +7722,44 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A parameter declared by a nested expression body (<c>forAll{ in i : T; ... }</c>) is
+    ///     local to it: it does not hide an undeclared <c>i</c> referenced outside that body, which
+    ///     is still reported — once, at the outer reference.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_NestedBodyParameter_DoesNotHideOuterReference()
+    {
+        // Arrange / Act: the outer `i` (line 5, col 22) is undeclared; the inner `i` is the lambda's own
+        var result = await LoadModelsAsync(
+            "package P {\n    private import ScalarValues::*;\n    part def V {\n        attribute items : Integer[*];\n" +
+            "        constraint { i > 0 and items->forAll{in i : Integer; i > 0} }\n    }\n}\n");
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Message == "Unresolved reference: 'i'");
+        Assert.Equal((5, 22), (diagnostic.Line, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     A transition's references are reported in source order — trigger, then guard, then
+    ///     effect — not in the order the builder happens to collect them.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TransitionTriggerGuardEffect_ReportedInSourceOrder()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package P {\n    state def S {\n        state a;\n        state b;\n" +
+            "        transition first a accept Sig if missingGuard do missingEffect then b;\n    }\n}\n");
+
+        // Assert: diagnostics in emission order
+        var names = result.Diagnostics
+            .Where(d => d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal))
+            .Select(d => d.Message["Unresolved reference: '".Length..^1])
+            .ToList();
+        Assert.Equal(["Sig", "missingGuard", "missingEffect"], names);
+    }
+
+    /// <summary>
     ///     The references of a transition's trigger, guard and effect are captured on the node with
     ///     their token positions, in source order, and exclude operators, literals, the payload's own
     ///     name, library-function calls and member selections.
