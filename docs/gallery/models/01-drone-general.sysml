@@ -1,8 +1,14 @@
 package QuadcopterDrone {
 
     // ===== Interface and port definitions =====
-    interface def PowerBus;
-    interface def DataBus;
+    interface def PowerBus {
+        end supplier : PowerPort;
+        end consumer : PowerPort;
+    }
+    interface def DataBus {
+        end source : TelemetryPort;
+        end sink : TelemetryPort;
+    }
     port def PowerPort;
     port def TelemetryPort;
     port def MotorControlPort;
@@ -78,6 +84,11 @@ package QuadcopterDrone {
         // A connect relationship between two sibling parts' ports, demonstrating
         // the plain solid line (no end marker) used for `connect`.
         connect controller.power to battery.output;
+
+        // The requirement usage and the allocation between two usages: an allocation
+        // relates features (usages), not definitions.
+        requirement flightTime : FlightTimeRequirement;
+        allocate flightTime to battery;
     }
 
     // RacingDrone subsets Drone's "motors" feature with its own "frontMotors"
@@ -96,11 +107,6 @@ package QuadcopterDrone {
         require constraint { drone.totalMass <= 2500 }
     }
 
-    // An allocate relationship from the requirement to the part it is
-    // allocated to, demonstrating the dashed open-chevron line with the
-    // «allocate» stereotype label.
-    allocate FlightTimeRequirement to Battery;
-
     // A standalone dependency declaration, demonstrating the dashed
     // open-chevron line (no label) used for a general OMG dependency.
     dependency FlightController to Battery;
@@ -114,6 +120,6 @@ package QuadcopterDrone {
     // documentation, so Battery is drawn without its doc compartment.
     view BatterySubsystemView {
         expose Battery::**;
-        filter not @SysML::Documentation;
+        filter not (@SysML::Documentation);
     }
 }

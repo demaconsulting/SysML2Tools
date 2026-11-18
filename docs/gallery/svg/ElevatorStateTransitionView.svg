@@ -75,12 +75,12 @@
   <path d="M 238.34 770.00 L 238.34 714.00 A 4.00 4.00 0 0 1 242.34 710.00 L 263.56 710.00 A 4.00 4.00 0 0 0 267.56 706.00 L 267.56 450.00 A 4.00 4.00 0 0 1 271.56 446.00 L 292.80 446.00 A 4.00 4.00 0 0 0 296.80 442.00 L 296.80 316.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)"/>
   <path d="M 203.08 316.00 L 203.08 386.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)"/>
   <path d="M 212.75 820.00 L 212.75 890.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)"/>
-  <text x="194.76" y="183.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">callReceived [doorsClear] / dimLights</text>
+  <text x="194.76" y="183.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">CallReceived [doorsClear] / dimLights</text>
   <text x="92.66" y="351.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[doorsClosed]</text>
   <text x="104.14" y="471.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[atFloor]</text>
   <text x="200.83" y="471.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[atFloor]</text>
   <text x="172.75" y="735.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[doorsAreOpen]</text>
-  <text x="267.56" y="578.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">timeout</text>
+  <text x="267.56" y="578.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">Timeout</text>
   <text x="203.08" y="351.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[goingDown]</text>
-  <text x="212.75" y="855.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">shutdown</text>
+  <text x="212.75" y="855.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">Shutdown</text>
 </svg>

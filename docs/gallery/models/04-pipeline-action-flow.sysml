@@ -1,10 +1,22 @@
 package CiCdPipeline {
 
+    private import ScalarValues::Boolean;
+
     // The build step the pipeline runs, so an action can be typed by it.
     action def BuildStep;
 
+    // The signal the approval step waits for and the note the release announces.
+    item def ApprovalSignal;
+    item def ReleaseNote;
+    part def Team;
+
     // A continuous-integration / deployment action flow with a quality gate branch.
     action def Pipeline {
+        // The smoke-test result that guards the release decision, and the notification content.
+        attribute smokePassed : Boolean;
+        item releaseNote : ReleaseNote;
+        ref part team : Team;
+
         first start then checkout;
 
         action checkout;

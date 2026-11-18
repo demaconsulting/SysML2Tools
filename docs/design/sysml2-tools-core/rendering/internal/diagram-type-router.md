@@ -45,7 +45,13 @@ variant of it; `asTextualNotation` is left unmapped because it is a non-graphica
 style with no corresponding `ILayoutStrategy` implementation.
 
 A `Views::`-qualified render target (e.g. `render Views::asTreeDiagram;`) is matched by its
-simple name.
+simple name. Only `asTreeDiagram` and `asInterconnectionDiagram` are members of the standard
+`Views` package; the other five tokens are SysML2Tools extensions (raw names, not valid as
+`Views::`-qualified SysML), and the router merely tolerates a qualified spelling of them. SysML v2.0
+does not implicitly import the `Views` package, so a valid model writes the qualified form of a
+standard target or adds `private import Views::*;` and uses the bare name; the router treats
+all three spellings identically (a bare name without an import is still tolerated, although
+the OMG Pilot Implementation rejects it as an unresolved reference).
 
 When the view's own render target is not recognized, the router walks its view definitions
 (`FromViewDefinitions`): the target of the view's resolved `Typing` edge (`view V : Def`), then

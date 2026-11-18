@@ -51,6 +51,6 @@ package ComputerSystem {
     }
 
     view def ComputerSystemInterconnectionView {
-        render asInterconnectionDiagram;
+        render Views::asInterconnectionDiagram;
     }
 }
