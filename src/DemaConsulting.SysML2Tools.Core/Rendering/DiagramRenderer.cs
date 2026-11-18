@@ -234,7 +234,7 @@ public sealed class DiagramRenderer
             var context = new ViewContext(viewName, workspace, viewNode);
 
             // Build the layout tree for this view
-            var layout = strategy.BuildLayout(context, options);
+            var layout = ApplyNameStyleDefault(strategy.BuildLayout(context, options));
 
             // Report a view with nothing renderable (a warning), or a lone exposed package drawn
             // without its contents (an informational hint); the view is still rendered either way.
@@ -454,5 +454,44 @@ public sealed class DiagramRenderer
     /// <returns>A string containing only characters that are valid in file names.</returns>
     private static string SanitizeFileName(string name) =>
         string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+
+    /// <summary>
+    /// Applies the SysML notation's default name weight to a laid-out tree: every box and lifeline
+    /// header whose strategy did not request a name style draws its name in regular weight (the
+    /// <see cref="BoxAppearance"/> default of the rendering engine is bold).
+    /// </summary>
+    /// <remarks>
+    /// The SysML v2 graphical notation (OMG formal/2025-09-03, clause 8.2.3 graphical BNF and
+    /// Tables 3, 4, 9, and 10) and the OMG Pilot Implementation draw node names in regular weight
+    /// (a node's «keyword», where it has one, is a separate italic line). This is the one place the
+    /// default is set for box and lifeline-header names, so every strategy that emits them inherits
+    /// it; a style a strategy requests explicitly (such as the italic name of an abstract definition)
+    /// is kept. Browser rows (one combined label) are boxes and get the default; accept/send nodes
+    /// have no keyword line; grid header cells are not boxes and are not processed (they stay bold).
+    /// </remarks>
+    /// <param name="tree">The laid-out tree.</param>
+    /// <returns>The tree with the default name style applied to every box and lifeline header.</returns>
+    private static LayoutTree ApplyNameStyleDefault(LayoutTree tree) =>
+        tree with { Nodes = [.. tree.Nodes.Select(ApplyNameStyleDefault)] };
+
+    /// <summary>Applies the default name style to one node and, for a box, to all of its descendants.</summary>
+    /// <param name="node">The node.</param>
+    /// <returns>The node with the default name style applied.</returns>
+    private static LayoutNode ApplyNameStyleDefault(LayoutNode node) => node switch
+    {
+        LayoutBox box => box with
+        {
+            Appearance = WithRegularName(box.Appearance),
+            Children = [.. box.Children.Select(ApplyNameStyleDefault)],
+        },
+        LayoutLifeline lifeline => lifeline with { HeaderAppearance = WithRegularName(lifeline.HeaderAppearance) },
+        _ => node,
+    };
+
+    /// <summary>Returns the appearance with a regular, upright name when no name style was requested.</summary>
+    /// <param name="appearance">The requested appearance, or <see langword="null"/>.</param>
+    /// <returns>The appearance with its name style resolved.</returns>
+    private static BoxAppearance WithRegularName(BoxAppearance? appearance) =>
+        (appearance ?? new BoxAppearance()) with { NameStyle = appearance?.NameStyle ?? TextStyle.Regular };
 }
 

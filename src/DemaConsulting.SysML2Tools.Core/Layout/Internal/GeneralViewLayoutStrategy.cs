@@ -286,11 +286,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private const string FolderKeyPrefix = "folder:";
 
     /// <summary>
-    /// The name style of an abstract definition: bold italic (the specification, Table 4, sets the
-    /// name of an abstract definition in italics; the engine's default name style is bold). The
+    /// The name style of an abstract definition: italic (the specification, Table 4, sets the
+    /// name of an abstract definition in italics; names are otherwise regular weight, which
+    /// <see cref="DiagramRenderer"/> applies to every name that requests no style). The
     /// name of an abstract <em>usage</em> is not italic in the specification and stays default.
     /// </summary>
-    internal static readonly TextStyle AbstractDefinitionNameStyle = TextStyle.BoldItalic;
+    internal static readonly TextStyle AbstractDefinitionNameStyle = TextStyle.Italic;
 
     /// <summary>A user-defined definition or named usage together with its computed box size and supertypes.</summary>
     /// <param name="QualifiedName">The definition or usage's fully qualified name.</param>

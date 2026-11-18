@@ -32,18 +32,18 @@
   </defs>
   <rect x="0.00" y="0.00" width="1411.28" height="424.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="705.64" y="12.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="705.64" y="31.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">MotorRig</text>
+  <text x="705.64" y="31.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">MotorRig</text>
   <line x1="0.00" y1="44.00" x2="1411.28" y2="44.00" stroke="#000000" stroke-width="1.00"/>
   <text x="705.64" y="56.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">interconnection</text>
   <rect x="32.00" y="106.00" width="211.64" height="286.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="137.82" y="118.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="137.82" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">controller : Controller</text>
+  <text x="137.82" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">controller : Controller</text>
   <rect x="689.76" y="106.00" width="124.84" height="286.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="752.18" y="118.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="752.18" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">motor : Motor</text>
+  <text x="752.18" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">motor : Motor</text>
   <rect x="1269.28" y="189.59" width="110.00" height="119.20" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="1324.28" y="201.59" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="1324.28" y="220.59" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">load : Load</text>
+  <text x="1324.28" y="220.59" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">load : Load</text>
   <path d="M 243.64 200.40 L 689.76 200.40" fill="none" stroke="#000000" stroke-width="1.00"/>
   <path d="M 689.76 277.20 L 243.64 277.20" fill="none" stroke="#000000" stroke-width="1.00"/>
   <path d="M 689.76 354.00 L 243.64 354.00" fill="none" stroke="#000000" stroke-width="1.00"/>

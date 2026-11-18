@@ -5088,7 +5088,7 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert
         var definition = FindBox(layout.Nodes, "D");
         Assert.Equal("abstract part def", definition.Keyword);
-        Assert.Equal(TextStyle.BoldItalic, definition.Appearance?.NameStyle);
+        Assert.Equal(TextStyle.Italic, definition.Appearance?.NameStyle);
         var usage = FindBox(layout.Nodes, "u");
         Assert.Equal("abstract part", usage.Keyword);
         Assert.Null(usage.Appearance?.NameStyle);

@@ -529,5 +529,104 @@ public sealed class RenderIntegrationTests
             File.Delete(tempFile);
         }
     }
+
+    /// <summary>
+    ///     Locates the <c>docs/gallery/models</c> directory by walking up from the assembly's base directory.
+    /// </summary>
+    /// <returns>The absolute path of the gallery models directory.</returns>
+    private static string FindGalleryModels()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir, "docs", "gallery", "models");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        throw new DirectoryNotFoundException("docs/gallery/models was not found above the test assembly.");
+    }
+
+    /// <summary>
+    ///     Renders one view of a gallery model to SVG with the plain SysML theme.
+    /// </summary>
+    /// <param name="model">The gallery model file name.</param>
+    /// <param name="view">The name of the view to render.</param>
+    /// <returns>The SVG text.</returns>
+    private static async Task<string> RenderGalleryViewAsync(string model, string view)
+    {
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([Path.Combine(FindGalleryModels(), model)], stdlibTable);
+        Assert.NotNull(result.Workspace);
+        var outputs = new DiagramRenderer().RenderWorkspace(
+            result.Workspace, new SvgRenderer(), new RenderOptions(SysmlThemes.Plain), view);
+        var output = Assert.Single(outputs);
+        return System.Text.Encoding.UTF8.GetString(((MemoryStream)output.Data).ToArray());
+    }
+
+    /// <summary>
+    ///     Returns the attribute text of every <c>&lt;text&gt;</c> element whose content is exactly the given text.
+    /// </summary>
+    /// <param name="svg">The SVG document.</param>
+    /// <param name="content">The exact text content to look for.</param>
+    /// <returns>The attribute lists of the matching text elements.</returns>
+    private static List<string> TextAttributes(string svg, string content) =>
+        [.. System.Text.RegularExpressions.Regex
+            .Matches(svg, "<text\\b([^>]*)>" + System.Text.RegularExpressions.Regex.Escape(content) + "</text>")
+            .Select(m => m.Groups[1].Value)];
+
+    /// <summary>
+    ///     The name of a node is drawn in regular weight (no <c>font-weight</c>) in every view kind: the
+    ///     name of a definition and a package tab (general), a part and the frame (interconnection),
+    ///     a state and its frame, an action, a lifeline header, and a browser row.
+    /// </summary>
+    /// <param name="model">The gallery model file.</param>
+    /// <param name="view">The view to render.</param>
+    /// <param name="name">The exact text of a node name drawn by that view.</param>
+    [Theory]
+    [InlineData("01-drone-general.sysml", "DroneGeneralView", "Drone")]
+    [InlineData("01-drone-general.sysml", "DroneGeneralView", "QuadcopterDrone")]
+    [InlineData("01-drone-general.sysml", "DroneGeneralView", "airframe : Frame")]
+    [InlineData("08-nested-interconnection.sysml", "ComputerSystemInterconnectionView", "Computer")]
+    [InlineData("08-nested-interconnection.sysml", "ComputerSystemInterconnectionView", "psu : PowerSupply")]
+    [InlineData("03-elevator-state.sysml", "ElevatorStateTransitionView", "ElevatorStates")]
+    [InlineData("03-elevator-state.sysml", "ElevatorStateTransitionView", "idle")]
+    [InlineData("04-pipeline-action-flow.sysml", "PipelineActionFlowView", "checkout")]
+    [InlineData("05-oauth-sequence.sysml", "OAuthSequenceView", "user : User")]
+    [InlineData("07-avionics-browser.sysml", "AvionicsBrowserView", "«package» AvionicsSystem")]
+    public async Task DiagramRenderer_RenderWorkspace_NodeName_IsRegularWeight(string model, string view, string name)
+    {
+        // Act: render the view
+        var svg = await RenderGalleryViewAsync(model, view);
+
+        // Assert: the name is drawn, and none of its text elements is bold
+        var elements = TextAttributes(svg, name);
+        Assert.NotEmpty(elements);
+        Assert.All(elements, attributes => Assert.DoesNotContain("font-weight", attributes));
+    }
+
+    /// <summary>
+    ///     An abstract definition's name stays italic in regular weight, its keyword line stays italic,
+    ///     and a concrete definition's name is upright regular weight.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_AbstractDefinitionName_IsItalicRegularWeight()
+    {
+        // Act: render the drive unit view, which holds the abstract definition Motor and the concrete DriveUnit
+        var svg = await RenderGalleryViewAsync("14-usages-typing-general.sysml", "DriveUnitGeneralView");
+
+        // Assert: Motor is italic and not bold; DriveUnit is neither; the abstract keyword is italic
+        var abstractName = Assert.Single(TextAttributes(svg, "Motor"));
+        Assert.Contains("font-style=\"italic\"", abstractName);
+        Assert.DoesNotContain("font-weight", abstractName);
+        var concreteName = Assert.Single(TextAttributes(svg, "DriveUnit"));
+        Assert.DoesNotContain("font-style", concreteName);
+        Assert.DoesNotContain("font-weight", concreteName);
+        Assert.Contains("font-style=\"italic\"", Assert.Single(TextAttributes(svg, "«abstract part def»")));
+    }
 }
 

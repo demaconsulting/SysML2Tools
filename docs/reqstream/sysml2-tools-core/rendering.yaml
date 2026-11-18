@@ -134,6 +134,7 @@ sections:
           - SysML2Tools-Core-Rendering-DiagramRenderer-NoViews
           - SysML2Tools-Core-Rendering-DiagramRenderer-SynthesizeDynamicView
           - SysML2Tools-Core-Rendering-DiagramRenderer-EmptyViewWarning
+          - SysML2Tools-Core-Rendering-DiagramRenderer-RegularNameWeight
         tests:
           - DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList
 

@@ -31,32 +31,32 @@
     </filter>
   </defs>
   <path d="M 12.00 36.00 L 12.00 12.00 L 108.72 12.00 L 108.72 36.00 L 488.00 36.00 L 488.00 672.00 L 12.00 672.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="18.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="start" dominant-baseline="middle">MissionControl</text>
+  <text x="18.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">MissionControl</text>
   <path d="M 36.00 84.00 L 36.00 60.00 L 140.76 60.00 L 140.76 84.00 L 262.00 84.00 L 262.00 648.00 L 36.00 648.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="42.00" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="start" dominant-baseline="middle">GroundSegment</text>
+  <text x="42.00" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">GroundSegment</text>
   <rect x="60.00" y="108.00" width="178.00" height="222.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="149.00" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="149.00" y="139.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">OperatorConsole</text>
+  <text x="149.00" y="139.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">OperatorConsole</text>
   <rect x="84.00" y="182.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="149.00" y="197.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="149.00" y="216.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">DisplayPanel</text>
+  <text x="149.00" y="216.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">DisplayPanel</text>
   <rect x="84.00" y="256.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="149.00" y="271.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="149.00" y="290.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">CommsHandset</text>
+  <text x="149.00" y="290.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">CommsHandset</text>
   <rect x="60.00" y="354.00" width="150.88" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="135.44" y="369.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="135.44" y="388.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">ThermalRegulator</text>
+  <text x="135.44" y="388.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">ThermalRegulator</text>
   <path d="M 60.00 452.00 L 60.00 428.00 L 151.44 428.00 L 151.44 452.00 L 238.00 452.00 L 238.00 624.00 L 60.00 624.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="66.00" y="440.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="start" dominant-baseline="middle">RadioNetwork</text>
+  <text x="66.00" y="440.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">RadioNetwork</text>
   <rect x="84.00" y="476.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="149.00" y="491.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="149.00" y="510.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Uplink</text>
+  <text x="149.00" y="510.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Uplink</text>
   <rect x="84.00" y="550.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="149.00" y="565.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="149.00" y="584.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Downlink</text>
+  <text x="149.00" y="584.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Downlink</text>
   <path d="M 286.00 84.00 L 286.00 60.00 L 382.72 60.00 L 382.72 84.00 L 464.00 84.00 L 464.00 182.00 L 286.00 182.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="292.00" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="start" dominant-baseline="middle">SpaceSegment</text>
+  <text x="292.00" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">SpaceSegment</text>
   <rect x="310.00" y="108.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="375.00" y="123.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="375.00" y="142.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Payload</text>
+  <text x="375.00" y="142.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Payload</text>
 </svg>

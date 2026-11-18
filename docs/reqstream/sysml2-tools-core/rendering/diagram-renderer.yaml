@@ -34,6 +34,20 @@ sections:
           - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsPngOutput
           - DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput
 
+      - id: SysML2Tools-Core-Rendering-DiagramRenderer-RegularNameWeight
+        title: >-
+          The diagram renderer shall draw the name of every node box and lifeline header in every
+          view kind in regular weight, except where a layout strategy explicitly requests another
+          name style (the italic name of an abstract definition).
+        justification: |
+          The SysML v2 graphical notation (graphical BNF of clause 8.2.3 and Tables 3, 4, 9, and 10)
+          and the OMG Pilot Implementation draw names in regular weight beneath an italic keyword
+          line, whereas the rendering engine's default name style is bold. Setting the default once
+          in the orchestrator makes every strategy inherit the specification's look.
+        tests:
+          - DiagramRenderer_RenderWorkspace_NodeName_IsRegularWeight
+          - DiagramRenderer_RenderWorkspace_AbstractDefinitionName_IsItalicRegularWeight
+
       - id: SysML2Tools-Core-Rendering-DiagramRenderer-NoViews
         title: >-
           The diagram renderer shall return an empty result when the workspace contains
