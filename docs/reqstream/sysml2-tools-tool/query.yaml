@@ -31,9 +31,24 @@ sections:
           - SysML2Tools-Tool-Query-Help
           - SysML2Tools-Tool-Query-ReportHeading
           - SysML2Tools-Tool-Query-IncludeConnections
+          - SysML2Tools-Tool-Query-LoadDiagnosticFormat
         tests:
           - Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb
           - QuerySubsystem_AnyVerb_WithValidInput_DispatchesToRealLogic
+
+      - id: SysML2Tools-Tool-Query-LoadDiagnosticFormat
+        title: >-
+          The query command shall print each load diagnostic in the same
+          `path(line,col): severity: message` format as the lint command (via the shared
+          DiagnosticFormatter), not as a raw record dump.
+        justification: |
+          Query printed load diagnostics as a raw `SysmlDiagnostic { ... }` record dump, which no
+          IDE, CI problem matcher, or annotation tool can parse and which differs from lint. Using
+          the shared formatter makes the output of every command identical and locatable.
+        children:
+          - SysML2Tools-Tool-Utilities-DiagnosticFormat
+        tests:
+          - QuerySubsystem_LoadDiagnostic_PrintsFileLineColumnSeverityMessage
 
       - id: SysML2Tools-Tool-Query-UnknownVerb
         title: >-

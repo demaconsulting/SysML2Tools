@@ -64,6 +64,7 @@ internal sealed class SysmlDiagnosticListener :
         RecognitionException e) =>
         Append(line, charPositionInLine, msg);
 
+    // ANTLR reports a zero-based column; SysmlDiagnostic.Column is one-based.
     private void Append(int line, int column, string msg) =>
-        _diagnostics.Add(new SysmlDiagnostic(_filePath, line, column, DiagnosticSeverity.Error, msg));
+        _diagnostics.Add(new SysmlDiagnostic(_filePath, line, column + 1, DiagnosticSeverity.Error, msg));
 }

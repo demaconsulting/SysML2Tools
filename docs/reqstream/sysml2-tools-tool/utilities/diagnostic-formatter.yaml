@@ -1,0 +1,27 @@
+---
+# Software Unit Requirements for the DiagnosticFormatter Class
+#
+# The DiagnosticFormatter class formats a SysmlDiagnostic as a single console line. It is the
+# one formatter shared by the lint, render, and query commands, so they all report diagnostics
+# identically.
+
+sections:
+  - title: DiagnosticFormatter Unit Requirements
+    requirements:
+      - id: SysML2Tools-Tool-Utilities-DiagnosticFormatter-Format
+        title: >-
+          The DiagnosticFormatter class shall format a diagnostic as
+          `path(line,col): severity: message` with a lowercase severity name, omitting the
+          `path(line,col): ` location when the diagnostic has no file path.
+        justification: |
+          A single compiler-style line is recognized by IDEs, CI problem matchers, and annotation
+          tools, enabling automated parsing of command output without custom tooling. Producing
+          the line in one place prevents the commands from drifting apart (render and query once
+          printed the raw record dump instead). A diagnostic that is not tied to a file has no
+          meaningful location, so the location is omitted rather than printed as `(0,0)`.
+        tests:
+          - DiagnosticFormatter_Format_LocatedWarning_UsesPathLineColumnSeverityMessage
+          - DiagnosticFormatter_Format_Severity_IsLowercase
+          - DiagnosticFormatter_Format_NoFilePath_OmitsLocation
+          - DiagnosticFormatter_Format_Diagnostic_IsNotRecordDump
+          - DiagnosticFormatter_Format_NullDiagnostic_ThrowsArgumentNullException

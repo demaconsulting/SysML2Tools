@@ -55,10 +55,15 @@ Error-severity diagnostics are written via `context.WriteError`; all others via
 `context.WriteLine`. After reporting all diagnostics it writes either a summary error count
 (via `context.WriteError`) or a `"lint: no errors found."` message (via `context.WriteLine`).
 
-The diagnostic output format is:
+The diagnostic output format is produced by the shared `DiagnosticFormatter.Format`
+(`DemaConsulting.SysML2Tools.Utilities`, see `docs/design/sysml2-tools-tool/utilities/diagnostic-formatter.md`),
+the same formatter `render` and `query` use, so all three commands print identical lines:
 `{FilePath}({Line},{Column}): {severity}: {Message}`
 
-where `{severity}` is the lowercased `DiagnosticSeverity` enum value name.
+where `{severity}` is the lowercased `DiagnosticSeverity` enum value name. The line is one-based
+and the column is one-based. For an unresolved reference the position is that of the reference
+text as written, or of the owning declaration when the text was not located (see the
+`ReferenceResolver` design).
 
 `LintCommand.PrintHelp(Context context)` prints `lint`'s usage line and a note that it accepts
 no flags of its own. This is the single source of truth for both `lint --help` (dispatched from

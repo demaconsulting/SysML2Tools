@@ -66,6 +66,9 @@ flowchart TD
    `--kind`/`--name`, and `--format` must be `markdown` or `json`.
 3. The command resolves `Context.QueryFiles` through `GlobFileCollector.Collect`, then loads the
    semantic workspace with `StdlibProvider.GetSymbolTable()` and `WorkspaceLoader.LoadAsync`.
+   Each load diagnostic is formatted by the shared `DiagnosticFormatter.Format` — the same
+   `file(line,col): severity: message` line `lint` and `render` print, with no indentation — and
+   written via `context.WriteError` (errors) or `context.WriteLine` (others).
 4. For verbs that require a target element, `QueryCommand` resolves `QueryOptions.Element`
    through `workspace.Declarations.TryGetValue`. Missing elements are reported as a CLI error;
    Core never receives a `null` element from this path.
@@ -154,3 +157,4 @@ flowchart TD
 | SysML2Tools-Tool-Query-OutputFile | `QueryCliArgumentParser.Parse`; `QueryCommand.RunAsync`; `QueryResultExporter` |
 | SysML2Tools-Tool-Query-IncludeConnections | `QueryCliArgumentParser.Parse` pass-through to Core; `Context.Query` |
 | SysML2Tools-Tool-Query-IncludeConnectionsHelp | `QueryStrings` keys via `PrintGeneralHelp` and `PrintVerbHelp` |
+| SysML2Tools-Tool-Query-LoadDiagnosticFormat | Load-diagnostic reporting in `QueryCommand.RunAsync` |

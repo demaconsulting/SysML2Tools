@@ -22,6 +22,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewExposedNames
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewFilterExpression
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewSourceLocation
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-SourcePositions
           - SysML2Tools-Language-Semantic-Model-SysmlNode-MembershipVisibilityAndAliases
           - SysML2Tools-Language-Semantic-Model-AstBuilder-MembershipVisibilityAndAliases
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewConditionsAndDefinition
@@ -36,6 +37,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewFilterExpression
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewExposedNames
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewSourceLocation
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceSourcePositions
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewConditionsAndDefinition
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ExposeRecursionKindDerivation
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewUsageExpose
@@ -117,6 +119,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-BindingFeatureChain
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-InheritedTransitionSource
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-EdgeRawReference
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-UnresolvedPositions
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
@@ -130,6 +133,7 @@ sections:
           and must be detected to prevent infinite loops in downstream analysis.
         children:
           - SysML2Tools-Language-Semantic-Model-SupertypeWalker-Walk
+          - SysML2Tools-Language-Semantic-Model-SupertypeWalker-CyclePosition
         tests:
           - WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered

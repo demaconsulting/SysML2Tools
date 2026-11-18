@@ -75,11 +75,21 @@ external services or additional configuration are required beyond a standard .NE
   `Actions::Action` direct children — producing a `Transition`-kind `SysmlEdge` and no
   unresolved-reference diagnostic. The `Target` side of a transition never receives this
   fallback.
+- Every unresolved reference — supertype, subsetting, typing, redefinition, import, `expose`,
+  view definition, connector (`connect`/`bind`) endpoint, transition target, metadata type,
+  dependency, allocation, `satisfy`, and `verify` — is reported at the one-based line and
+  one-based column of the reference text as written (not `(0,0)`); two references on different
+  lines and in different files are reported at their own positions and files; and a circular
+  import is reported at the import statement that closes the cycle, in its own file.
 
 ##### Test Scenarios
 
 | Scenario | Verified By |
 | --- | --- |
+| Position per unresolved reference kind | `WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition` |
+| Distinct positions per reference | `WorkspaceLoader_LoadAsync_UnresolvedReferences_ReportDistinctPositions` |
+| Position names the referencing file | `WorkspaceLoader_LoadAsync_UnresolvedReferencesInTwoFiles_ReportEachFilePath` |
+| Circular import file and position | `WorkspaceLoader_LoadAsync_CircularImport_ReportsFileAndPosition` |
 | Unresolved supertype reference | `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` |
 | Same-named defs, own package | `WorkspaceLoader_LoadAsync_SameNamedDefsInSiblingPackages_ResolveToOwningPackage` |
 | Local name before global library name | `WorkspaceLoader_LoadAsync_LocalNameShadowsGlobalLibraryName_ResolvesLocal` |

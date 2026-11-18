@@ -3,11 +3,13 @@
 ### Verification Approach
 
 The `Utilities` subsystem is verified by integration tests defined in
-`UtilitiesSubsystemTests.cs` (covering `PathHelpers`) plus a dedicated unit test file:
-`PathHelpersTests.cs`. Integration tests exercise `PathHelpers` through realistic
+`UtilitiesSubsystemTests.cs` (covering `PathHelpers` and `DiagnosticFormatter`) plus dedicated
+unit test files: `PathHelpersTests.cs` and `DiagnosticFormatterTests.cs`. Integration tests
+exercise `PathHelpers` through realistic
 path-combination workflows to confirm that valid paths are resolved correctly, traversal
-attacks are rejected, and the resulting paths can be used for actual directory creation. This
-unit has no dependency on any other tool unit, so no mocking is required.
+attacks are rejected, and the resulting paths can be used for actual directory creation, and
+exercise `DiagnosticFormatter` over a mix of located and unlocated diagnostics of every
+severity. Neither unit has a dependency on any other tool unit, so no mocking is required.
 
 ### Test Environment
 
@@ -20,6 +22,8 @@ N/A - standard test environment.
 - Path traversal patterns (e.g., `../`) cause `ArgumentException` to be thrown.
 - Absolute paths supplied as the relative argument cause `ArgumentException` to be thrown.
 - Paths produced by `SafePathCombine` can be passed directly to `Directory.CreateDirectory`.
+- Diagnostics of every severity, located or not, are each formatted as one line in the
+  `path(line,col): severity: message` shape (location omitted when there is no file path).
 
 ### Test Scenarios
 
@@ -40,6 +44,13 @@ scenario is tested by
 argument to `SafePathCombine`; an `ArgumentException` is thrown for each and no injection
 succeeds. This scenario is tested by
 `UtilitiesSubsystem_AbsolutePathRejection_ThrowsException`.
+
+**UtilitiesSubsystem_DiagnosticFormatting_MixedDiagnostics_FormatsEachAsOneLine**: Info,
+Warning, and Error diagnostics with file paths and positions, plus one diagnostic without a file
+path, are each passed to `DiagnosticFormatter.Format`; the results are the expected
+`path(line,col): severity: message` lines (and `warning: no file` for the unlocated one), each a
+single line. This scenario is tested by
+`UtilitiesSubsystem_DiagnosticFormatting_MixedDiagnostics_FormatsEachAsOneLine`.
 
 **UtilitiesSubsystem_DirectoryCreationWorkflow_ValidPaths_CreatesDirectories**:
 `PathHelpers.SafePathCombine` is used to compute a nested path, and the resulting path is

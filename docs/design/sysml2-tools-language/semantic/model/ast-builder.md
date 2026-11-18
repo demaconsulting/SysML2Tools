@@ -224,7 +224,7 @@ only body form that may additionally contain `expose` members) the same way, plu
 name), mirroring the existing anonymous-element convention. Both visitors also record the view's
 declaration location on `SourceFilePath` (the optional `filePath` constructor argument, which
 `WorkspaceLoader` supplies for each user file; null when constructed without one, as `StdlibGen`
-does), `SourceLine` (`context.Start.Line`), and `SourceColumn` (`context.Start.Column`).
+does), `SourceLine` (`context.Start.Line`), and `SourceColumn` (`context.Start.Column + 1`, as columns are one-based).
 `ExtractViewRenderAndFilter` collects
 every `filter` member's original text, in source order, into `FilterExpressionTexts` (the first
 is also kept as `FilterExpressionText`), and `VisitViewUsage` records the usage's view definition
@@ -645,6 +645,39 @@ unchanged.
 Bare direction-only parameters (`in x : T;`, grammar `defaultReferenceUsage`) still produce no AST
 node, so no direction is captured for them: creating nodes would add `Children` to many
 definitions and change compartment, layout, and stdlib symbol inputs.
+
+##### Source Position Capture
+
+`AstBuilder` overrides `Visit(IParseTree)`, the single entry point through which the root, every
+body element, and every nested member is built, to stamp the node it returns (`Stamp`):
+
+- **Declaration position** — the first time a node is seen, `SourceFilePath` (the `filePath`
+  constructor argument), `SourceLine`, and `SourceColumn` are set from the context's start token.
+  The innermost context that builds the node wins; wrapper contexts that only pass a node up do
+  not overwrite it. Nodes wrapped in a `MultiNodeCapture` are each stamped with the capture's
+  context.
+- **Reference positions** (`LocateReferences`) — for each reference text the node declares
+  (`ReferenceTexts`: supertype, import, verified-requirement, feature typing and redefinition,
+  metadata type, view `expose` members and view definition, connector endpoints, transition
+  source/target, `satisfy` requirement/subject, and `dependency` from/to names), the position of
+  the first matching token run is stored in `ReferencePositions`. Each reference text is built by
+  concatenating grammar tokens (`GetText()`), so it is located by `FindReference`, which matches
+  a run of consecutive terminal tokens whose texts concatenate to the reference (`A::B` is the
+  tokens `A`, `::`, `B`). The declaration *header* — the context's tokens up to the first `{` or
+  `;` — is searched first, since that is where specialization, typing, redefinition, import, and
+  connector references are written; the whole context is searched only when the header does not
+  contain the text (references written in a body, such as `expose` and `verify`). A run that is a
+  whole reference (not adjacent to a `::` or `.` qualifier token) is preferred over one embedded
+  in a longer qualified name. The declaration's own identifier tokens (its name and
+  `<short name>`) are not references: a
+  reference spelled like them (`part def A :> A;`, `attribute x redefines x;`) is located at the
+  reference token, and the identifier is used only when nothing else matches (an implied name
+  taken from the reference). A text with no match is left unlocated and diagnostics about it fall
+  back to the declaration position. This is done centrally, after each node is built, so the many
+  per-construct visitors need no change.
+
+Positions are an in-memory property of nodes built from source; they are not serialized (see
+`SysmlNode`).
 
 ##### Error Handling
 

@@ -136,6 +136,40 @@ public class LintSubsystemTests
     }
 
     /// <summary>
+    ///     LintCommand reports an unresolved reference at the position of the reference text, not
+    ///     at (0,0).
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Report_UnresolvedReference_ReportsReferencePosition()
+    {
+        // Arrange: a model whose supertype reference (line 2, column 19) does not resolve
+        var tempFile = Path.Combine(Path.GetTempPath(), $"lint_test_{Guid.NewGuid():N}.sysml");
+        await File.WriteAllTextAsync(
+            tempFile, "package P {\n    part def X :> DoesNotExist;\n}\n", TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: lint the file
+            using var context = Context.Create(["lint", tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: the warning is located at the reference text
+            Assert.Contains(
+                $"{tempFile}(2,19): warning: Unresolved reference: 'DoesNotExist'",
+                outWriter.ToString().Split('\n').Select(line => line.TrimEnd('\r')));
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     LintCommand returns exit code 1 when error-severity diagnostics are present.
     /// </summary>
     [Fact]

@@ -82,6 +82,53 @@ sysml2tools render "common/**/*.sysml" "system/**/*.sysml" --output out
 sysml2tools lint "src/**/*.sysml" "!src/generated/**"
 ```
 
+# Diagnostic Format
+
+Every command that prints diagnostics — `lint`, `render`, and `query` — prints each one as a
+single line in the same compiler-style form, produced by one shared formatter:
+
+```text
+path(line,col): severity: message
+```
+
+- `path` is the file the diagnostic is about, as it was resolved from your patterns.
+- `line` and `col` are both one-based: the first character of a file is line 1, column 1. This is
+  the convention of MSBuild, GCC, editor problem matchers, and GitHub annotations.
+- `severity` is `error`, `warning`, or `info`, in lowercase.
+- A diagnostic that is not tied to a file has no `path(line,col):` prefix and prints as just
+  `severity: message`.
+
+Errors are written to standard error and everything else to standard output, so the lines are
+suitable for CI problem matchers, editor navigation, and AI-assisted model-fix loops that parse
+them.
+
+For an `Unresolved reference` warning the position is that of the reference text as written. For
+example, with `part def X :> DoesNotExist;` indented four spaces on line 2 of `c.sysml`, the
+reference `DoesNotExist` starts at column 19:
+
+```text
+c.sysml(2,19): warning: Unresolved reference: 'DoesNotExist'
+```
+
+The position is that of the first character of the reference (`DoesNotExist`) for a supertype,
+subsetting, typing, redefinition, import, `expose`, view-definition, connector (`connect`/`bind`)
+endpoint, transition source or target, `satisfy`, `verify`, `allocate`, `dependency`, or metadata
+reference. A name that is synthesized rather than written (for example the implied source of a
+`then` succession) is reported at the position of the declaration that contains it. A circular
+import is reported at the `import` statement that closes the cycle, and a cyclic specialization
+at the supertype reference that closes it.
+
+If the same name is unresolved several times in one file it is reported once, at its first use.
+
+`render` and `query` print the same lines for the diagnostics found while loading your model.
+For `query --format json`, those lines are still written to standard output before the JSON
+document, exactly as before.
+
+The diagnostics in the JSON produced by `export` carry `FilePath`, `Line`, `Column`, `Severity`,
+and `Message` as separate fields, using the same one-based `Line` and `Column` as the console
+lines above (`0` when the position is unknown). Syntax-error and unresolved-reference columns
+changed from zero-based to one-based in this release.
+
 # Linting
 
 The `lint` command loads a workspace, resolves the semantic model, and reports all
@@ -91,11 +138,12 @@ diagnostics. It exits with a non-zero code if any errors are present.
 sysml2tools lint "src/**/*.sysml"
 ```
 
-Diagnostic output includes file path, line, column, severity, and message:
+Diagnostic output includes file path, line, column, severity, and message, in the format
+described under [Diagnostic Format](#diagnostic-format):
 
 ```text
-model.sysml:12:5: error: unresolved reference 'VehicleSystem'
-model.sysml:34:1: warning: view 'Overview' references unsupported viewpoint kind
+model.sysml(12,19): warning: Unresolved reference: 'VehicleSystem'
+model.sysml(34,4): error: mismatched input ';' expecting IDENTIFIER
 ```
 
 This structured output is suitable for:
@@ -705,10 +753,10 @@ exposes only `P`'s members (no package node); and `expose P::**;` exposes `P` an
 recursively (the package node containing its members). When a package is exposed alone in a view
 laid out as a General View, `render`
 prints an informational hint, located at the view's declaration in the same
-`file(line,col): severity:` form `lint` uses:
+`file(line,col): severity:` form `lint` uses (see [Diagnostic Format](#diagnostic-format)):
 
 ```text
-  design-views.sysml(9,4): info: View 'SoftwareStructureView': 'expose BuildMark;' exposes the
+design-views.sysml(9,5): info: View 'SoftwareStructureView': 'expose BuildMark;' exposes the
   package element itself, so it is drawn as a package node without contents; use
   'expose BuildMark::**;' to also show the members.
 ```

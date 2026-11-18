@@ -28,8 +28,12 @@ public enum DiagnosticSeverity
 /// <param name="FilePath">
 ///     The source file path (or a <c>[stdlib]…</c> virtual path for embedded library files).
 /// </param>
-/// <param name="Line">One-based line number within <paramref name="FilePath"/>.</param>
-/// <param name="Column">Zero-based column offset within the line.</param>
+/// <param name="Line">One-based line number within <paramref name="FilePath"/>; 0 when unknown.</param>
+/// <param name="Column">
+///     One-based column number within the line (the first character of a line is column 1), the
+///     same convention as <paramref name="Line"/> and as the <c>file(line,col)</c> form recognized
+///     by compilers, editors, and CI annotations; 0 when unknown.
+/// </param>
 /// <param name="Severity">Severity of the diagnostic.</param>
 /// <param name="Message">Human-readable description of the problem.</param>
 public sealed record SysmlDiagnostic(

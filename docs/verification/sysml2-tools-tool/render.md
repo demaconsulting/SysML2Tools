@@ -269,6 +269,14 @@ members writes the view's `.svg` file, exits with code 0, and prints a
 `file(line,col): info: View '...'` hint located at the view's declaration that suggests
 `expose Pkg::**;`.
 
+#### RenderSubsystem_LoadDiagnostic_PrintsFileLineColumnSeverityMessage
+
+Verifies that rendering a model with an unresolved supertype reference (`part def X :>
+DoesNotExist;`, written at line 2, column 19) prints the load diagnostic as the line
+`<file>(2,19): warning: Unresolved reference: 'DoesNotExist'` — the exact format `lint` uses,
+located at the reference text — and never as a raw `SysmlDiagnostic { ... }` record dump.
+Satisfies `SysML2Tools-Tool-Render-LoadDiagnosticFormat`.
+
 #### RenderSubsystem_PrivateMemberReference_ReportsOneUnresolvedDiagnosticAndNoLayoutWarning
 
 Verifies that rendering a General view over a model in which a part is typed by a private member

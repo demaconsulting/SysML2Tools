@@ -25,6 +25,7 @@ using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
 using DemaConsulting.SysML2Tools.Stdlib;
+using DemaConsulting.SysML2Tools.Utilities;
 
 namespace DemaConsulting.SysML2Tools.Query;
 
@@ -111,13 +112,14 @@ internal static class QueryCommand
 
         foreach (var diagnostic in loadResult.Diagnostics)
         {
+            var line = DiagnosticFormatter.Format(diagnostic);
             if (diagnostic.Severity == DiagnosticSeverity.Error)
             {
-                context.WriteError($"  {diagnostic}");
+                context.WriteError(line);
             }
             else
             {
-                context.WriteLine($"  {diagnostic}");
+                context.WriteLine(line);
             }
         }
 

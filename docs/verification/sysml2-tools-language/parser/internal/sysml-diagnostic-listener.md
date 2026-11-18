@@ -18,10 +18,13 @@ installation.
 - A source containing a syntax error yields at least one `Error`-severity diagnostic, confirming
   the listener captured the ANTLR4 error.
 - Each captured diagnostic carries the file path supplied by the caller, confirming attribution.
+- The captured line and column are both one-based (a syntax error at the first character of the
+  file is reported at line 1, column 1).
 
 #### Test Scenarios
 
 | Test | Assertion |
 | --- | --- |
+| `WorkspaceLoader_LoadAsync_SyntaxError_ReportsOneBasedColumn` | An error at the first character is (1,1) |
 | `ParseSource_InvalidSyntax_ReportsError` | A lexer/parser error is captured as an Error diagnostic |
 | `ParseSource_ErrorPath_MatchesSuppliedPath` | The captured diagnostic carries the supplied path |

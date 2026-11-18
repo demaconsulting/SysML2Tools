@@ -22,8 +22,11 @@ For each supertype name in the current node:
 
 ##### Warning Format
 
-Cyclic specialization warnings use `DiagnosticSeverity.Warning` with an empty `FilePath`
-(since the cycle spans multiple potential source files).
+Cyclic specialization warnings use `DiagnosticSeverity.Warning`. They are located at the supertype
+reference that closes the cycle: the `FilePath`, and the line and column, come from the declaring
+node (`SourceFilePath`, and `ReferencePositions` for the supertype text, falling back to
+`SourceLine`/`SourceColumn`). A node that was not built from a source file (for example a
+stdlib-seeded node, whose positions are not serialized) reports an empty `FilePath` and `(0,0)`.
 
 ##### Error Handling
 

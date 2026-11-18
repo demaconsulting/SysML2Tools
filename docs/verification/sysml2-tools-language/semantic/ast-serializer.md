@@ -28,11 +28,14 @@ standard .NET SDK installation.
 - Every additive modifier and notation member of definition, feature, and transition nodes
   (including `Direction`, written as a string) is preserved through the round trip, and each is
   omitted from the JSON text when it holds its default value.
+- Source positions (`SourceFilePath`, `SourceLine`, `SourceColumn`, `ReferencePositions`) are
+  never written to the JSON text and restore to their defaults.
 
 #### Test Scenarios
 
 | Test | Assertion |
 | --- | --- |
+| `Serialize_SourcePositions_AreNotPersisted` | No source position is written; a round trip restores the defaults |
 | `Serialize_EmptyTable_RoundTrips` | Empty table restores to an empty table |
 | `Serialize_PackageNode_RoundTrips` | A package node restores with its qualified name |
 | `Serialize_DefinitionNode_RoundTrips` | A definition node restores with its qualified name |

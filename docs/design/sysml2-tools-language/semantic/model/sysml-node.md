@@ -58,6 +58,24 @@ All nodes carry:
   by `AstBuilder` from annotations lexically nested directly in this element's body. An
   explicit `about X` target is not resolved — the annotation is attached to the lexically
   enclosing node, not to `X` (see `SysmlAnnotation` design doc for known limitations).
+- `SourceFilePath`, `SourceLine`, `SourceColumn` — the file that declares the element (null when
+  the element was not built from a source file, such as a synthesized `--auto` or dynamic view, or
+  one loaded from the pre-compiled stdlib) and the one-based line and one-based column (matching
+  the `SysmlDiagnostic.Column` convention) at which its declaration starts, 0 when unknown.
+- `ReferencePositions` — the `SourcePosition` (line, column) of the first token of each reference
+  text the node declares (supertypes, subsetting, typing, redefinition, imports, `expose`
+  members, view definition, connector endpoints, transition source/target, `satisfy`, `verify`,
+  `dependency`, and metadata-type references), keyed by the text exactly as `ReferenceResolver`
+  resolves it. A reference whose text matches no token (a synthesized name such as an implicit
+  transition source) has no entry.
+
+  These four are populated by `AstBuilder` and consumed by `ReferenceResolver` and
+  `SupertypeWalker` to locate diagnostics. They are marked `[JsonIgnore]` on `SysmlNode`
+  (`SysmlViewNode`'s forwarding location properties excepted — see the view section): positions are only
+  needed while a workspace's own source files are being resolved (the stdlib is resolved when it
+  is pre-compiled, and its diagnostics, with positions, are what is serialized), so they are
+  deliberately not part of the serialized stdlib format, which keeps `stdlib.json.gz` small and
+  means a deserialized node has no position.
 
 ##### Key Methods
 
@@ -219,9 +237,13 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   original token spacing, not `RuleContext.GetText()`'s whitespace-stripped form) and never
   inspected by `ReferenceResolver`. The Language Filtering subsystem parses and evaluates this raw
   text later when `GeneralViewLayoutStrategy` renders the view.
-- `SourceFilePath`, `SourceLine`, `SourceColumn` — the path of the file declaring the view (null
+- `SourceFilePath`, `SourceLine`, `SourceColumn` — forward to the `SysmlNode` properties (see above)
+  but are redeclared (`new`, with their original `init` signatures) on `SysmlViewNode` so binaries
+  compiled when they were declared here keep working, and — unlike other nodes — remain serialized
+  for views: the
+  path of the file declaring the view (null
   for a view not built from a source file, such as a synthesized `--auto` or dynamic view) and
-  the one-based line and zero-based column (matching the `SysmlDiagnostic.Column` convention) of
+  the one-based line and one-based column (matching the `SysmlDiagnostic.Column` convention) of
   the view's declaration, 0 when unknown. Recorded by `AstBuilder` so view-level diagnostics
   produced after loading — such as `DiagramRenderer`'s empty-view warning — can be located.
 

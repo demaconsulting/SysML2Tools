@@ -11,6 +11,7 @@ using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Stdlib;
+using DemaConsulting.SysML2Tools.Utilities;
 
 namespace DemaConsulting.SysML2Tools.Render;
 
@@ -63,13 +64,14 @@ internal static class RenderCommand
         // Report any diagnostics from the load phase
         foreach (var diagnostic in loadResult.Diagnostics)
         {
+            var line = DiagnosticFormatter.Format(diagnostic);
             if (diagnostic.Severity == DiagnosticSeverity.Error)
             {
-                context.WriteError($"  {diagnostic}");
+                context.WriteError(line);
             }
             else
             {
-                context.WriteLine($"  {diagnostic}");
+                context.WriteLine(line);
             }
         }
 
@@ -177,11 +179,7 @@ internal static class RenderCommand
         // warnings do not affect the exit code.
         foreach (var diagnostic in renderDiagnostics)
         {
-            var location = diagnostic.FilePath.Length > 0
-                ? $"{diagnostic.FilePath}({diagnostic.Line},{diagnostic.Column}): "
-                : string.Empty;
-            context.WriteLine(
-                $"  {location}{diagnostic.Severity.ToString().ToLowerInvariant()}: {diagnostic.Message}");
+            context.WriteLine(DiagnosticFormatter.Format(diagnostic));
         }
 
         context.WriteLine($"Rendered {outputs.Count} view(s).");

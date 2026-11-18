@@ -294,3 +294,26 @@ sections:
           - WorkspaceLoader_LoadAsync_ExposeForms_RawReferenceKeepsWrittenWildcardMarkers
           - ReferenceResolver_ImportAndExposeWithoutRawText_FallBackToName
           - WorkspaceLoader_LoadAsync_TwoEndedEdges_HaveNoRawReference
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-UnresolvedPositions
+        title: >-
+          ReferenceResolver.ResolveAll shall locate each unresolved-reference Warning at the
+          position (one-based line, one-based column) of the reference text as written — for
+          supertype, subsetting, typing, redefinition, import, expose, view-definition, connector
+          endpoint, transition source/target, satisfy, verify, allocation, dependency, and
+          metadata-type references — falling back to the position of the owning declaration when
+          the reference text was not located, and shall locate each circular-import Warning at the
+          import statement that closes the cycle, naming the file that contains it.
+        justification: |
+          A diagnostic positioned at (0,0) cannot drive CI annotations, editor navigation, or
+          AI-assisted model-fix loops, which rely on the reported location. The reference's own
+          token position is the most precise location; the owning declaration is the best
+          available location when a reference has no token (for example a synthesized name).
+          Positions are read from the node (`ReferencePositions`, `SourceLine`, `SourceColumn`)
+          that AstBuilder populated, so name resolution itself is unchanged and the number of
+          diagnostics is unchanged.
+        tests:
+          - WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition
+          - WorkspaceLoader_LoadAsync_UnresolvedReferences_ReportDistinctPositions
+          - WorkspaceLoader_LoadAsync_UnresolvedReferencesInTwoFiles_ReportEachFilePath
+          - WorkspaceLoader_LoadAsync_CircularImport_ReportsFileAndPosition

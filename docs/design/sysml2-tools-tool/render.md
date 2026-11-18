@@ -47,8 +47,10 @@ Entry point for the render command. Steps:
    then calls `WorkspaceLoader.LoadAsync(files, stdlibTable)` to load the workspace from the
    resolved file paths, seeded with the stdlib symbol table so stdlib elements resolve without
    re-parsing them.
-4. Reports all diagnostics from `loadResult.Diagnostics`, writing errors via
-   `context.WriteError` and other messages via `context.WriteLine`.
+4. Reports all diagnostics from `loadResult.Diagnostics`, formatting each with the shared
+   `DiagnosticFormatter.Format` (the same `file(line,col): severity: message` line `lint` prints,
+   with no indentation) and writing errors via `context.WriteError` and other messages via
+   `context.WriteLine`.
 5. Calls the private helper `TryProcessDynamicView(context, options, loadResult.Workspace, ref
    effectiveViewFilter)` (where `effectiveViewFilter` is initialized from `options.ViewName`)
    before any of the existing declared-view logic below, so the dynamic-view feature is entirely
@@ -94,7 +96,8 @@ Entry point for the render command. Steps:
     it via `Directory.CreateDirectory`, and writes each `RenderOutput.Data` stream to a
     file named `RenderOutput.SuggestedFileName`, followed by that output's layout warnings.
 12. Prints each collected view-level diagnostic (an empty-view `warning` or a lone-package
-    `info` hint) via `context.WriteLine` in the same `file(line,col): severity: message` form the
+    `info` hint) via `context.WriteLine`, formatted by `DiagnosticFormatter.Format` — the same
+    `file(line,col): severity: message` form the
     `lint` command uses (the location prefix is omitted for a synthesized view with no source
     file). Every view is still written, and these diagnostics do not change the exit code,
     following the tool's convention that only errors fail a run.
@@ -188,3 +191,4 @@ future-locale story, which applies identically here.
 | SysML2Tools-Tool-Render-DynamicView | `TryProcessDynamicView` helper, called from `RunAsync` |
 | SysML2Tools-Tool-Render-EmptyViewWarning | Empty-view diagnostics printed in `RunAsync` |
 | SysML2Tools-Tool-Render-UnresolvedReferenceDiagnostic | Load-diagnostic reporting (step 4) in `RunAsync` |
+| SysML2Tools-Tool-Render-LoadDiagnosticFormat | Load-diagnostic reporting (step 4) in `RunAsync` |

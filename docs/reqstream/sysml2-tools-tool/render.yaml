@@ -34,9 +34,24 @@ sections:
           - SysML2Tools-Tool-Render-DynamicView
           - SysML2Tools-Tool-Render-EmptyViewWarning
           - SysML2Tools-Tool-Render-UnresolvedReferenceDiagnostic
+          - SysML2Tools-Tool-Render-LoadDiagnosticFormat
         tests:
           - RenderSubsystem_NoFiles_ReportsError
           - RenderSubsystem_GlobPattern_ResolvesMultipleFiles
+
+      - id: SysML2Tools-Tool-Render-LoadDiagnosticFormat
+        title: >-
+          The render command shall print each load diagnostic in the same
+          `path(line,col): severity: message` format as the lint command (via the shared
+          DiagnosticFormatter), not as a raw record dump.
+        justification: |
+          Render printed load diagnostics as a raw `SysmlDiagnostic { ... }` record dump, which no
+          IDE, CI problem matcher, or annotation tool can parse and which differs from lint. Using
+          the shared formatter makes the output of every command identical and locatable.
+        children:
+          - SysML2Tools-Tool-Utilities-DiagnosticFormat
+        tests:
+          - RenderSubsystem_LoadDiagnostic_PrintsFileLineColumnSeverityMessage
 
       - id: SysML2Tools-Tool-Render-NoFilesMatched
         title: >-

@@ -45,6 +45,14 @@ that does not use them serializes exactly as before. `SysmlFeatureDirection` is 
 (`"In"`, `"Out"`, `"InOut"`) through a `JsonStringEnumConverter` declared on the enum. The format
 has no version field: the members are additive, so no format change or version bump is needed.
 
+Source positions are **not** serialized: `SysmlNode.SourceFilePath`, `SourceLine`, `SourceColumn`,
+and `ReferencePositions` are `[JsonIgnore]`. They are only read while a workspace's own files are
+being resolved, and the standard library is resolved when it is pre-compiled, so its positions
+are never needed at run time — the diagnostics it produced, which now carry real positions
+instead of `(0,0)`, are what is serialized. Leaving the positions out keeps `stdlib.json.gz`
+essentially the same size. (`SysmlViewNode` keeps its own forwarding
+`SourceFilePath`/`SourceLine`/`SourceColumn` properties, which are serialized exactly as before.)
+
 #### Dependencies
 
 - **SymbolTable** — source of the `Symbols` dictionary being serialized.

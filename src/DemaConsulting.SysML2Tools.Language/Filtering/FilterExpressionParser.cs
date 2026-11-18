@@ -562,7 +562,8 @@ public static class FilterExpressionParser
             int line, int charPositionInLine, string msg, RecognitionException e) =>
             Append(line, charPositionInLine, msg);
 
+        // ANTLR reports a zero-based column; SysmlDiagnostic.Column is one-based.
         private void Append(int line, int column, string msg) =>
-            diagnostics.Add(new SysmlDiagnostic(VirtualFilePath, line, column, DiagnosticSeverity.Error, $"Filter expression syntax error: {msg}"));
+            diagnostics.Add(new SysmlDiagnostic(VirtualFilePath, line, column + 1, DiagnosticSeverity.Error, $"Filter expression syntax error: {msg}"));
     }
 }

@@ -23,6 +23,7 @@ using DemaConsulting.SysML2Tools.Io;
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Stdlib;
+using DemaConsulting.SysML2Tools.Utilities;
 
 namespace DemaConsulting.SysML2Tools.Lint;
 
@@ -63,7 +64,7 @@ internal static class LintCommand
 
         foreach (var diagnostic in result.Diagnostics)
         {
-            var line = $"{diagnostic.FilePath}({diagnostic.Line},{diagnostic.Column}): {diagnostic.Severity.ToString().ToLowerInvariant()}: {diagnostic.Message}";
+            var line = DiagnosticFormatter.Format(diagnostic);
             if (diagnostic.Severity == DiagnosticSeverity.Error)
             {
                 context.WriteError(line);

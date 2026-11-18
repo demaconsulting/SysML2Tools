@@ -32,6 +32,7 @@ flowchart TD
     end
     subgraph Utilities
         PathHelpers
+        DiagnosticFormatter
     end
     Program --> Context
     Program --> LintCommand
@@ -42,6 +43,9 @@ flowchart TD
     Program --> Validation
     Validation --> Program
     Validation --> PathHelpers
+    LintCommand --> DiagnosticFormatter
+    RenderCommand --> DiagnosticFormatter
+    QueryCommand --> DiagnosticFormatter
 ```
 
 `Program` is the entry point. It creates a `Context` from the `Cli` subsystem, dispatches to
@@ -51,7 +55,9 @@ flowchart TD
 dispatches to `ExportCommand` when the `export` subcommand is passed, dispatches to
 `Validation` when `--validate` is passed, and returns the exit code from
 `Context`. `Validation` calls `Program.Run` recursively to exercise the tool during
-self-testing, and uses `PathHelpers` to construct safe temporary file paths.
+self-testing, and uses `PathHelpers` to construct safe temporary file paths. `LintCommand`,
+`RenderCommand`, and `QueryCommand` format every diagnostic they print with
+`DiagnosticFormatter`, so all three report diagnostics identically.
 
 ## External Interfaces
 

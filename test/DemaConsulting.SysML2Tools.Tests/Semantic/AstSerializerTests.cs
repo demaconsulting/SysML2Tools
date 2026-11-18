@@ -501,6 +501,101 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
+    ///     Source positions (declaration file/line/column and per-reference positions) are only
+    ///     needed while a workspace's own files are resolved, so they are not written to the
+    ///     serialized format and deserialize to their defaults.
+    /// </summary>
+    [Fact]
+    public void Serialize_SourcePositions_AreNotPersisted()
+    {
+        // Arrange
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlDefinitionNode
+        {
+            Name = "def",
+            QualifiedName = "def",
+            DefinitionKeyword = "part def",
+            SourceFilePath = "model.sysml",
+            SourceLine = 7,
+            SourceColumn = 4,
+            ReferencePositions = new Dictionary<string, SourcePosition> { ["Base"] = new(7, 18) },
+        });
+
+        // Act
+        var bytes = AstSerializer.Serialize(table, []);
+        var json = System.Text.Encoding.UTF8.GetString(bytes);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        // Assert: nothing about positions is written, and the round trip restores the defaults
+        foreach (var name in new[] { "SourceFilePath", "SourceLine", "SourceColumn", "ReferencePositions", "model.sysml" })
+        {
+            Assert.DoesNotContain(name, json);
+        }
+
+        var roundTripped = result.Symbols["def"];
+        Assert.Null(roundTripped.SourceFilePath);
+        Assert.Equal(0, roundTripped.SourceLine);
+        Assert.Equal(0, roundTripped.SourceColumn);
+        Assert.Empty(roundTripped.ReferencePositions);
+    }
+
+    /// <summary>
+    ///     The view source-location properties stay declared on <see cref="SysmlViewNode"/> itself
+    ///     (as forwarding properties), so binaries compiled against
+    ///     <c>SysmlViewNode.get_SourceFilePath</c> and its siblings keep working. Reflection
+    ///     tripwire: removing the redeclarations breaks that binary compatibility.
+    /// </summary>
+    [Theory]
+    [InlineData("SourceFilePath")]
+    [InlineData("SourceLine")]
+    [InlineData("SourceColumn")]
+    public void SysmlViewNode_SourceLocationProperties_AreDeclaredOnViewNode(string name)
+    {
+        // Act
+        var property = typeof(SysmlViewNode).GetProperty(
+            name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance |
+                  System.Reflection.BindingFlags.DeclaredOnly);
+
+        // Assert: declared on the view node with a public getter
+        Assert.NotNull(property);
+        Assert.NotNull(property.GetGetMethod());
+        Assert.Equal(typeof(SysmlViewNode), property.GetGetMethod()!.DeclaringType);
+    }
+
+    /// <summary>
+    ///     A view node's source location is serialized and restored exactly as before the
+    ///     properties moved to the base class (other node kinds do not persist theirs).
+    /// </summary>
+    [Fact]
+    public void Serialize_ViewNodeSourceLocation_RoundTrips()
+    {
+        // Arrange
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "V",
+            SourceFilePath = "views.sysml",
+            SourceLine = 3,
+            SourceColumn = 5,
+        });
+
+        // Act
+        var bytes = AstSerializer.Serialize(table, []);
+        var json = System.Text.Encoding.UTF8.GetString(bytes);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        // Assert
+        Assert.Contains("\"SourceFilePath\":\"views.sysml\"", json);
+        Assert.Contains("\"SourceLine\":3", json);
+        Assert.Contains("\"SourceColumn\":5", json);
+        var view = Assert.IsType<SysmlViewNode>(result.Symbols["V"]);
+        Assert.Equal("views.sysml", view.SourceFilePath);
+        Assert.Equal(3, view.SourceLine);
+        Assert.Equal(5, view.SourceColumn);
+    }
+
+    /// <summary>
     ///     <see cref="SysmlFeatureDirection"/> is written as a readable string, and only when set.
     /// </summary>
     [Fact]

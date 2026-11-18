@@ -38,7 +38,7 @@ file path for diagnostic attribution.
 
 - *Type*: Sealed record.
 - *Role*: Data transfer object.
-- *Contract*: Exposes `FilePath`, one-based `Line`, zero-based `Column`, a `DiagnosticSeverity`
+- *Contract*: Exposes `FilePath`, one-based `Line`, one-based `Column`, a `DiagnosticSeverity`
   value, and a human-readable `Message`.
 
 **WorkspaceParseResult**: Aggregate result of parsing a workspace.

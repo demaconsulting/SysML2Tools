@@ -953,6 +953,20 @@ reviews:
       - "src/**/Utilities/PathHelpers.cs"
       - "test/**/Utilities/PathHelpersTests.cs"
 
+  - id: SysML2Tools-Tool-Utilities-DiagnosticFormatter
+    title: Review of SysML2 Tools DiagnosticFormatter unit implementation
+    context:
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+      - docs/design/sysml2-tools-tool/utilities.md
+      - docs/reqstream/sysml2-tools-tool/utilities.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-tool/utilities/diagnostic-formatter.yaml"
+      - "docs/design/sysml2-tools-tool/utilities/diagnostic-formatter.md"
+      - "docs/verification/sysml2-tools-tool/utilities/diagnostic-formatter.md"
+      - "src/**/Utilities/DiagnosticFormatter.cs"
+      - "test/**/Utilities/DiagnosticFormatterTests.cs"
+
   - id: SysML2Tools-Tool-Lint
     title: Review of SysML2 Tools Lint subsystem architecture and interfaces
     context:
