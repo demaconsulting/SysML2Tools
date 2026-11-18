@@ -355,7 +355,8 @@ implementation:
   features. **Attributes, plain references, and ports without nested features stay rows** in the
   owner's compartments (`attributes`, `ports`, ...), which have centered italic titles.
 - An abstract definition has an italic name; an abstract usage is marked only by its keyword. A
-  reference usage has a dashed outline.
+  reference usage has a dashed outline. In every view, element names are drawn in regular weight
+  beneath an italic keyword line, as in the SysML v2 graphical notation.
 - A package is a folder with its name in the tab; a package nested in another package is drawn inside its
   owner's folder.
 - The diagram flows **top to bottom**: owners and general types are on top, the elements they own or

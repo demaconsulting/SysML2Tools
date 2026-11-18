@@ -32,23 +32,23 @@
   </defs>
   <rect x="18.00" y="18.00" width="254.64" height="42.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="145.32" y="30.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="145.32" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">user : User</text>
+  <text x="145.32" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">user : User</text>
   <line x1="145.32" y1="60.00" x2="145.32" y2="410.00" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
   <rect x="296.64" y="18.00" width="254.64" height="42.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="423.96" y="30.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="423.96" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">browser : Browser</text>
+  <text x="423.96" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">browser : Browser</text>
   <line x1="423.96" y1="60.00" x2="423.96" y2="410.00" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
   <rect x="575.28" y="18.00" width="254.64" height="42.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="702.60" y="30.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="702.60" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">authServer : AuthServer</text>
+  <text x="702.60" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">authServer : AuthServer</text>
   <line x1="702.60" y1="60.00" x2="702.60" y2="410.00" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
   <rect x="853.92" y="18.00" width="254.64" height="42.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00" stroke-dasharray="6 3"/>
   <text x="981.24" y="30.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«ref part»</text>
-  <text x="981.24" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">resourceServer : ResourceServer</text>
+  <text x="981.24" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">resourceServer : ResourceServer</text>
   <line x1="981.24" y1="60.00" x2="981.24" y2="410.00" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
   <rect x="1132.56" y="18.00" width="254.64" height="42.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="1259.88" y="30.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="1259.88" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">auditLog : AuditLog</text>
+  <text x="1259.88" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">auditLog : AuditLog</text>
   <line x1="1259.88" y1="60.00" x2="1259.88" y2="410.00" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
   <path d="M 145.32 95.00 L 423.96 95.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle)"/>
   <path d="M 423.96 130.00 L 702.60 130.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle)"/>

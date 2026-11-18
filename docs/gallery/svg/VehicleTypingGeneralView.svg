@@ -36,33 +36,33 @@
     </filter>
   </defs>
   <path d="M 12.00 36.00 L 12.00 12.00 L 72.00 12.00 L 72.00 36.00 L 665.96 36.00 L 665.96 598.00 L 12.00 598.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="18.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="start" dominant-baseline="middle">Vehicle</text>
+  <text x="18.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Vehicle</text>
   <rect x="271.81" y="68.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="336.81" y="83.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="336.81" y="102.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Car</text>
+  <text x="336.81" y="102.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Car</text>
   <rect x="84.13" y="188.00" width="246.36" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="207.31" y="203.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="207.31" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">engine : Powertrain::Engine</text>
+  <text x="207.31" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">engine : Powertrain::Engine</text>
   <rect x="360.49" y="188.00" width="211.64" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="466.31" y="203.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="466.31" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">chassis : Body::Chassis</text>
+  <text x="466.31" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">chassis : Body::Chassis</text>
   <path d="M 44.00 332.00 L 44.00 308.00 L 117.44 308.00 L 117.44 332.00 L 319.64 332.00 L 319.64 566.00 L 44.00 566.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="50.00" y="320.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="start" dominant-baseline="middle">Powertrain</text>
+  <text x="50.00" y="320.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Powertrain</text>
   <rect x="116.82" y="364.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="181.82" y="379.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="181.82" y="398.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Engine</text>
+  <text x="181.82" y="398.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Engine</text>
   <rect x="76.00" y="484.00" width="211.64" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="181.82" y="499.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="181.82" y="518.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">ElectricMotor :&gt; Engine</text>
+  <text x="181.82" y="518.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">ElectricMotor :&gt; Engine</text>
   <path d="M 181.82 484.00 L 181.82 414.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle)"/>
   <path d="M 349.64 332.00 L 349.64 308.00 L 409.64 308.00 L 409.64 332.00 L 633.96 332.00 L 633.96 566.00 L 349.64 566.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="355.64" y="320.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="start" dominant-baseline="middle">Body</text>
+  <text x="355.64" y="320.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Body</text>
   <rect x="426.80" y="364.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="491.80" y="379.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="491.80" y="398.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Chassis</text>
+  <text x="491.80" y="398.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Chassis</text>
   <rect x="381.64" y="484.00" width="220.32" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="491.80" y="499.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="491.80" y="518.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">SportsChassis :&gt; Chassis</text>
+  <text x="491.80" y="518.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">SportsChassis :&gt; Chassis</text>
   <path d="M 491.80 484.00 L 491.80 414.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle)"/>
   <path d="M 282.82 238.00 L 282.82 385.00 A 4.00 4.00 0 0 1 278.82 389.00 L 246.82 389.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle-two-dots)"/>
   <path d="M 455.40 238.00 L 455.40 364.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle-two-dots)"/>

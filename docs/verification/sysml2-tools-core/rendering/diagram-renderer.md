@@ -6,7 +6,9 @@
 workspace (from a model file and from inline SysML source), run `RenderWorkspace` with both the SVG
 and PNG renderers, and assert on the produced outputs — including that element names appear in the
 SVG text and that the PNG output carries the PNG file signature. The empty-workspace case is verified
-by a dedicated test that asserts an empty result.
+by a dedicated test that asserts an empty result. The name-weight default is verified by rendering
+gallery-model views of every node-drawing view kind to SVG and inspecting the attributes of the
+`<text>` element that draws each name (tests read `docs/gallery/models`).
 
 #### Test Environment
 
@@ -20,6 +22,8 @@ external services are required.
 - Rendering a workspace with views produces one output per view, containing the rendered elements.
 - The same workspace renders successfully with both the SVG and PNG renderers.
 - A workspace with no views produces an empty result.
+- Every node name in every view kind is drawn in regular weight (the SVG text carries no
+  `font-weight`), an abstract definition's name stays italic, and the keyword line stays italic.
 - `RenderWorkspace` threads each view's resolved `SysmlViewNode` into the `ViewContext` it
   constructs, so `GeneralViewLayoutStrategy` can scope a rendered diagram to a view's declared
   `expose` subject — verified end-to-end at the CLI level (see the `RenderCommand`
@@ -44,6 +48,8 @@ external services are required.
 | `DiagramRenderer_RenderWorkspace_ViewWithNothingRenderable_ReportsEmptyViewWarning` | Empty view warning |
 | `DiagramRenderer_RenderWorkspace_ViewExposesPackageRecursively_ReportsNoWarning` | `Pkg::**` - no warning |
 | `DiagramRenderer_RenderWorkspace_ViewExposesRenderableElement_ReportsNoWarning` | Part def - no warning |
+| `DiagramRenderer_RenderWorkspace_NodeName_IsRegularWeight` | Names in every view kind have no `font-weight` |
+| `DiagramRenderer_RenderWorkspace_AbstractDefinitionName_IsItalicRegularWeight` | Abstract name italic, not bold |
 | `RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic` | Produces scoped output |
 | `Synthesize_GeneralKind_ResolvableTarget_Succeeds` (via `SynthesizeDynamicView`) | Delegates successfully |
 | `Synthesize_UnresolvedTarget_Fails` (via `SynthesizeDynamicView`) | Delegates diagnostic on failure |

@@ -32,51 +32,51 @@
   </defs>
   <rect x="150.70" y="114.00" width="110.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="205.70" y="126.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="205.70" y="145.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">checkout</text>
+  <text x="205.70" y="145.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">checkout</text>
   <rect x="111.24" y="234.00" width="188.92" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="205.70" y="246.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="205.70" y="265.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">restoreDependencies</text>
+  <text x="205.70" y="265.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">restoreDependencies</text>
   <rect x="119.92" y="354.00" width="171.56" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="205.70" y="366.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="205.70" y="385.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">build : BuildStep</text>
+  <text x="205.70" y="385.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">build : BuildStep</text>
   <rect x="169.70" y="482.00" width="72.00" height="4.00" fill="#000000"/>
   <rect x="76.16" y="564.00" width="110.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="131.16" y="576.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="131.16" y="595.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">unitTest</text>
+  <text x="131.16" y="595.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">unitTest</text>
   <rect x="75.05" y="684.00" width="154.20" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="152.15" y="696.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="152.15" y="715.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">integrationTest</text>
+  <text x="152.15" y="715.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">integrationTest</text>
   <rect x="216.16" y="564.00" width="128.16" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="280.24" y="576.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="280.24" y="595.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">securityScan</text>
+  <text x="280.24" y="595.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">securityScan</text>
   <rect x="169.70" y="812.00" width="72.00" height="4.00" fill="#000000"/>
   <rect x="145.96" y="894.00" width="119.48" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="205.70" y="906.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="205.70" y="925.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">qualityGate</text>
+  <text x="205.70" y="925.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">qualityGate</text>
   <rect x="137.28" y="1014.00" width="136.84" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="205.70" y="1026.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="205.70" y="1045.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">deployStaging</text>
+  <text x="205.70" y="1045.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">deployStaging</text>
   <rect x="118.58" y="1134.00" width="174.24" height="56.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <polygon points="124.58,1140.00 132.58,1140.00 136.58,1144.50 132.58,1149.00 124.58,1149.00 127.58,1144.50" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="205.70" y="1147.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">awaitApproval</text>
+  <text x="205.70" y="1147.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">awaitApproval</text>
   <line x1="118.58" y1="1160.00" x2="292.82" y2="1160.00" stroke="#000000" stroke-width="1.00"/>
   <text x="124.58" y="1172.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">accept ApprovalSignal</text>
   <rect x="150.70" y="1260.00" width="110.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="205.70" y="1272.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="205.70" y="1291.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">smokeTest</text>
+  <text x="205.70" y="1291.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">smokeTest</text>
   <polygon points="205.70,1380.00 225.70,1400.00 205.70,1420.00 185.70,1400.00" fill="none" stroke="#000000" stroke-width="1.00"/>
   <text x="231.70" y="1406.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">smokeDecision</text>
   <rect x="53.86" y="1490.00" width="136.84" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="122.28" y="1502.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="122.28" y="1521.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">deployRelease</text>
+  <text x="122.28" y="1521.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">deployRelease</text>
   <rect x="24.00" y="1610.00" width="196.56" height="56.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <polygon points="30.00,1616.00 38.00,1616.00 42.00,1620.50 38.00,1625.00 30.00,1625.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="122.28" y="1623.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">notifySuccess</text>
+  <text x="122.28" y="1623.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">notifySuccess</text>
   <line x1="24.00" y1="1636.00" x2="220.56" y2="1636.00" stroke="#000000" stroke-width="1.00"/>
   <text x="30.00" y="1648.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">send releaseNote to team</text>
   <rect x="220.70" y="1490.00" width="136.84" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="289.12" y="1502.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
-  <text x="289.12" y="1521.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">revertRelease</text>
+  <text x="289.12" y="1521.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">revertRelease</text>
   <circle cx="289.12" cy="1620.00" r="10.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <line x1="282.05" y1="1612.93" x2="296.19" y2="1627.07" stroke="#000000" stroke-width="1.00"/>
   <line x1="282.05" y1="1627.07" x2="296.19" y2="1612.93" stroke="#000000" stroke-width="1.00"/>

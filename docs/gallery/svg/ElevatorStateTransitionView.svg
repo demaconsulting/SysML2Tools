@@ -32,13 +32,13 @@
   </defs>
   <rect x="2.00" y="2.00" width="351.96" height="930.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="177.98" y="14.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«state def»</text>
-  <text x="177.98" y="33.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">ElevatorStates</text>
+  <text x="177.98" y="33.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">ElevatorStates</text>
   <rect x="144.76" y="98.00" width="100.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="194.76" y="110.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="194.76" y="129.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">idle</text>
+  <text x="194.76" y="129.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">idle</text>
   <rect x="94.14" y="506.00" width="128.16" height="194.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="158.22" y="518.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="158.22" y="537.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">doorsOpening</text>
+  <text x="158.22" y="537.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">doorsOpening</text>
   <line x1="94.14" y1="550.00" x2="222.30" y2="550.00" stroke="#000000" stroke-width="1.00"/>
   <text x="158.22" y="562.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">entry</text>
   <text x="100.14" y="586.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">openDoors</text>
@@ -50,19 +50,19 @@
   <text x="100.14" y="682.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">chime</text>
   <rect x="161.75" y="770.00" width="102.12" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="212.81" y="782.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="212.81" y="801.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">doorsOpen</text>
+  <text x="212.81" y="801.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">doorsOpen</text>
   <rect x="66.60" y="218.00" width="256.32" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="194.76" y="230.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="194.76" y="249.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">doorsClosing</text>
+  <text x="194.76" y="249.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">doorsClosing</text>
   <line x1="66.60" y1="262.00" x2="322.92" y2="262.00" stroke="#000000" stroke-width="1.00"/>
   <text x="194.76" y="274.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">entry</text>
   <text x="72.60" y="298.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">sounder</text>
   <rect x="26.00" y="386.00" width="100.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="76.00" y="398.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="76.00" y="417.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">movingUp</text>
+  <text x="76.00" y="417.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">movingUp</text>
   <rect x="156.00" y="386.00" width="110.80" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="211.40" y="398.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="211.40" y="417.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">movingDown</text>
+  <text x="211.40" y="417.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">movingDown</text>
   <circle cx="212.75" cy="899.00" r="9.00" fill="#000000"/>
   <circle cx="212.75" cy="899.00" r="3.00" fill="white" stroke="#000000" stroke-width="1.00"/>
   <circle cx="194.76" cy="70.00" r="9.00" fill="#000000"/>

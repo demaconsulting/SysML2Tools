@@ -36,19 +36,19 @@
     </filter>
   </defs>
   <path d="M 12.00 36.00 L 12.00 12.00 L 115.92 12.00 L 115.92 36.00 L 577.68 36.00 L 577.68 438.00 L 12.00 438.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="18.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="start" dominant-baseline="middle">ChargingStation</text>
+  <text x="18.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">ChargingStation</text>
   <rect x="44.00" y="356.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="109.00" y="371.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="109.00" y="390.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Cable</text>
+  <text x="109.00" y="390.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Cable</text>
   <rect x="415.68" y="356.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="480.68" y="371.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="480.68" y="390.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Plug</text>
+  <text x="480.68" y="390.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Plug</text>
   <rect x="266.36" y="68.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="331.36" y="83.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="331.36" y="102.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Charger</text>
+  <text x="331.36" y="102.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Charger</text>
   <rect x="65.86" y="188.00" width="285.84" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="208.78" y="200.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="208.78" y="219.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">cable : Cable</text>
+  <text x="208.78" y="219.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">cable : Cable</text>
   <line x1="65.86" y1="232.00" x2="351.70" y2="232.00" stroke="#000000" stroke-width="1.00"/>
   <text x="208.78" y="244.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">doc</text>
   <text x="71.86" y="268.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Delivers up to 22 kW to the vehicle.</text>
@@ -57,7 +57,7 @@
   <text x="210.00" y="368.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Rated for outdoor use.</text>
   <rect x="381.70" y="188.00" width="144.48" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="453.94" y="200.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="453.94" y="219.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">plug : Plug</text>
+  <text x="453.94" y="219.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">plug : Plug</text>
   <line x1="381.70" y1="232.00" x2="526.18" y2="232.00" stroke="#000000" stroke-width="1.00"/>
   <text x="453.94" y="244.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">doc</text>
   <text x="387.70" y="268.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Type 2 connector.</text>

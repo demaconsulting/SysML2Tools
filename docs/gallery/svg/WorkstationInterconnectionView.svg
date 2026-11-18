@@ -32,12 +32,12 @@
   </defs>
   <rect x="0.00" y="0.00" width="1254.20" height="642.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="627.10" y="12.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="627.10" y="31.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Workstation</text>
+  <text x="627.10" y="31.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Workstation</text>
   <line x1="0.00" y1="44.00" x2="1254.20" y2="44.00" stroke="#000000" stroke-width="1.00"/>
   <text x="627.10" y="56.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">interconnection</text>
   <rect x="721.68" y="106.00" width="270.96" height="146.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="857.16" y="118.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="857.16" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">cpu : Cpu</text>
+  <text x="857.16" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">cpu : Cpu</text>
   <line x1="721.68" y1="150.00" x2="992.64" y2="150.00" stroke="#000000" stroke-width="1.00"/>
   <text x="857.16" y="162.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">doc</text>
   <text x="727.68" y="186.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Executes the program instructions.</text>
@@ -46,28 +46,28 @@
   <text x="727.68" y="234.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">clock : Frequency</text>
   <rect x="1062.64" y="158.13" width="150.88" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="1138.08" y="170.13" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="1138.08" y="189.13" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">memory : Ram [2]</text>
+  <text x="1138.08" y="189.13" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">memory : Ram [2]</text>
   <rect x="721.68" y="282.00" width="133.52" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="788.44" y="294.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="788.44" y="313.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">graphics : Gpu</text>
+  <text x="788.44" y="313.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">graphics : Gpu</text>
   <rect x="721.68" y="362.00" width="124.84" height="88.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="784.10" y="374.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="784.10" y="393.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">storage : Ssd</text>
+  <text x="784.10" y="393.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">storage : Ssd</text>
   <rect x="32.00" y="375.73" width="159.56" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="111.78" y="387.73" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="111.78" y="406.73" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">psu : PowerSupply</text>
+  <text x="111.78" y="406.73" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">psu : PowerSupply</text>
   <rect x="721.68" y="480.40" width="194.28" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="818.82" y="492.40" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="818.82" y="511.40" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">network : NetworkCard</text>
+  <text x="818.82" y="511.40" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">network : NetworkCard</text>
   <rect x="261.56" y="293.73" width="176.92" height="214.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="350.02" y="305.73" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="350.02" y="324.73" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">board : Motherboard</text>
+  <text x="350.02" y="324.73" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">board : Motherboard</text>
   <rect x="1062.64" y="286.13" width="159.56" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00" stroke-dasharray="6 3"/>
   <text x="1142.42" y="298.13" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«ref part»</text>
-  <text x="1142.42" y="317.13" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">monitor : Display</text>
+  <text x="1142.42" y="317.13" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">monitor : Display</text>
   <rect x="721.68" y="560.40" width="176.92" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="810.14" y="572.40" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«item»</text>
-  <text x="810.14" y="591.40" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">firmware : Firmware</text>
+  <text x="810.14" y="591.40" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">firmware : Firmware</text>
   <path d="M 438.48 365.53 L 544.08 365.53 A 4.00 4.00 0 0 0 548.08 361.53 L 548.08 183.00 A 4.00 4.00 0 0 1 552.08 179.00 L 721.68 179.00" fill="none" stroke="#000000" stroke-width="1.00"/>
   <path d="M 438.48 397.13 L 560.08 397.13 A 4.00 4.00 0 0 0 564.08 393.13 L 564.08 311.00 A 4.00 4.00 0 0 1 568.08 307.00 L 721.68 307.00" fill="none" stroke="#000000" stroke-width="1.00"/>
   <path d="M 438.48 428.73 L 721.68 428.73" fill="none" stroke="#000000" stroke-width="1.00"/>

@@ -124,8 +124,9 @@ usage that is a node: under the Pilot policy attribute and plain reference usage
 matters for reference parts and under the `AllUsages` policy.
 
 **Appearance.** A usage that `IsReference` gets `BoxAppearance(OutlineStyle: Dashed)`. An abstract
-definition gets a bold-italic name through the constant `AbstractDefinitionNameStyle`; an abstract
-*usage* keeps the default name style, because Table 4 of the graphical notation sets only the name of
+definition gets an italic name through the constant `AbstractDefinitionNameStyle`; an abstract
+*usage* keeps the default name style (regular weight, applied to every unstyled name by
+`DiagramRenderer`), because Table 4 of the graphical notation sets only the name of
 an abstract definition in italics (the usage is marked by its `abstract` keyword prefix). A package
 folder with content gets `BoxAppearance(FolderTitle: Tab)` and no `TitleHeight`, so the engine reserves
 only the tab. An empty exposed package and a depth-truncated folder keep the name inside the body, as

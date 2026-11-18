@@ -36,10 +36,10 @@
     </filter>
   </defs>
   <path d="M 12.00 36.00 L 12.00 12.00 L 124.92 12.00 L 124.92 36.00 L 1672.12 36.00 L 1672.12 1358.00 L 12.00 1358.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="18.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="start" dominant-baseline="middle">QuadcopterDrone</text>
+  <text x="18.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">QuadcopterDrone</text>
   <rect x="619.60" y="742.00" width="285.84" height="284.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="762.52" y="754.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="762.52" y="773.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Battery</text>
+  <text x="762.52" y="773.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Battery</text>
   <line x1="619.60" y1="786.00" x2="905.44" y2="786.00" stroke="#000000" stroke-width="1.00"/>
   <text x="762.52" y="798.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">doc</text>
   <text x="625.60" y="822.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Rechargeable lithium-polymer battery</text>
@@ -59,7 +59,7 @@
   <text x="555.20" y="1138.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Demonstrates the BoxShape.Note comment rendering.</text>
   <rect x="44.00" y="1126.00" width="204.00" height="200.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="146.00" y="1138.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="146.00" y="1157.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">FlightController</text>
+  <text x="146.00" y="1157.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">FlightController</text>
   <line x1="44.00" y1="1170.00" x2="248.00" y2="1170.00" stroke="#000000" stroke-width="1.00"/>
   <text x="146.00" y="1182.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">attributes</text>
   <text x="50.00" y="1206.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">mode : FlightMode</text>
@@ -71,7 +71,7 @@
   <text x="50.00" y="1308.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">sensors : SensorPort</text>
   <rect x="378.16" y="742.00" width="211.44" height="146.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="483.88" y="754.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="483.88" y="773.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Motor</text>
+  <text x="483.88" y="773.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Motor</text>
   <line x1="378.16" y1="786.00" x2="589.60" y2="786.00" stroke="#000000" stroke-width="1.00"/>
   <text x="483.88" y="798.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">attributes</text>
   <text x="384.16" y="822.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">maxThrust : Mass</text>
@@ -80,70 +80,70 @@
   <text x="384.16" y="870.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">control : MotorControlPort</text>
   <rect x="1130.46" y="544.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1195.46" y="559.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="1195.46" y="578.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Propeller</text>
+  <text x="1195.46" y="578.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Propeller</text>
   <rect x="1321.16" y="544.00" width="144.48" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1393.40" y="556.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="1393.40" y="575.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">ImuSensor</text>
+  <text x="1393.40" y="575.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">ImuSensor</text>
   <line x1="1321.16" y1="588.00" x2="1465.64" y2="588.00" stroke="#000000" stroke-width="1.00"/>
   <text x="1393.40" y="600.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">ports</text>
   <text x="1327.16" y="624.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">data : SensorPort</text>
   <rect x="1495.64" y="544.00" width="144.48" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1567.88" y="556.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="1567.88" y="575.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">GpsSensor</text>
+  <text x="1567.88" y="575.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">GpsSensor</text>
   <line x1="1495.64" y1="588.00" x2="1640.12" y2="588.00" stroke="#000000" stroke-width="1.00"/>
   <text x="1567.88" y="600.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">ports</text>
   <text x="1501.64" y="624.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">data : SensorPort</text>
   <rect x="114.33" y="544.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="179.33" y="559.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="179.33" y="578.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Frame</text>
+  <text x="179.33" y="578.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Frame</text>
   <rect x="278.00" y="1126.00" width="241.20" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="398.60" y="1138.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="398.60" y="1157.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">RacingMotor :&gt; Motor</text>
+  <text x="398.60" y="1157.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">RacingMotor :&gt; Motor</text>
   <line x1="278.00" y1="1170.00" x2="519.20" y2="1170.00" stroke="#000000" stroke-width="1.00"/>
   <text x="398.60" y="1182.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">attributes</text>
   <text x="284.00" y="1206.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">maxThrust : Mass :&gt;&gt; maxThrust</text>
   <rect x="961.76" y="1126.00" width="246.36" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1084.94" y="1141.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="1084.94" y="1160.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">EnduranceBattery :&gt; Battery</text>
+  <text x="1084.94" y="1160.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">EnduranceBattery :&gt; Battery</text>
   <rect x="821.49" y="68.00" width="180.00" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="911.49" y="80.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="911.49" y="99.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Drone</text>
+  <text x="911.49" y="99.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Drone</text>
   <line x1="821.49" y1="112.00" x2="1001.49" y2="112.00" stroke="#000000" stroke-width="1.00"/>
   <text x="911.49" y="124.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">attributes</text>
   <text x="827.49" y="148.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">totalMass : Mass</text>
   <rect x="96.68" y="314.00" width="150.88" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="172.12" y="329.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="172.12" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">airframe : Frame</text>
+  <text x="172.12" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">airframe : Frame</text>
   <rect x="839.40" y="544.00" width="159.56" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="919.18" y="559.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="919.18" y="578.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">battery : Battery</text>
+  <text x="919.18" y="578.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">battery : Battery</text>
   <rect x="277.56" y="314.00" width="263.72" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="409.42" y="329.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="409.42" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">controller : FlightController</text>
+  <text x="409.42" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">controller : FlightController</text>
   <rect x="571.28" y="314.00" width="168.24" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="655.40" y="329.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="655.40" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">motors : Motor [4]</text>
+  <text x="655.40" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">motors : Motor [4]</text>
   <rect x="1045.12" y="314.00" width="237.68" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="1163.96" y="329.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="1163.96" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">propellers : Propeller [4]</text>
+  <text x="1163.96" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">propellers : Propeller [4]</text>
   <rect x="1312.80" y="314.00" width="142.20" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="1383.90" y="329.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="1383.90" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">imu : ImuSensor</text>
+  <text x="1383.90" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">imu : ImuSensor</text>
   <rect x="1485.00" y="314.00" width="142.20" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="1556.10" y="329.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="1556.10" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">gps : GpsSensor</text>
+  <text x="1556.10" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">gps : GpsSensor</text>
   <rect x="986.55" y="742.00" width="307.12" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="1140.11" y="757.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«requirement»</text>
-  <text x="1140.11" y="776.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">flightTime : FlightTimeRequirement</text>
+  <text x="1140.11" y="776.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">flightTime : FlightTimeRequirement</text>
   <rect x="769.52" y="314.00" width="185.60" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="862.32" y="329.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="862.32" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">RacingDrone :&gt; Drone</text>
+  <text x="862.32" y="348.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">RacingDrone :&gt; Drone</text>
   <rect x="510.96" y="544.00" width="298.44" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="660.18" y="559.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="660.18" y="578.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">frontMotors : Motor [2] :&gt; motors</text>
+  <text x="660.18" y="578.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">frontMotors : Motor [2] :&gt; motors</text>
   <rect x="1238.12" y="1126.00" width="218.88" height="194.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1347.56" y="1138.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«requirement def»</text>
-  <text x="1347.56" y="1157.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">FlightTimeRequirement</text>
+  <text x="1347.56" y="1157.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">FlightTimeRequirement</text>
   <line x1="1238.12" y1="1170.00" x2="1457.00" y2="1170.00" stroke="#000000" stroke-width="1.00"/>
   <text x="1347.56" y="1182.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">attributes</text>
   <text x="1244.12" y="1206.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">minFlightTimeMinutes : Mass</text>
@@ -181,31 +181,31 @@
   <path d="M 470.35 364.00 L 470.35 386.00 A 4.00 4.00 0 0 0 474.35 390.00 L 880.29 390.00 A 4.00 4.00 0 0 1 884.29 394.00 L 884.29 544.00" fill="none" stroke="#000000" stroke-width="1.00"/>
   <rect x="1340.00" y="680.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1405.00" y="695.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«interface def»</text>
-  <text x="1405.00" y="714.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">PowerBus</text>
+  <text x="1405.00" y="714.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">PowerBus</text>
   <rect x="1506.88" y="680.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1571.88" y="695.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«interface def»</text>
-  <text x="1571.88" y="714.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">DataBus</text>
+  <text x="1571.88" y="714.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">DataBus</text>
   <rect x="1340.00" y="746.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1405.00" y="761.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«port def»</text>
-  <text x="1405.00" y="780.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">PowerPort</text>
+  <text x="1405.00" y="780.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">PowerPort</text>
   <rect x="1506.88" y="746.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1571.88" y="761.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«port def»</text>
-  <text x="1571.88" y="780.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">TelemetryPort</text>
+  <text x="1571.88" y="780.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">TelemetryPort</text>
   <rect x="1340.00" y="812.00" width="150.88" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1415.44" y="827.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«port def»</text>
-  <text x="1415.44" y="846.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">MotorControlPort</text>
+  <text x="1415.44" y="846.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">MotorControlPort</text>
   <rect x="1506.88" y="812.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1571.88" y="827.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«port def»</text>
-  <text x="1571.88" y="846.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">SensorPort</text>
+  <text x="1571.88" y="846.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">SensorPort</text>
   <rect x="1340.00" y="878.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1405.00" y="893.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«attribute def»</text>
-  <text x="1405.00" y="912.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Mass</text>
+  <text x="1405.00" y="912.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Mass</text>
   <rect x="1506.88" y="878.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1571.88" y="893.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«attribute def»</text>
-  <text x="1571.88" y="912.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Voltage</text>
+  <text x="1571.88" y="912.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Voltage</text>
   <rect x="1340.00" y="944.00" width="130.00" height="134.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="1405.00" y="956.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«enum def»</text>
-  <text x="1405.00" y="975.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">FlightMode</text>
+  <text x="1405.00" y="975.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">FlightMode</text>
   <line x1="1340.00" y1="988.00" x2="1470.00" y2="988.00" stroke="#000000" stroke-width="1.00"/>
   <text x="1405.00" y="1000.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">enums</text>
   <text x="1346.00" y="1024.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">idle</text>

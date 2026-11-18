@@ -36,22 +36,22 @@
     </filter>
   </defs>
   <path d="M 12.00 36.00 L 12.00 12.00 L 94.92 12.00 L 94.92 36.00 L 1104.02 36.00 L 1104.02 620.00 L 12.00 620.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="18.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#000000" text-anchor="start" dominant-baseline="middle">DriveSystem</text>
+  <text x="18.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">DriveSystem</text>
   <rect x="129.46" y="418.00" width="153.36" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="206.14" y="433.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«abstract part def»</text>
-  <text x="206.14" y="452.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">Motor</text>
+  <text x="206.14" y="452.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">Motor</text>
   <rect x="44.00" y="538.00" width="211.64" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="149.82" y="553.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="149.82" y="572.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">InductionMotor :&gt; Motor</text>
+  <text x="149.82" y="572.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">InductionMotor :&gt; Motor</text>
   <rect x="459.00" y="68.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="524.00" y="83.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="524.00" y="102.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">DriveUnit</text>
+  <text x="524.00" y="102.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">DriveUnit</text>
   <rect x="307.82" y="188.00" width="168.24" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="391.94" y="203.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="391.94" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">motors : Motor [2]</text>
+  <text x="391.94" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">motors : Motor [2]</text>
   <rect x="506.06" y="188.00" width="256.08" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="634.10" y="200.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="634.10" y="219.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">main : Motor</text>
+  <text x="634.10" y="219.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">main : Motor</text>
   <line x1="506.06" y1="232.00" x2="762.14" y2="232.00" stroke="#000000" stroke-width="1.00"/>
   <text x="634.10" y="244.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">doc</text>
   <text x="512.06" y="268.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">The primary motor, rated 120 kW.</text>
@@ -60,16 +60,16 @@
   <text x="318.82" y="430.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Replaced by an induction motor in RearDrive.</text>
   <rect x="74.86" y="188.00" width="202.96" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00" stroke-dasharray="6 3"/>
   <text x="176.34" y="203.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«ref part»</text>
-  <text x="176.34" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">spare : InductionMotor</text>
+  <text x="176.34" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">spare : InductionMotor</text>
   <rect x="792.14" y="188.00" width="202.96" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <text x="893.62" y="203.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="893.62" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">RearDrive :&gt; DriveUnit</text>
+  <text x="893.62" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">RearDrive :&gt; DriveUnit</text>
   <rect x="688.18" y="418.00" width="185.60" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="780.98" y="433.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="780.98" y="452.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">frontMotor :&gt; motors</text>
+  <text x="780.98" y="452.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">frontMotor :&gt; motors</text>
   <rect x="903.78" y="418.00" width="168.24" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="987.90" y="433.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="987.90" y="452.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">mainMotor :&gt;&gt; main</text>
+  <text x="987.90" y="452.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">mainMotor :&gt;&gt; main</text>
   <path d="M 571.41 286.00 L 571.41 418.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
   <path d="M 204.44 538.00 L 204.44 468.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle)"/>
   <path d="M 391.94 188.00 L 391.94 157.00 A 4.00 4.00 0 0 1 395.94 153.00 L 503.75 153.00 A 4.00 4.00 0 0 0 507.75 149.00 L 507.75 118.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
