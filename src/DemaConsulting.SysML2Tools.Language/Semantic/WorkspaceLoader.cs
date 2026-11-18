@@ -28,6 +28,7 @@ public static class WorkspaceLoader
     ///     The severity of an unresolved reference in a user file when the caller does not opt in
     ///     to strict mode. This is the single place the default is chosen: flipping the default
     ///     to Error means changing this constant (and replacing the command-line opt-in).
+    ///     The default is Warning while resolver gaps remain (#93, #129).
     ///     The standard library compiler (StdlibGen) never reads it and always passes Warning.
     /// </summary>
     internal const DiagnosticSeverity DefaultUserUnresolvedSeverity = DiagnosticSeverity.Warning;

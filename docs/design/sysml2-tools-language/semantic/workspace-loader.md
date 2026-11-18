@@ -64,7 +64,7 @@ The severity of an unresolved reference in a user file is chosen once, in `LoadA
 
 The default is `Warning` while name resolution has known gaps (dotted feature chains, and
 kernel/library features that the resolver does not model), which would otherwise report errors
-for valid models. These gaps are tracked by issue #93 and the resolver-gap tracking issue. The
+for valid models. These gaps are tracked by issue #93 and #129. The
 plan is: once the OMG example corpus produces close to zero strict-mode errors, flip
 `DefaultUserUnresolvedSeverity` to `Error` and replace the `--strict-unresolved` option with an
 opt-out (for example, a flag that downgrades unresolved references to warnings).

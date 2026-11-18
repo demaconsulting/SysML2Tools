@@ -218,8 +218,8 @@ sysml2tools lint --strict-unresolved "src/**/*.sysml"
 
 Strict reporting is not the default yet because name resolution has remaining gaps: some valid OMG
 examples use dotted feature chains or kernel library features that the resolver does not model, and
-they would be reported as errors. These gaps are tracked by issue #93 and the resolver-gap tracking
-issue. The default is planned to change to errors once the OMG corpus produces close to zero strict
+they would be reported as errors. These gaps are tracked by issues #93 and #129. The default is
+planned to change to errors once the OMG corpus produces close to zero strict
 errors.
 
 Beyond the declaration-level references (supertypes,

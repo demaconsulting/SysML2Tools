@@ -454,7 +454,7 @@ severity is decided by *which resolver invocation produced the diagnostic*, not 
 
 **Unresolved-reference severity policy.** The default is Warning, not Error, because name
 resolution still has known gaps (dotted feature chains and kernel/library features), tracked by
-issue #93 and the resolver-gap tracking issue; promoting those to errors by default would reject
+issue #93 and #129; promoting those to errors by default would reject
 valid models. `WorkspaceLoader.DefaultUserUnresolvedSeverity` is the single place to change the
 default. Once the OMG corpus produces close to zero strict-mode errors, the constant is flipped to
 `Error` and the `--strict-unresolved` flag is replaced (for example with an opt-out). See the
