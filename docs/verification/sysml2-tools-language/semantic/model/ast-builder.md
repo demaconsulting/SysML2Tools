@@ -226,6 +226,7 @@ external services or additional configuration are required beyond a standard .NE
 | Action usage typing and multiplicity | `WorkspaceLoader_LoadAsync_ActionUsage_CapturesTypingAndMultiplicity` |
 | Typing kept per kind | `WorkspaceLoader_LoadAsync_OccurrenceKindUsage_CapturesFeatureTypingAndEdge` |
 | Requirement typing, multiplicity | `WorkspaceLoader_LoadAsync_RequirementUsage_CapturesTypingAndMultiplicity` |
+| Usage typing diagnostic position | `WorkspaceLoader_LoadAsync_UnresolvedUsageTyping_ReportsSourcePosition` |
 | Accept/send payload text | `WorkspaceLoader_LoadAsync_AcceptSendNodes_CapturePayloadText` |
 | Connection end names, multiplicities | `WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities` |
 | Binding end role names and multiplicities | `WorkspaceLoader_LoadAsync_BindingEnds_CaptureRoleNames` |

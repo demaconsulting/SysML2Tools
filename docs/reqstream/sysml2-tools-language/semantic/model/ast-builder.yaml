@@ -649,6 +649,7 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_OccurrenceKindUsage_CapturesFeatureTypingAndEdge
           - WorkspaceLoader_LoadAsync_RequirementUsage_CapturesTypingAndMultiplicity
+          - WorkspaceLoader_LoadAsync_UnresolvedUsageTyping_ReportsSourcePosition
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-AcceptSendText
         title: >-

@@ -7146,6 +7146,41 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     An unresolved typing on an occurrence-kind usage built outside the generic usage builder
+    ///     (requirement, concern, constraint, action, state, and the case-kind and calc usages) is
+    ///     reported at the typing reference's own one-based line and column, not <c>(0,0)</c>.
+    /// </summary>
+    /// <param name="usageKeyword">The usage keyword as written in the source.</param>
+    [Theory]
+    [InlineData("requirement")]
+    [InlineData("concern")]
+    [InlineData("constraint")]
+    [InlineData("action")]
+    [InlineData("state")]
+    [InlineData("use case")]
+    [InlineData("analysis")]
+    [InlineData("verification")]
+    [InlineData("case")]
+    [InlineData("calc")]
+    public async Task WorkspaceLoader_LoadAsync_UnresolvedUsageTyping_ReportsSourcePosition(string usageKeyword)
+    {
+        // Arrange: the typing is on line 2; its column follows the keyword, name and colon
+        var source = $"package P {{\n    {usageKeyword} u : GhostTyping;\n}}\n";
+        var expectedColumn = source.IndexOf("GhostTyping", StringComparison.Ordinal) - (source.IndexOf('\n') + 1) + 1;
+
+        // Act
+        var result = await LoadModelsAsync(source);
+
+        // Assert
+        var diagnostic = Assert.Single(
+            result.Diagnostics, d => d.Message == "Unresolved reference: 'GhostTyping'");
+        Assert.Equal(2, diagnostic.Line);
+        Assert.Equal(expectedColumn, diagnostic.Column);
+        Assert.Equal(new SourcePosition(2, expectedColumn), FeatureAt(result, "P::u").ReferencePositions["GhostTyping"]);
+        Assert.Equal(2, FeatureAt(result, "P::u").SourceLine);
+    }
+
+    /// <summary>
     ///     A reference whose text is the same as the declaring element's own name is located at the
     ///     reference token, not at the declaration's identifier: a self-specialization, a
     ///     redefinition and a typing named like the declaration, and a reference to the
