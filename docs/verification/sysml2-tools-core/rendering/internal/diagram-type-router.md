@@ -23,7 +23,9 @@ configuration are required beyond a standard .NET SDK installation.
 - A view declaring `render asTreeDiagram;`, `render asInterconnectionDiagram;`,
   `render asGeneralDiagram;`, `render asStateTransitionDiagram;`, `render asActionFlowDiagram;`,
   `render asSequenceDiagram;`, or `render asGridDiagram;` routes to the corresponding strategy,
-  taking precedence over a conflicting name/supertype heuristic match.
+  taking precedence over a conflicting name/supertype heuristic match. The `Views::`-qualified
+  spelling (for example `render Views::asTreeDiagram;`), which SysML v2.0 requires because the
+  `Views` package is not implicitly imported, routes identically to the bare name.
 - A view declaring any other render target — `asElementTable`, `asTextualNotation`, an
   unrecognized name, or none — falls through unchanged to the name/supertype heuristic, with no
   diagnostic.
@@ -49,6 +51,8 @@ configuration are required beyond a standard .NET SDK installation.
 | `GetStrategy_RenderAsSequenceDiagram_ReturnsSequenceStrategy` | `asSequenceDiagram;` selects sequence strategy |
 | `GetStrategy_RenderAsGridDiagram_ReturnsGridStrategy` | `render asGridDiagram;` selects grid strategy |
 | `GetStrategy_RenderAsGeneralDiagram_PrecedenceOverridesNameHeuristic` | New token wins over name heuristic |
+| `GetStrategy_QualifiedRenderTarget_RoutesLikeBareName` | `Views::asXDiagram` routes like bare name |
+| `GetStrategy_RenderQualifiedOrImported_RoutesToBrowserAndInterconnection` | Qualified/imported/bare parse |
 | `GetStrategy_RenderAsElementTable_FallsThroughUnchanged` | `render asElementTable;` has no effect |
 | `GetStrategy_RenderAsTextualNotation_FallsThroughUnchanged` | `render asTextualNotation;` has no effect |
 | `GetStrategy_UnrecognizedRenderTarget_FallsThroughUnchanged` | Unrecognized render target has no effect |

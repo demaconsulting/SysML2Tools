@@ -325,7 +325,7 @@ match, direct children only, or the entire containment subtree, depending on eac
 v2 `expose` grammar form and recursion setting (`expose X;`/`expose X::**;`/`expose X::*;`/
 `expose X::*::**;`) — instead of always rendering the full workspace; a view with no `expose`
 statement continues to render
-the full workspace. `render asTreeDiagram;` and `render asInterconnectionDiagram;` now select
+the full workspace. `render Views::asTreeDiagram;` and `render Views::asInterconnectionDiagram;` now select
 the Browser View and Interconnection View layout strategies respectively, taking precedence over
 the name/supertype heuristic; other `render` targets (`asElementTable`, `asTextualNotation`, an
 unrecognized name, or none) leave strategy selection unchanged. `render` never affects content

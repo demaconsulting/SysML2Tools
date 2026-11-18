@@ -217,7 +217,7 @@ sysml2tools render model.sysml --view-type general --view-target Pkg::Vehicle --
 
 - `--view-type <kind>` — one of `general`, `interconnection`, `state`, `action`, `sequence`,
   `grid`, `browser`. Selects the same layout strategy `DiagramTypeRouter` would select for a
-  declared view's `render asGeneralDiagram;`/`asInterconnectionDiagram;`/etc. member — see
+  declared view's `render Views::asGeneralDiagram;`/`Views::asInterconnectionDiagram;`/etc. member — see
   "View Body Statements" below.
 - `--view-target <qualified-name>` — the element to render. Must resolve in the workspace, must
   not be a standard-library element, and must not be a `view`/`viewpoint`/`import`/`metadata`/
@@ -278,10 +278,14 @@ it then inherits that definition's diagram type, its `render` member, and its `f
 
 The diagram type is chosen in this order:
 
-1. The view's own `render` member: `render asTreeDiagram;` (browser) or
-   `render asInterconnectionDiagram;`, plus the tool-defined `asGeneralDiagram`,
+1. The view's own `render` member: `render Views::asTreeDiagram;` (browser) or
+   `render Views::asInterconnectionDiagram;`, plus the tool-defined `asGeneralDiagram`,
    `asStateTransitionDiagram`, `asActionFlowDiagram`, `asSequenceDiagram`, and `asGridDiagram`.
-   `Views::asTreeDiagram` is accepted too. `asElementTable` and `asTextualNotation` have no
+   SysML v2.0 does not implicitly import the `Views` package, so write the target qualified
+   (`render Views::asTreeDiagram;`) or add `private import Views::*;` and use the bare name; both
+   select the same diagram (a bare name without an import is still tolerated, although the OMG
+   Pilot Implementation rejects it as an unresolved reference). `asElementTable` and
+   `asTextualNotation` have no
    matching diagram and are ignored.
 2. The view's view definition, nearest first: a definition's `render` member, or a standard view
    definition.
@@ -527,9 +531,11 @@ entire workspace:
   whether the entry's own form was otherwise non-recursive), with a diagnostic identifying the
   failed expression and reason.
 - `render <target>;` — per the SysML v2 grammar, this names a rendering style/format (e.g.
-  `asTreeDiagram`, `asElementTable`). `render asTreeDiagram;`, `render
-  asInterconnectionDiagram;`, `render asGeneralDiagram;`, `render asStateTransitionDiagram;`,
-  `render asActionFlowDiagram;`, `render asSequenceDiagram;`, and `render asGridDiagram;` now
+  `asTreeDiagram`, `asElementTable`). `render Views::asTreeDiagram;`, `render
+  Views::asInterconnectionDiagram;`, `render Views::asGeneralDiagram;`,
+  `render Views::asStateTransitionDiagram;`, `render Views::asActionFlowDiagram;`,
+  `render Views::asSequenceDiagram;`, and `render Views::asGridDiagram;` (or the bare names after
+  `private import Views::*;`) now
   each select their corresponding layout strategy, taking precedence over the name/supertype
   heuristic `DiagramTypeRouter` otherwise applies (the same tokens the `--view-type` dynamic-view
   flag maps to — see "Dynamic (Ad-Hoc) Views" above). Every other rendering-style name
@@ -672,17 +678,17 @@ package Vehicle {
 
     view EngineOnlyView {
         expose Engine;
-        render asTreeDiagram;
+        render Views::asTreeDiagram;
     }
 
     view EngineRecursiveView {
         expose Engine::**;
-        render asTreeDiagram;
+        render Views::asTreeDiagram;
     }
 }
 ```
 
-Both views declare `render asTreeDiagram;`, so they render via `BrowserViewLayoutStrategy` as an
+Both views declare `render Views::asTreeDiagram;`, so they render via `BrowserViewLayoutStrategy` as an
 indented tree of rows rather than the General View's nested boxes. `render` never narrows the
 scope, only `expose` does — `BrowserViewLayoutStrategy` honors `expose` scoping identically to
 every other layout strategy.
@@ -697,7 +703,7 @@ every other layout strategy.
 
 In both views, `Vehicle`, `myVehicle`, and `wheel` are excluded entirely, since neither `Engine`
 nor its subtree contains them. Removing the `expose` statement (leaving only `render
-asTreeDiagram;`, or an empty view body) renders the **full workspace** instead.
+Views::asTreeDiagram;`, or an empty view body) renders the **full workspace** instead.
 
 > **Note:** `expose` targets are qualified names (`::`-separated), not dotted member-access
 > chains. `expose myVehicle.engine;` is a **syntax error**, not merely an unresolved reference —
@@ -719,7 +725,7 @@ package Vehicle {
 
     view UsageExposeView {
         expose myVehicle;
-        render asTreeDiagram;
+        render Views::asTreeDiagram;
     }
 }
 ```

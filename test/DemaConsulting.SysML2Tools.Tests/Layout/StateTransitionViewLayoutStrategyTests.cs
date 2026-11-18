@@ -1222,9 +1222,9 @@ public sealed class StateTransitionViewLayoutStrategyTests
         // Assert
         var opening = content.OfType<LayoutBox>().Single(b => b.Label == "doorsOpening");
         Assert.Equal(["entry", "do", "exit"], opening.Compartments.Select(c => c.Title).ToArray());
-        Assert.Contains(content.OfType<LayoutLine>(), l => l.MidpointLabel == "callReceived [doorsClear] / dimLights");
+        Assert.Contains(content.OfType<LayoutLine>(), l => l.MidpointLabel == "CallReceived [doorsClear] / dimLights");
         Assert.Contains(content.OfType<LayoutLine>(), l => l.MidpointLabel == "[atFloor]");
-        Assert.Contains(content.OfType<LayoutLine>(), l => l.MidpointLabel == "shutdown");
+        Assert.Contains(content.OfType<LayoutLine>(), l => l.MidpointLabel == "Shutdown");
         Assert.Single(content.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Bullseye);
         Assert.DoesNotContain(content.OfType<LayoutBox>(), b => b.Label == "done");
     }

@@ -380,6 +380,68 @@ public sealed class DiagramTypeRouterTests
 
         Assert.IsType<GeneralViewLayoutStrategy>(strategy);
     }
+
+    /// <summary>
+    /// A <c>Views::</c>-qualified render target — the form SysML v2.0 requires, since the
+    /// <c>Views</c> package is not implicitly imported — selects the same strategy as its bare name.
+    /// </summary>
+    /// <param name="renderTarget">The qualified render target text.</param>
+    /// <param name="expected">The expected strategy type.</param>
+    [Theory]
+    [InlineData("Views::asTreeDiagram", typeof(BrowserViewLayoutStrategy))]
+    [InlineData("Views::asInterconnectionDiagram", typeof(InterconnectionViewLayoutStrategy))]
+    [InlineData("Views::asGeneralDiagram", typeof(GeneralViewLayoutStrategy))]
+    [InlineData("Views::asStateTransitionDiagram", typeof(StateTransitionViewLayoutStrategy))]
+    [InlineData("Views::asActionFlowDiagram", typeof(ActionFlowViewLayoutStrategy))]
+    [InlineData("Views::asSequenceDiagram", typeof(SequenceViewLayoutStrategy))]
+    [InlineData("Views::asGridDiagram", typeof(GridViewLayoutStrategy))]
+    public void GetStrategy_QualifiedRenderTarget_RoutesLikeBareName(string renderTarget, Type expected)
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "PlainView",
+            QualifiedName = "M::PlainView",
+            RenderTargetName = renderTarget
+        };
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, new SysmlWorkspace(), out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType(expected, strategy);
+    }
+
+    /// <summary>
+    /// Parsed from source, a view's <c>render Views::asXDiagram;</c> (qualified) and
+    /// <c>private import Views::*; render asXDiagram;</c> (imported, then bare) both select the
+    /// browser/interconnection strategies; the bare form without an import is still tolerated.
+    /// </summary>
+    [Fact]
+    public async Task GetStrategy_RenderQualifiedOrImported_RoutesToBrowserAndInterconnection()
+    {
+        var workspace = await LoadAsync("""
+            package Qualified {
+                view Tree { render Views::asTreeDiagram; }
+                view Wired { render Views::asInterconnectionDiagram; }
+            }
+            package Imported {
+                private import Views::*;
+                view Tree { render asTreeDiagram; }
+                view Wired { render asInterconnectionDiagram; }
+            }
+            package Bare {
+                view Tree { render asTreeDiagram; }
+            }
+            """);
+
+        foreach (var package in new[] { "Qualified", "Imported" })
+        {
+            Assert.IsType<BrowserViewLayoutStrategy>(DiagramTypeRouter.GetStrategy(workspace.Declarations[$"{package}::Tree"], workspace, out _));
+            Assert.IsType<InterconnectionViewLayoutStrategy>(DiagramTypeRouter.GetStrategy(workspace.Declarations[$"{package}::Wired"], workspace, out _));
+        }
+
+        Assert.IsType<BrowserViewLayoutStrategy>(DiagramTypeRouter.GetStrategy(workspace.Declarations["Bare::Tree"], workspace, out _));
+    }
+
     /// <summary>
     /// A view usage typed by a standard view definition (SysML v2 §9.2.20) routes to that
     /// definition's notation, regardless of a conflicting name heuristic.

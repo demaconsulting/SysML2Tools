@@ -83,6 +83,8 @@ sections:
           - GetStrategy_RenderAsSequenceDiagram_ReturnsSequenceStrategy
           - GetStrategy_RenderAsGridDiagram_ReturnsGridStrategy
           - GetStrategy_RenderAsGeneralDiagram_PrecedenceOverridesNameHeuristic
+          - GetStrategy_QualifiedRenderTarget_RoutesLikeBareName
+          - GetStrategy_RenderQualifiedOrImported_RoutesToBrowserAndInterconnection
 
       - id: SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-RenderTargetUnrecognizedFallthrough
         title: >-

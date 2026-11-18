@@ -25,7 +25,11 @@ package AvionicsSystem {
     package Communications {
         part def RadioTransceiver;
         part def Transponder;
-        interface def DataLink;
+        port def DataPort;
+        interface def DataLink {
+            end local : DataPort;
+            end remote : DataPort;
+        }
     }
 
     package Displays {
@@ -34,6 +38,6 @@ package AvionicsSystem {
     }
 
     view def AvionicsBrowserView {
-        render asTreeDiagram;
+        render Views::asTreeDiagram;
     }
 }

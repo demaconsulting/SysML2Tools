@@ -6,12 +6,19 @@ generated from an interesting example system. Every model is rendered to both
 
 All diagrams are produced by the `sysml2tools render` command directly from the
 SysML v2 textual models in [`models/`](models/) — no manual layout. Where a
-model declares an explicit `render asTreeDiagram;` or `render
-asInterconnectionDiagram;` statement (the two rendering kinds SysML2Tools
+model declares an explicit `render Views::asTreeDiagram;` or `render
+Views::asInterconnectionDiagram;` statement (the two rendering kinds SysML2Tools
 currently implements), that takes precedence; otherwise the view kind is
 inferred from each view's name (see the
 [DiagramTypeRouter design](../design/sysml2-tools-core/rendering/internal/diagram-type-router.md)
 for the full dispatch rules).
+
+Every model in [`models/`](models/) is valid SysML v2: **all gallery models validate with the OMG
+SysML v2 Pilot Implementation 2026-04** (zero errors and zero warnings), so they can be used as
+language examples as well as renderer inputs. To keep them valid, the models write a `render`
+target qualified (`render Views::asTreeDiagram;`, because `Views` is not implicitly imported),
+give `interface def`s their `end` features, relate usages (not definitions) in `allocate`, and
+declare the signals, guard conditions, and payloads that `accept`, `if`, and `send` refer to.
 
 Every diagram uses the same plain, spec-style notation: white boxes with black one-pixel
 borders and lines (the `SysmlThemes.Plain` theme), with meaning carried by shape, border and
@@ -66,8 +73,9 @@ that is drawn as a node redefines another usage; see
 the plain, unmarked solid line used for `connect` between two sibling parts'
 ports. `RacingDrone`'s `part frontMotors : Motor[2] subsets motors;` narrows
 `Drone`'s inherited `motors` feature, demonstrating the hollow-triangle
-marker used for `subsets`/`:>` feature subsetting. `allocate FlightTimeRequirement
-to Battery;` demonstrates the solid open-chevron line carrying the
+marker used for `subsets`/`:>` feature subsetting. `allocate flightTime to battery;`, between the
+`flightTime` requirement usage and the `battery` part usage inside `Drone` (an allocation relates
+usages, not definitions), demonstrates the solid open-chevron line carrying the
 `«allocate»` stereotype label used for allocation relationships, while the
 standalone `dependency FlightController to Battery;` statement demonstrates the
 dashed open-chevron line without a label, used for general OMG
@@ -98,7 +106,7 @@ that adds an `expose Battery::**;` statement. Instead of the full workspace, the
 is scoped to the `Battery` definition and its members — with no wrapping `QuadcopterDrone`
 folder, since the package `QuadcopterDrone` was never itself exposed — demonstrating that
 `expose` (not `render`) is what controls diagram content scope. The view also declares the
-view condition `filter not @SysML::Documentation;`, so `Battery`'s documentation is not drawn
+view condition `filter not (@SysML::Documentation);`, so `Battery`'s documentation is not drawn
 while its comment note still is. See the user
 guide's [Expose vs. Render](../user_guide/introduction.md#expose-vs-render-worked-examples)
 section for the full explanation and more worked examples.
@@ -119,7 +127,7 @@ ports of the motherboard and the SSD (a white square with an `inout` arrow and a
 label outside the part), and connectors routed between them, including the `«interface»`
 connector between the two ports. The frame carries the italic `interconnection` title.
 The motherboard sits at the hub of the component connections. The view declares an
-explicit `render asInterconnectionDiagram;` statement, so the interconnection
+explicit `render Views::asInterconnectionDiagram;` statement, so the interconnection
 strategy is selected directly rather than inferred from the view's name.
 
 Model: [`models/02-computer-interconnection.sysml`](models/02-computer-interconnection.sysml) ·
@@ -150,13 +158,13 @@ Shows states placed top-to-bottom by the layered layout pipeline inside a frame 
 as orthogonal arrows labeled `trigger [guard] / effect` (each part appears only when the transition
 declares it). The initial marker (an open-arrowhead arrow) targets the state named by the explicit
 `first start then idle;` transition; a state machine with no explicit initial transition is drawn
-without an initial marker. A transition into `done` (`transition first doorsOpen accept shutdown
+without an initial marker. A transition into `done` (`transition first doorsOpen accept Shutdown
 then done;`) ends in the final badge, a bullseye. `doorsOpening` lists its `entry`, `do`, and `exit`
 actions in compartments titled with the keyword, and `doorsClosing` lists an `entry` action. The
 `idle`/`doorsClosing` pair uses the attached-transition idiom
-(`state idle; accept callReceived if doorsClear do action dimLights then doorsClosing;`) instead
+(`state idle; accept CallReceived if doorsClear do action dimLights then doorsClosing;`) instead
 of a standalone `transition` statement, and shows a full `trigger [guard] / effect` label. The
-`doorsOpen` → `doorsClosing` transition is a plain `accept timeout` trigger, drawn as a back edge
+`doorsOpen` → `doorsClosing` transition is a plain `accept Timeout` trigger, drawn as a back edge
 that ends in a flush open chevron.
 
 The model's `then done;` resolves `done` to the standard library's `Actions::Action::done` and
@@ -255,7 +263,7 @@ SVG: [`svg/CarLineageGridView.svg`](svg/CarLineageGridView.svg)
 Shows the membership hierarchy of nested packages and definitions as an indented
 tree with parent-to-child connectors; each row reads `«keyword» Name` (for example
 `«part def» Aileron`). The view declares an explicit `render
-asTreeDiagram;` statement, so the browser strategy is selected directly rather
+Views::asTreeDiagram;` statement, so the browser strategy is selected directly rather
 than inferred from the view's name.
 
 Model: [`models/07-avionics-browser.sysml`](models/07-avionics-browser.sysml) ·
@@ -274,7 +282,7 @@ inside the `board` container box, while the outer power and storage connections 
 between the declared ports of the top-level parts. The `Computer` frame draws its own `mains`
 and `video` ports on its border (connectors to a frame port are not drawn), and the
 motherboard's ports are drawn on the `board` box. The view declares an explicit `render
-asInterconnectionDiagram;` statement, so the interconnection strategy is
+Views::asInterconnectionDiagram;` statement, so the interconnection strategy is
 selected directly rather than inferred from the view's name.
 
 Model: [`models/08-nested-interconnection.sysml`](models/08-nested-interconnection.sysml) ·
@@ -414,7 +422,7 @@ SVG: [`svg/VehiclePackagesGeneralView.svg`](svg/VehiclePackagesGeneralView.svg)
 
 A deliberately small state machine that shows the state notation on its own: `standby` lists an
 `entry` action, `heating` lists `entry`, `do`, and `exit` actions in compartments titled with the
-keyword, `heat [tempLow] / beep` is a full `trigger [guard] / effect` label, `cooled` is a back
+keyword, `Heat [tempLow] / beep` is a full `trigger [guard] / effect` label, `Cooled` is a back
 edge into `standby`, and the machine starts at an initial state and ends in a final state.
 
 Model: [`models/12-heater-state.sysml`](models/12-heater-state.sysml) ·

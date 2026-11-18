@@ -56,6 +56,6 @@ package MotorControllerRig {
     }
 
     view def MotorRigInterconnectionView {
-        render asInterconnectionDiagram;
+        render Views::asInterconnectionDiagram;
     }
 }
