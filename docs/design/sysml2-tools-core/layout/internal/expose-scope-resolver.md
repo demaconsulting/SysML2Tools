@@ -80,7 +80,7 @@ Returns `true` when `qualifiedName` matches one of `scope.Subjects` per that sub
 
 - `MembershipRecursive`/`NamespaceRecursive` — `qualifiedName` equals the subject or lies within
   its containment subtree (a `"{subject}::"` prefix match, the same qualified-name-prefix idiom
-  `StdlibFilter.IsStdlibElement` already uses for stdlib-prefix matching) — the unchanged
+  `StdlibFilter.IsStdlibElement` uses for qualified-name containment-subtree matching) — the unchanged
   whole-subtree behavior from before this fix.
 - `MembershipExact` — `qualifiedName` equals the subject exactly, and nothing else.
 - `NamespaceDirectChildren` — `qualifiedName` is a direct (one-level) child of the subject only,
@@ -197,8 +197,8 @@ failure.
 - `FilterExpressionParser.Parse` / `FilterExpressionEvaluator.Evaluate` (Filtering subsystem,
   Phase 2a) — reused unchanged to parse and evaluate each bracket-filtered `ExposeMember`'s
   expression text against its own containment-subtree candidate set.
-- `StdlibFilter` (Rendering Internal subsystem) — referenced only in documentation, as the origin
-  of the qualified-name-prefix idiom `IsInSubjectScope` reuses.
+- `StdlibFilter` (Rendering Internal subsystem) — referenced only in documentation, as the
+  stdlib-exclusion predicate that shares the qualified-name vocabulary `IsInSubjectScope` matches.
 - `ILayoutStrategy` (Rendering subsystem) — referenced only in documentation, identifying the
   callers this unit exists to serve.
 

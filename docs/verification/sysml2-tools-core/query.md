@@ -545,6 +545,11 @@ the same workspace-wide search used by `list`.
 `IncludeStdlib` on `QueryOptions` causes `QueryEngine.List` to include stdlib-seeded elements
 that are excluded by default.
 
+**`List_UserPackageNamedLikeStdlibPackage_ListsUserMembersWithoutIncludeStdlib`**: Verifies that a
+user `package Parts { part def Wheel; }` has its members listed without `IncludeStdlib` (stdlib
+filtering is by origin, not by name) while the real standard-library `Parts::Part` is hidden by
+default and listed with `IncludeStdlib`.
+
 #### ContextTests.cs
 
 **`Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue`**: Verifies that the

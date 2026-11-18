@@ -635,6 +635,22 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_ActionUsage_CapturesTypingAndMultiplicity
 
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-OccurrenceUsageTyping
+        title: >-
+          AstBuilder shall capture the feature typing and multiplicity of every occurrence-kind
+          usage (requirement, concern, constraint, state, action, use case, analysis,
+          verification, case and calc usages, as well as the generic usage kinds), so the
+          resolver records a typing edge for each typed usage.
+        justification: |
+          The General view labels a usage `name : Type` and draws a feature-typing edge from its
+          typing; a requirement, concern or constraint usage previously kept no typing, and the use
+          case, analysis, verification, case and calc usages were not captured at all, so a typed
+          usage lost its type in every view and in query and export results.
+        tests:
+          - WorkspaceLoader_LoadAsync_OccurrenceKindUsage_CapturesFeatureTypingAndEdge
+          - WorkspaceLoader_LoadAsync_RequirementUsage_CapturesTypingAndMultiplicity
+          - WorkspaceLoader_LoadAsync_UnresolvedUsageTyping_ReportsSourcePosition
+
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-AcceptSendText
         title: >-
           AstBuilder shall capture the payload clause of an `accept` or `send` action node, with

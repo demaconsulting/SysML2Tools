@@ -29,7 +29,8 @@ a recognized render target, it inspects a view's name and declared supertype nam
 recognized view kind (interconnection, state transition, action flow, grid/matrix, browser/tree,
 sequence) and returns the matching strategy, defaulting to the general view strategy. To keep
 diagrams focused on the user's model, the view strategies omit standard-library elements by
-testing each qualified name with the `StdlibFilter` helper.
+testing each qualified name against the workspace's seed-derived `StdlibNames` set with the
+`StdlibFilter` helper (origin-based, never name-based).
 
 `DynamicViewSynthesizer` builds an in-memory `SysmlViewNode` targeting any resolvable, non-stdlib
 element in a workspace, without requiring the user to add a `view def` to the model — the engine

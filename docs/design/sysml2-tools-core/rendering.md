@@ -151,9 +151,17 @@ flowchart TD
 
 - *Type*: Internal static class.
 - *Role*: Filter.
-- *Contract*: `static bool IsStdlibElement(string qualifiedName)`. Returns `true` when the
-  qualified name matches a standard-library prefix. Used by `DiagramRenderer` to exclude
-  stdlib view declarations from rendering.
+- *Contract*: `static bool IsStdlibElement(string qualifiedName, IReadOnlySet<string> stdlibNames)`.
+  Returns `true` when the qualified name is a member of `stdlibNames`, the workspace's
+  `SysmlWorkspace.StdlibNames` set, which `WorkspaceLoader` derives from the embedded
+  standard-library seed symbol table. The decision is by element *origin*, never by name: there
+  is no list of standard-library root-package names, so a user package that is named like a
+  standard-library package (for example `Parts`) is not filtered, and its members stay
+  visible; only the seed's own members (for example `Parts::Part`) are excluded. Used by
+  `DiagramRenderer` and the view strategies to exclude stdlib declarations from rendering. A
+  hand-built workspace that does not supply `StdlibNames` has no stdlib elements. The `query` and
+  `export` commands apply the same `StdlibNames` test, so `--include-stdlib` treats user and
+  standard-library elements identically across rendering, query, and export.
 
 ### Design
 

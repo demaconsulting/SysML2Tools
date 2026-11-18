@@ -204,13 +204,13 @@ resolve — mirroring the existing Satisfy/Allocate both-sides-must-resolve cont
 appended to `node.ResolvedEdges` (pass-1 edges, if any, are preserved) and to the aggregate edge
 list.
 
-For a `SysmlTransitionNode`, the `Source` side specifically is resolved via `ResolveTransitionSource`
-rather than the plain `TryResolveFeatureChain` call used for `Target`: it tries
+For a `SysmlTransitionNode`, both the `Source` and the `Target` side are resolved via
+`ResolveTransitionEnd` rather than the plain `TryResolveFeatureChain` call: it tries
 `TryResolveFeatureChain` first, and only when that fails, falls back to
 `TryResolveInheritedActionMember` (see "Inherited Pseudostate Feature Resolution" below) before
-the pair is given up on as unresolved. The `Target` side is never given this fallback — it is
-scoped to `Source` only, matching the ROADMAP's own framing of this gap as specifically about an
-implicit/inherited transition *source*.
+the pair is given up on as unresolved. The fallback covers an inherited `start`/`done` on either
+end — `first start then off;` (source) and `then done;` / `transition first x then done;`
+(target) — and is not given to connection or binding endpoints or any other reference kind.
 
 `TryResolveFeatureChain(chain, scope, rootImports, out resolvedName)` splits the raw
 reference text on `.`. Segment 0 is resolved via `TryResolve` (so it
@@ -278,17 +278,33 @@ children without restriction but its ancestors only for non-private members.
 
 ##### Inherited Pseudostate Feature Resolution
 
-A transition's source commonly names a pseudostate feature (`start`/`done`) that the enclosing
-state/action **inherits** from its supertype rather than declares itself — e.g.
+A transition's source or target commonly names a pseudostate feature (`start`/`done`) that the
+enclosing state/action **inherits** from its supertype rather than declares itself — e.g.
 `first start then off;` inside a `state usage : VehicleStates { ... }` with no local `start`
-feature declared, or the synthesized `Source` of an attached transition following an
-`entryActionMember`. `TryResolveFeatureChain` cannot see inherited members (it only resolves via
-namespace/import scope), so without a dedicated fallback every such transition produced a false
-"Unresolved reference" diagnostic and no `Transition` edge, even though the model is semantically
-valid per the SysML v2 spec.
+feature declared, the synthesized `Source` of an attached transition following an
+`entryActionMember`, or the completion target in `then done;` and
+`transition first idle then done;`. `TryResolveFeatureChain` cannot see inherited members (it
+only resolves via namespace/import scope), so without a dedicated fallback every such transition
+produced a false "Unresolved reference" diagnostic and no `Transition` edge, even though the
+model is semantically valid per the SysML v2 spec (the Systems Library declares `start` and
+`done` as features of `Actions::Action`, which every action and state inherits).
+
+**Why a fallback and not implicit specialization (#93).** The spec-faithful general mechanism is
+the implicit specialization of every action to `Actions::Action` and of every state to
+`States::StateAction` (itself an `Action`), after which ordinary inherited-member lookup finds
+`start`/`done`. Modeling it is a cross-cutting change (new `Supertype` edges on every definition
+and usage, with consequences for `query hierarchy`, grid and general views, and the stdlib
+re-resolution) tracked separately as #93. The minimal change that is faithful to the spec's
+*result* is to resolve exactly those two library-defined names against `Actions::Action`, as
+below; it yields the same targets implicit specialization would, and #93 can remove the step-4
+special case later without changing any observable result.
 
 `TryResolveInheritedActionMember(scope, name, out resolvedName)` is tried only after
-`TryResolveFeatureChain` fails, and only for a `SysmlTransitionNode`'s `Source` (never `Target`):
+`TryResolveFeatureChain` fails, and only for a `SysmlTransitionNode`'s `Source` or `Target`. On the
+`Target` side (`pseudoFeaturesOnly`) it is restricted up front to exactly the names `start`/`done`
+and only when the enclosing node is a state or action (definition or usage); no other inherited
+member is looked up for a target, and `done` in any other kind of body (for example a part
+definition) is left to ordinary name resolution. The `Source` side keeps the full sequence below:
 
 1. Looks up the enclosing node via `_symbolTable.Lookup(scope)` — since at the
    point a `SysmlTransitionNode` is visited, `scope` is the enclosing state/usage
@@ -309,8 +325,9 @@ valid per the SysML v2 spec.
    to derive that relationship automatically.
 
 This fallback is **intentionally narrow and not a general inherited-member resolver**: it is
-scoped to Transition `Source` resolution only (step 4 additionally scoped to the two
-well-known pseudostate names), consistent with how the ROADMAP itself frames this gap. A future
+scoped to Transition `Source` and `Target` resolution only (step 4 additionally scoped to the two
+well-known pseudostate names), and a name that is neither declared, imported, inherited nor one
+of those two still produces the "Unresolved reference" warning. A future
 model using a different, custom state-machine base type that also needs `start`/`done`-like
 inherited pseudostate features would not resolve via step 4 (only via steps 1–3, if it declares
 an explicit supertype chain) — this is a known, accepted limitation, not a defect to fix here.

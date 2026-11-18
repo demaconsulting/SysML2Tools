@@ -76,6 +76,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ElseSuccession
           - SysML2Tools-Language-Semantic-Model-AstBuilder-TerminateNode
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ActionUsageTypingMultiplicity
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-OccurrenceUsageTyping
           - SysML2Tools-Language-Semantic-Model-AstBuilder-AcceptSendText
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ConnectionEndLabelsAndPayload
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ConnectorEndLabels

@@ -45,3 +45,4 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded
           - GeneralViewLayoutStrategy_BuildLayout_StdlibOnlyWorkspace_ReturnsMinimalCanvas
+          - GeneralViewLayoutStrategy_BuildLayout_UserPackageNamedLikeStdlibPackage_RendersUserMembersOnly

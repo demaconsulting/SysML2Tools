@@ -55,7 +55,9 @@ optionally seeded with a pre-populated symbol table.
 
 - *Type*: Sealed class.
 - *Role*: Data container.
-- *Contract*: Exposes `IReadOnlyList<string> Files`, `IReadOnlySet<string> StdlibNames`,
+- *Contract*: Exposes `IReadOnlyList<string> Files`, `IReadOnlySet<string> StdlibNames` (exactly the
+  qualified names of the seed symbol table — the origin-based record of which declarations are
+  standard library, never derived from element names),
   `IReadOnlyDictionary<string, SysmlNode> Declarations` mapping qualified names to declaration
   nodes, and `SemanticIndex Index` — a reverse-lookup index over all resolved edge kinds
   (supertype, typing, redefinition, import, satisfy, verify, allocate, connect, transition, and

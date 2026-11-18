@@ -129,6 +129,10 @@ body.
 declarations/edges are excluded by default and included (with measurably larger output) when
 `--include-stdlib` is supplied.
 
+**`ExportSubsystem_UserPackageNamedLikeStdlibPackage_ExportsUserMembersOnly`**: Verifies a user
+`package Parts { part def Wheel; }` is exported without `--include-stdlib` (stdlib filtering is by
+origin, not by name) while the real standard-library `Parts::Part` is not.
+
 **`ExportSubsystem_NoFiles_ReportsNoInputFilesError`** /
 **`ExportSubsystem_NoMatchingFiles_ReportsNoFilesMatchedError`**: Verifies the two
 file-resolution error paths report the expected message and exit code 1.

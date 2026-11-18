@@ -393,8 +393,9 @@ Action Flow View:
 
 Without an explicit `first start` or `then done` the start marker enters the actions that have no
 predecessor and the done marker follows the actions that have no successor (not counting a terminate
-node). A model that uses `then done;` reports the lint warning `Unresolved reference: 'done'`;
-the diagram is unaffected. Nested actions, action parameters, swim-lanes, and control structures
+node). `start` and `done` resolve to the standard library's `Actions::Action::start` and
+`Actions::Action::done`, so a model that uses `first start` or `then done;` reports no lint warning.
+Nested actions, action parameters, swim-lanes, and control structures
 (`if`, `while`, `for`) are not drawn.
 
 ### Interconnection View Notation

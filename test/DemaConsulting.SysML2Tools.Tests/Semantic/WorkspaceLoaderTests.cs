@@ -7019,6 +7019,55 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A succession target naming a <em>private</em> member of the enclosing action's supertype
+    ///     (<c>then hidden;</c>) is not visible to ordinary name resolution and must not be rescued by
+    ///     the <c>start</c>/<c>done</c> fallback: the target-side fallback is limited to exactly
+    ///     those two names, so the reference still warns. The <c>start</c> in the same body resolves.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_PrivateInheritedMemberAsSuccessionTarget_StillWarns()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def Base { private action hidden; }
+                action def A :> Base {
+                    first start;
+                    then hidden;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Contains(result.Diagnostics, d => d.Message == "Unresolved reference: 'hidden'");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message == "Unresolved reference: 'start'");
+    }
+
+    /// <summary>
+    ///     <c>then done</c> inside a part definition that explicitly specializes
+    ///     <c>Parts::Part</c> is not an action or state body, so the pseudo-feature fallback does not
+    ///     apply; it resolves only through ordinary inherited-member lookup, to the part's own
+    ///     <c>Parts::Part::done</c> and never to <c>Actions::Action::done</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DoneTarget_InPartDefSpecializingPart_DoesNotUseActionFallback()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Q :> Parts::Part {
+                    action step;
+                    first step then done;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "P::Q::step", "Parts::Part::done"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Transition, "P::Q::step", "Actions::Action::done"));
+    }
+
+    /// <summary>
     ///     A model that uses none of the new syntax leaves every new member at its default.
     /// </summary>
     [Fact]
@@ -7094,6 +7143,41 @@ public sealed class WorkspaceLoaderTests
         Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
         Assert.Equal(expectedLine, diagnostic.Line);
         Assert.Equal(expectedColumn, diagnostic.Column);
+    }
+
+    /// <summary>
+    ///     An unresolved typing on an occurrence-kind usage built outside the generic usage builder
+    ///     (requirement, concern, constraint, action, state, and the case-kind and calc usages) is
+    ///     reported at the typing reference's own one-based line and column, not <c>(0,0)</c>.
+    /// </summary>
+    /// <param name="usageKeyword">The usage keyword as written in the source.</param>
+    [Theory]
+    [InlineData("requirement")]
+    [InlineData("concern")]
+    [InlineData("constraint")]
+    [InlineData("action")]
+    [InlineData("state")]
+    [InlineData("use case")]
+    [InlineData("analysis")]
+    [InlineData("verification")]
+    [InlineData("case")]
+    [InlineData("calc")]
+    public async Task WorkspaceLoader_LoadAsync_UnresolvedUsageTyping_ReportsSourcePosition(string usageKeyword)
+    {
+        // Arrange: the typing is on line 2; its column follows the keyword, name and colon
+        var source = $"package P {{\n    {usageKeyword} u : GhostTyping;\n}}\n";
+        var expectedColumn = source.IndexOf("GhostTyping", StringComparison.Ordinal) - (source.IndexOf('\n') + 1) + 1;
+
+        // Act
+        var result = await LoadModelsAsync(source);
+
+        // Assert
+        var diagnostic = Assert.Single(
+            result.Diagnostics, d => d.Message == "Unresolved reference: 'GhostTyping'");
+        Assert.Equal(2, diagnostic.Line);
+        Assert.Equal(expectedColumn, diagnostic.Column);
+        Assert.Equal(new SourcePosition(2, expectedColumn), FeatureAt(result, "P::u").ReferencePositions["GhostTyping"]);
+        Assert.Equal(2, FeatureAt(result, "P::u").SourceLine);
     }
 
     /// <summary>
@@ -7236,6 +7320,183 @@ public sealed class WorkspaceLoaderTests
         var diagnostic = Assert.Single(result.Diagnostics, d => d.Message.StartsWith("Circular import", StringComparison.Ordinal));
         Assert.EndsWith(".sysml", diagnostic.FilePath, StringComparison.Ordinal);
         Assert.True(diagnostic.Line is 2 or 5, $"Unexpected line {diagnostic.Line}");
+    }
+
+    /// <summary>
+    ///     Every occurrence-kind usage keeps its feature typing: the AST node carries the raw typing
+    ///     text and the resolver records a typing edge to the definition, with no diagnostics.
+    ///     Requirement, concern, constraint, use case, analysis, verification, case and calc usages
+    ///     previously lost the typing (or were not captured at all).
+    /// </summary>
+    /// <param name="usageKeyword">The usage keyword as written in the source.</param>
+    /// <param name="definitionKeyword">The matching definition keyword as written in the source.</param>
+    /// <param name="featureKeyword">The <see cref="SysmlFeatureNode.FeatureKeyword"/> the usage is captured under.</param>
+    [Theory]
+    [InlineData("part", "part def", "part")]
+    [InlineData("item", "item def", "item")]
+    [InlineData("occurrence", "occurrence def", "occurrence")]
+    [InlineData("action", "action def", "action")]
+    [InlineData("state", "state def", "state")]
+    [InlineData("requirement", "requirement def", "requirement")]
+    [InlineData("concern", "concern def", "concern")]
+    [InlineData("constraint", "constraint def", "constraint")]
+    [InlineData("use case", "use case def", "use case")]
+    [InlineData("analysis", "analysis def", "analysis")]
+    [InlineData("verification", "verification def", "verification")]
+    [InlineData("case", "case def", "case")]
+    [InlineData("calc", "calc def", "calc")]
+    public async Task WorkspaceLoader_LoadAsync_OccurrenceKindUsage_CapturesFeatureTypingAndEdge(
+        string usageKeyword,
+        string definitionKeyword,
+        string featureKeyword)
+    {
+        // Arrange / Act: one definition of the kind and one usage typed by it
+        var result = await LoadModelsAsync($"package P {{ {definitionKeyword} Def; {usageKeyword} u : Def; }}");
+
+        // Assert: the usage is captured with its keyword and typing, and the typing edge resolves
+        var usage = FeatureAt(result, "P::u");
+        Assert.Equal(featureKeyword, usage.FeatureKeyword);
+        Assert.Equal("Def", usage.FeatureTyping);
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "P::u", "P::Def"));
+        Assert.Empty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     A requirement usage keeps its multiplicity along with its typing, like a generic usage.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RequirementUsage_CapturesTypingAndMultiplicity()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                requirement def R;
+                requirement many : R [2];
+            }
+            """);
+
+        // Assert
+        var usage = FeatureAt(result, "P::many");
+        Assert.Equal("R", usage.FeatureTyping);
+        Assert.Equal("[2]", usage.Multiplicity);
+    }
+
+    /// <summary>
+    ///     A succession target <c>then done;</c> in an action body, and a transition target
+    ///     <c>then done</c> in a state body, resolve <c>done</c> to the standard library's
+    ///     <c>Actions::Action::done</c> with no "Unresolved reference" diagnostic.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DoneTarget_ResolvesToStdlibActionMember()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def A {
+                    first start;
+                    then step;
+                    action step;
+                    then done;
+                }
+                state def S {
+                    entry; then idle;
+                    state idle;
+                    transition first idle then done;
+                }
+            }
+            """);
+
+        // Assert: neither pseudo-feature is reported, and both completion edges reach Action::done
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference", StringComparison.Ordinal));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "P::A::step", "Actions::Action::done"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "P::S::idle", "Actions::Action::done"));
+    }
+
+    /// <summary>
+    ///     <c>first start then x;</c> and the bare <c>first start;</c> resolve <c>start</c> to the
+    ///     standard library's <c>Actions::Action::start</c> in an action body with no diagnostic.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_StartSource_InActionBody_ResolvesToStdlibActionMember()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def A {
+                    first start then step;
+                    action step;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference", StringComparison.Ordinal));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "Actions::Action::start", "P::A::step"));
+    }
+
+    /// <summary>
+    ///     The <c>start</c>/<c>done</c> fallback does not hide real mistakes: a succession target
+    ///     that names nothing still produces an "Unresolved reference" warning, while the
+    ///     <c>done</c> in the same body does not.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnknownSuccessionTarget_StillWarnsButDoneDoesNot()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def A {
+                    first start;
+                    then missing;
+                    then done;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Contains(result.Diagnostics, d => d.Message == "Unresolved reference: 'missing'");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message == "Unresolved reference: 'done'");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message == "Unresolved reference: 'start'");
+    }
+
+    /// <summary>
+    ///     A name <c>done</c> used as a succession target outside a state or action (here a part
+    ///     definition) is not given the pseudo-feature fallback and is still reported.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DoneTarget_OutsideActionOrState_StillWarns()
+    {
+        // Arrange / Act: a succession inside a part def is not an action body
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Q {
+                    action step;
+                    first step then done;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Contains(result.Diagnostics, d => d.Message == "Unresolved reference: 'done'");
+    }
+
+    /// <summary>
+    ///     A user package named like a standard-library package (<c>Parts</c>) contributes
+    ///     user-origin members: its own members are not in <see cref="SysmlWorkspace.StdlibNames"/>
+    ///     (which holds exactly the embedded seed's qualified names), while real standard-library
+    ///     members of <c>Parts</c> still are.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UserPackageNamedLikeStdlibPackage_MembersAreNotStdlibOrigin()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("package Parts { part def Wheel; }");
+
+        // Assert
+        var names = result.Workspace!.StdlibNames;
+        Assert.DoesNotContain("Parts::Wheel", names);
+        Assert.Contains("Parts::Part", names);
+        Assert.Contains("Parts::Wheel", result.Workspace.Declarations.Keys);
     }
 }
 

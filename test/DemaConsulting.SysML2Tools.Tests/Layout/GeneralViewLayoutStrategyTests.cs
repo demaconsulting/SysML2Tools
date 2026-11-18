@@ -55,14 +55,15 @@ public sealed class GeneralViewLayoutStrategyTests
         {
             Declarations = new Dictionary<string, SysmlNode>
             {
-                // SysML stdlib element — must be filtered
+                // SysML stdlib element — must be filtered (it originates from the stdlib seed)
                 ["SysML::Parts::PartDef"] = new SysmlDefinitionNode
                 {
                     Name = "PartDef",
                     QualifiedName = "SysML::Parts::PartDef",
                     DefinitionKeyword = "part def"
                 }
-            }
+            },
+            StdlibNames = new HashSet<string>(StringComparer.Ordinal) { "SysML::Parts::PartDef" }
         };
         var context = new ViewContext("stdlibView", workspace);
         var options = new RenderOptions(Themes.Light);
@@ -439,8 +440,8 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     BuildLayout excludes declarations listed in the workspace's seed-derived
-    ///     <see cref="SysmlWorkspace.StdlibNames"/> set even when their names do not match a known
-    ///     stdlib root-package prefix.
+    ///     <see cref="SysmlWorkspace.StdlibNames"/> set whatever their names (the filter is based on
+    ///     element origin, never on a list of stdlib root-package names).
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded()
@@ -6017,6 +6018,135 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Assert
         Assert.Same(tree, result);
+    }
+
+    /// <summary>
+    ///     A user package named like a standard-library package (<c>Parts</c>) is drawn with its
+    ///     members: the stdlib filter identifies the standard library by origin, not by name, so
+    ///     the user's <c>Parts</c> folder and <c>Wheel</c> definition render, and no member of the
+    ///     real standard-library <c>Parts</c> package (such as <c>Part</c>) appears.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UserPackageNamedLikeStdlibPackage_RendersUserMembersOnly()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package Parts { part def Wheel; }");
+
+        // Assert: exactly the user's folder and definition are drawn
+        var boxes = CollectBoxes(layout.Nodes);
+        var folder = FindBox(layout.Nodes, "Parts", BoxShape.Folder);
+        Assert.Contains(FindBox(layout.Nodes, "Wheel"), CollectBoxes(folder.Children));
+        Assert.Equal(["Parts", "Wheel"], boxes.Select(b => b.Label).Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    ///     User definitions in a package whose name collides with a standard-library root package
+    ///     are drawn alongside definitions of an ordinary package, and a stdlib-only name is still
+    ///     excluded: the real <c>Parts::Part</c> definition never appears.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UserPackageNamedLikeStdlibPackage_StdlibMembersStayExcluded()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package Parts { part def Wheel; } package Mine { part def Hub; }");
+
+        // Assert
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("Wheel", labels);
+        Assert.Contains("Hub", labels);
+        Assert.DoesNotContain("Part", labels);
+    }
+
+    /// <summary>
+    ///     Every occurrence-kind usage drawn as a node of its own keeps its typing: the box carries the
+    ///     <c>name : Type</c> label and a feature-typing edge (hollow triangle with two dots) runs from
+    ///     the usage to its definition. Requirement, concern, use case, analysis, verification, case
+    ///     and calc usages previously lost the typing.
+    /// </summary>
+    /// <param name="usageKeyword">The usage keyword as written in the source.</param>
+    /// <param name="definitionKeyword">The matching definition keyword as written in the source.</param>
+    [Theory]
+    [InlineData("part", "part def")]
+    [InlineData("item", "item def")]
+    [InlineData("occurrence", "occurrence def")]
+    [InlineData("action", "action def")]
+    [InlineData("state", "state def")]
+    [InlineData("requirement", "requirement def")]
+    [InlineData("concern", "concern def")]
+    [InlineData("use case", "use case def")]
+    [InlineData("analysis", "analysis def")]
+    [InlineData("verification", "verification def")]
+    [InlineData("case", "case def")]
+    [InlineData("calc", "calc def")]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_OccurrenceKindUsage_ShowsTypingLabelAndEdge(
+        string usageKeyword,
+        string definitionKeyword)
+    {
+        // Act: a definition and a usage of the same kind, typed by it
+        var layout = await LayOutUnscopedAsync(
+            $"package P {{ {definitionKeyword} Def; {usageKeyword} u : Def; }}",
+            policy: NodePolicy.AllUsages);
+
+        // Assert: the usage box reads "u : Def" and a typing edge joins it to the definition
+        var usageBox = FindBox(layout.Nodes, "u");
+        Assert.Equal("u : Def", usageBox.Label);
+        var typingEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typingEdge, usageBox, FindBox(layout.Nodes, "Def")));
+    }
+
+    /// <summary>
+    ///     With the Pilot policy a nested requirement usage (<c>requirement r : R;</c>) is a node of its
+    ///     own labeled <c>r : R</c> with a feature-typing edge to <c>R</c> (issue #113).
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedRequirementUsage_ShowsTypingLabelAndEdge()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package P {
+                requirement def R;
+                part def Holder { requirement r : R; }
+            }
+            """);
+
+        // Assert
+        var usageBox = FindBox(layout.Nodes, "r");
+        Assert.Equal("r : R", usageBox.Label);
+        var typingEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typingEdge, usageBox, FindBox(layout.Nodes, "R")));
+    }
+
+    /// <summary>
+    ///     A typed constraint usage declared directly in a package (<c>constraint k : K;</c>) is drawn
+    ///     as a node labeled <c>k : K</c> with a feature-typing edge to the constraint definition
+    ///     (issue #113). The typing comes from the constraint-usage parser path.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PackageConstraintUsage_ShowsTypingLabelAndEdge()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P { constraint def K; constraint k : K; }");
+
+        // Assert
+        var usageBox = FindBox(layout.Nodes, "k");
+        Assert.Equal("k : K", usageBox.Label);
+        var typingEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typingEdge, usageBox, FindBox(layout.Nodes, "K")));
+    }
+
+    /// <summary>
+    ///     Under the Pilot node policy a constraint usage nested in a definition is never a node of its
+    ///     own: no box is drawn for it, and so no typing edge.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedConstraintUsage_IsNotANode()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P { constraint def K; part def Holder { constraint k : K; } }");
+
+        // Assert
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => b.Label?.StartsWith("k", StringComparison.Ordinal) == true);
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
     }
 }
 

@@ -242,15 +242,17 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-InheritedTransitionSource
         title: >-
           ReferenceResolver.ResolveFeatureChains shall, when resolving a SysmlTransitionNode's
-          Source, fall back to a narrowly-scoped inherited-action-member lookup
+          Source or Target, fall back to a narrowly-scoped inherited-action-member lookup
           (TryResolveInheritedActionMember, reusing FindMemberInAncestorChain and
-          FindMemberInTypeHierarchy) after the standard feature-chain resolution fails, only for
-          the Source side — never the Target side.
+          FindMemberInTypeHierarchy) after the standard feature-chain resolution fails, so that
+          the standard `start` and `done` pseudo-features resolve without an unresolved-reference
+          warning, while any other unresolved name still warns.
         justification: |
           A transition's implicit source (e.g. `first start then off;`, or the bare `start`
-          feature an attached transition's synthesized Source implicitly names) commonly
-          references a pseudostate feature the enclosing state/action inherits from its
-          supertype rather than declares itself; the standard namespace/import-scoped lookup
+          feature an attached transition's synthesized Source implicitly names) and its completion
+          target (`then done;`) commonly reference a pseudostate feature the enclosing
+          state/action inherits from its supertype (Actions::Action declares `start` and `done`)
+          rather than declares itself; the standard namespace/import-scoped lookup
           cannot see inherited members, so without this fallback every such transition produced
           a false "Unresolved reference" diagnostic and no Transition edge, even though the
           model is semantically valid per the SysML v2 spec. As a narrow, deliberately
@@ -259,11 +261,18 @@ sections:
           resolves against the standard library's `Actions::Action` direct children when no
           user-declared supertype supplies the member, covering the common case of a `state def`
           with no explicit `:>` clause (whose implicit ultimate supertype is `Actions::Action`).
-          This is intentionally not a general implicit-generalization/default-supertype resolver:
-          it is scoped to Transition Source resolution only, and to the two well-known
-          pseudostate-derived names, consistent with how the ROADMAP itself scopes this gap.
+          This is the minimal approach that yields the targets implicit specialization (#93)
+          would; it is intentionally not a general implicit-generalization/default-supertype
+          resolver: it is scoped to Transition Source and Target resolution only, and to the two
+          well-known pseudostate-derived names.
         tests:
           - WorkspaceLoader_LoadAsync_TransitionSourceStartFeature_ResolvesToStdlibActionMember
+          - WorkspaceLoader_LoadAsync_StartSource_InActionBody_ResolvesToStdlibActionMember
+          - WorkspaceLoader_LoadAsync_DoneTarget_ResolvesToStdlibActionMember
+          - WorkspaceLoader_LoadAsync_UnknownSuccessionTarget_StillWarnsButDoneDoesNot
+          - WorkspaceLoader_LoadAsync_DoneTarget_OutsideActionOrState_StillWarns
+          - WorkspaceLoader_LoadAsync_PrivateInheritedMemberAsSuccessionTarget_StillWarns
+          - WorkspaceLoader_LoadAsync_DoneTarget_InPartDefSpecializingPart_DoesNotUseActionFallback
           - Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-EdgeRawReference

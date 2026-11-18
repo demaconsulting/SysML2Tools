@@ -516,6 +516,23 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   A duplicated reference text answers the same target; a qualified text is a different key from the bare text
 - `GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded`:
   Seed-listed definitions excluded; empty canvas
+- `GeneralViewLayoutStrategy_BuildLayout_UserPackageNamedLikeStdlibPackage_RendersUserMembersOnly`:
+  A user `package Parts { part def Wheel; }` draws the `Parts` folder and `Wheel` and nothing from the
+  real standard-library `Parts` package
+- `GeneralViewLayoutStrategy_BuildLayout_UserPackageNamedLikeStdlibPackage_StdlibMembersStayExcluded`:
+  `Wheel` in a user `Parts` package and `Hub` in another package are drawn; the standard-library
+  `Part` is not
+- `GeneralViewLayoutStrategy_BuildLayout_OccurrenceKindUsage_ShowsTypingLabelAndEdge`:
+  Each occurrence-kind usage (part, item, occurrence, action, state, requirement, concern, use case,
+  analysis, verification, case, calc) is a box labeled `u : Def` with a hollow-triangle-two-dots typing edge
+  to `Def`
+- `GeneralViewLayoutStrategy_BuildLayout_NestedRequirementUsage_ShowsTypingLabelAndEdge`:
+  A requirement usage nested in a part def, under the Pilot policy, is a node labeled `r : R` with a
+  typing edge to `R`
+- `GeneralViewLayoutStrategy_BuildLayout_PackageConstraintUsage_ShowsTypingLabelAndEdge`:
+  A typed constraint usage declared in a package is a node labeled `k : K` with a typing edge to `K`
+- `GeneralViewLayoutStrategy_BuildLayout_NestedConstraintUsage_IsNotANode`:
+  A constraint usage nested in a part def is not a node under the Pilot policy: no box and no typing edge
 - `GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments`:
   Attribute and port compartments under the row-only policy, with centered italic titles
 - `GeneralViewLayoutStrategy_BuildLayout_EventOccurrenceUsage_IsNotACompartmentRow`:

@@ -68,12 +68,16 @@ external services or additional configuration are required beyond a standard .NE
   previous feature): a private or protected member of the segment's type or of an inherited
   supertype, or a private inline member, gives no edge and an unresolved-reference Warning,
   while a private feature as the *first* segment still resolves locally.
-- A `SysmlTransitionNode`'s `Source` that names an inherited pseudostate feature (`"start"`
-  or `"done"`) not declared locally on the enclosing state/usage resolves via the new
+- A `SysmlTransitionNode`'s `Source` or `Target` that names an inherited pseudostate feature
+  (`"start"` or `"done"`) not declared locally on the enclosing state/action resolves via the
   `TryResolveInheritedActionMember` fallback — including the narrow last-resort case where no
   explicit supertype is declared at all, resolving against the standard library's
   `Actions::Action` direct children — producing a `Transition`-kind `SysmlEdge` and no
-  unresolved-reference diagnostic. The `Target` side of a transition never receives this
+  unresolved-reference diagnostic (`first start then x;`, `then done;`, and
+  `transition first x then done;` in action and state bodies). A name that is not `start`/`done`
+  and does not resolve (`then missing;`), and `done` outside a state or action, still produce the
+  warning. The target-side fallback never looks up any other inherited member (a private member
+  of a supertype as a target still warns). Connection and binding endpoints never receive this
   fallback.
 - Every unresolved reference — supertype, subsetting, typing, redefinition, import, `expose`,
   view definition, connector (`connect`/`bind`) endpoint, transition target, metadata type,
@@ -160,4 +164,10 @@ external services or additional configuration are required beyond a standard .NE
 | Supertype-cycle chain segment | `WorkspaceLoader_LoadAsync_ConnectionChain_SupertypeCycleTerminatesGracefully` |
 | OMG Connections example fixture | `WorkspaceLoader_LoadAsync_ConnectionsExampleFixture_RecordsConnectEdge` |
 | Inherited transition source | `WorkspaceLoader_LoadAsync_TransitionSourceStartFeature_ResolvesToStdlibActionMember` |
+| `start` source in an action body | `WorkspaceLoader_LoadAsync_StartSource_InActionBody_ResolvesToStdlibActionMember` |
+| `then done;` and `then done` transition target | `WorkspaceLoader_LoadAsync_DoneTarget_ResolvesToStdlibActionMember` |
+| Unknown succession target still warns | `WorkspaceLoader_LoadAsync_UnknownSuccessionTarget_StillWarnsButDoneDoesNot` |
+| `done` outside a state/action still warns | `WorkspaceLoader_LoadAsync_DoneTarget_OutsideActionOrState_StillWarns` |
+| Private member as target warns | `WorkspaceLoader_LoadAsync_PrivateInheritedMemberAsSuccessionTarget_StillWarns` |
+| Part def, no fallback | `WorkspaceLoader_LoadAsync_DoneTarget_InPartDefSpecializingPart_DoesNotUseActionFallback` |
 | OMG Transitions corpus fixture | `Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions` |

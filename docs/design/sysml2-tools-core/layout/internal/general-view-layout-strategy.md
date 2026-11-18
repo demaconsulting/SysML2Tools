@@ -188,7 +188,8 @@ record-copy idiom.
 Visits `workspace.Declarations` and, recursively, the named usages in each declaration's `Children`
 (each qualified name admitted once): a real workspace registers every nested usage in `Declarations`,
 whereas a hand-built one may list nested usages only as children. A `SysmlDefinitionNode` or a named
-`SysmlFeatureNode` that is not a standard-library element (`StdlibFilter.IsStdlibElement`) and is
+`SysmlFeatureNode` that is not a standard-library element (`StdlibFilter.IsStdlibElement`, an
+origin test against the workspace's seed-derived `StdlibNames`, never a name-prefix test) and is
 within `scope` (`ExposeScopeResolver.IsInSubjectScope`) becomes a box through `CreateBox`. An unnamed
 usage is excluded, since it has no stable qualified name to key a box on; an unnamed definition is
 admitted under its qualified name. The admission is deliberately a superset used as the

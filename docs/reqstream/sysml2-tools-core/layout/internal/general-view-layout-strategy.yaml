@@ -284,13 +284,19 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-StdlibExclusion
         title: >-
-          GeneralViewLayoutStrategy shall exclude standard-library definitions from the diagram.
+          GeneralViewLayoutStrategy shall exclude standard-library definitions from the diagram,
+          identifying them by origin (the workspace's seed-derived stdlib names) and never by
+          name, so a user package named like a standard-library package is still drawn.
         justification: |
           The General View is meant to show the user's model, not the imported standard library.
-          Excluding standard-library definitions keeps the diagram focused on user content.
+          Excluding standard-library definitions keeps the diagram focused on user content;
+          deciding by origin instead of by package name keeps a user package such as `Parts`
+          visible.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_StdlibOnlyWorkspace_ReturnsMinimalCanvas
           - GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded
+          - GeneralViewLayoutStrategy_BuildLayout_UserPackageNamedLikeStdlibPackage_RendersUserMembersOnly
+          - GeneralViewLayoutStrategy_BuildLayout_UserPackageNamedLikeStdlibPackage_StdlibMembersStayExcluded
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-EmptyCanvas
         title: >-
