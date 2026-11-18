@@ -34,11 +34,12 @@ sections:
           SysmlViewNode shall expose RenderTargetName: the raw reference text of its `render
           <target>;` member, or null when absent.
         justification: |
-          RenderTargetName is exposed as raw metadata only: per the SysML v2 grammar it names a
+          RenderTargetName is exposed as raw metadata: per the SysML v2 grammar it names a
           rendering style/format (e.g. `asTreeDiagram`, `asElementTable`), never content, so it
-          is captured but never resolved into an edge and has no effect on scope.
+          is captured and never resolved into an edge, and has no effect on scope. The reference
+          itself is checked separately, as a reference occurrence of the view.
         tests:
-          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
+          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawResolvedWithoutEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewExposedNames

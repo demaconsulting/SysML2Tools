@@ -70,6 +70,7 @@ sections:
         tests:
           - LintSubsystem_Report_InvalidFile_WritesDiagnosticInExpectedFormat
           - LintSubsystem_Report_UnresolvedReference_ReportsReferencePosition
+          - LintSubsystem_Report_UnresolvedExpressionReferences_ReportsTokenPositionsAsWarnings
 
       - id: SysML2Tools-Tool-Lint-ExitCode
         title: >-

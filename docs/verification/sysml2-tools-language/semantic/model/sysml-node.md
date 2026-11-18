@@ -34,8 +34,10 @@ external services or additional configuration are required beyond a standard .NE
   a node whose body contains one or more annotating elements, and is empty (never null) for a
   node with none.
 - `SysmlViewNode.RenderTargetName`/`FilterExpressionText` are populated verbatim from a view's
-  `render`/`filter` body members (raw reference/expression text, never resolved into an edge or
-  diagnostic here), and are `null` for a view with no such members. `SysmlViewNode.ExposeMembers`
+  `render`/`filter` body members (raw reference/expression text; no edge is produced from either),
+  and are `null` for a view with no such members. `SysmlNode.ReferenceOccurrences` lists the
+  references a node writes inside raw expression text, each with its token position, and is
+  empty for a node with none. `SysmlViewNode.ExposeMembers`
   is populated with one paired
   `ExposeMember(QualifiedName, BracketFilterExpressionText, RecursionKind, RawReferenceText)` entry per
   `expose <name>[::**[<expr>]];` member, in source order, and is empty for a view with none;
@@ -74,7 +76,8 @@ external services or additional configuration are required beyond a standard .NE
 | `SysmlMetadataNode` type resolution | `AstBuilder_MetadataAnnotation_ResolvesTypeReference` |
 | `ResolvedEdges` populated | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |
 | `Annotations` populated | `WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder` |
-| `RenderTargetName` unresolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
+| `RenderTargetName` captured, no edge | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawResolvedWithoutEdge` |
+| Occurrences with positions | `WorkspaceLoader_LoadAsync_TransitionExpressions_CaptureReferenceOccurrences` |
 | `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | View `SourceFilePath`/`SourceLine`/`SourceColumn` | `WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation` |
 | View properties declared on `SysmlViewNode` | `SysmlViewNode_SourceLocationProperties_AreDeclaredOnViewNode` |

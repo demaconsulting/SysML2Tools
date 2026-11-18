@@ -42,7 +42,7 @@ external services or additional configuration are required beyond a standard .NE
 | Typing edge recorded | `WorkspaceLoader_LoadAsync_ResolvedFeatureTyping_RecordsTypingEdge` |
 | Import edge recorded (wildcard) | `WorkspaceLoader_LoadAsync_WildcardImport_RecordsImportEdge` |
 | Import edge recorded (named) | `WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge` |
-| RenderTargetName never resolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
+| RenderTargetName never becomes an edge | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawResolvedWithoutEdge` |
 | Expose edge recorded | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | Redefinition edge recorded | `WorkspaceLoader_LoadAsync_ResolvedRedefinition_RecordsRedefinitionEdge` |
 | Raw reference text recorded per kind | `WorkspaceLoader_LoadAsync_ResolvedEdges_RecordRawReferenceText` |

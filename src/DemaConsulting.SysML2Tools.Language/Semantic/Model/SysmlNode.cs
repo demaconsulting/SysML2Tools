@@ -176,7 +176,37 @@ public abstract class SysmlNode
     /// <summary>The shared empty <see cref="ReferencePositions"/> value.</summary>
     private static readonly IReadOnlyDictionary<string, SourcePosition> EmptyReferencePositions =
         new Dictionary<string, SourcePosition>(0);
+
+    /// <summary>
+    ///     Gets or sets the references this element makes from inside raw, unparsed source text
+    ///     (a transition's trigger, guard and effect, an action-flow <c>accept</c>/<c>send</c> node's
+    ///     payload, a state action's declaration, a view's <c>render</c> target, and the
+    ///     feature references of a value or constraint expression), each with the exact position of
+    ///     its token, in source order.
+    /// </summary>
+    /// <remarks>
+    ///     Populated by <see cref="AstBuilder"/> from the concrete syntax tree, which is the only
+    ///     place a reference inside an expression can be told apart from an operator, a literal, a
+    ///     library function name, or a name the construct itself declares. <see cref="ReferenceResolver"/>
+    ///     resolves every entry and reports each unresolved one at its own position; unlike
+    ///     <see cref="ReferencePositions"/>, an entry is an occurrence, so the same unresolved name
+    ///     written twice is reported twice. Not part of the serialized standard-library format
+    ///     (<c>[JsonIgnore]</c>); the standard library is checked when it is compiled.
+    /// </remarks>
+    [JsonIgnore]
+    public IReadOnlyList<ReferenceOccurrence> ReferenceOccurrences { get; set; } =
+        Array.Empty<ReferenceOccurrence>();
 }
+
+/// <summary>
+///     One written occurrence of a reference inside a declaration, with the position of its token.
+/// </summary>
+/// <param name="Name">
+///     The reference text as <see cref="ReferenceResolver"/> resolves it (a simple or
+///     <c>::</c>-qualified name; a feature chain contributes only its first segment).
+/// </param>
+/// <param name="Position">The position of the first token of the reference.</param>
+public readonly record struct ReferenceOccurrence(string Name, SourcePosition Position);
 
 /// <summary>
 ///     A position within a source file.
@@ -623,8 +653,11 @@ public sealed class SysmlViewNode : SysmlNode
     ///     (from <c>viewRenderingMember().viewRenderingUsage()</c>), or <see langword="null"/>
     ///     when the view declares no rendering member. Per the SysML v2 grammar, this names a
     ///     rendering style/format usage (e.g. <c>asTreeDiagram</c>, <c>asElementTable</c>) — never
-    ///     a content-scoping subject. Captured verbatim only: <see cref="ReferenceResolver"/> never
-    ///     inspects or resolves this value (no edge is produced, no diagnostic is emitted). This
+    ///     a content-scoping subject. Captured verbatim; the reference itself is resolved by
+    ///     <see cref="ReferenceResolver"/> from <see cref="SysmlNode.ReferenceOccurrences"/> in the
+    ///     view's own namespace (no edge is produced; an unresolved target, such as an
+    ///     unqualified <c>asTreeDiagram</c> without <c>import Views::*;</c>, emits a Warning
+    ///     diagnostic). This
     ///     value is used by <c>DiagramTypeRouter</c> to select a rendering strategy — an exact
     ///     match against <c>asTreeDiagram</c> or <c>asInterconnectionDiagram</c> takes precedence
     ///     over the name/supertype heuristic; any other value (including <c>asElementTable</c> and

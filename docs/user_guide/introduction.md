@@ -119,6 +119,8 @@ import is reported at the `import` statement that closes the cycle, and a cyclic
 at the supertype reference that closes it.
 
 If the same name is unresolved several times in one file it is reported once, at its first use.
+(The references written inside expressions — see [Linting](#linting) — are the exception: each
+occurrence is reported at its own position.)
 
 `render` and `query` print the same lines for the diagnostics found while loading your model.
 For `query --format json`, those lines are still written to standard output before the JSON
@@ -169,6 +171,44 @@ edge for it, an Interconnection view does not expand the part, and a Grid view d
 specialization (compartment rows still show the written `: Type` text). The layouts never match
 it to a same-named element elsewhere, and add no second warning. A package-level `filter`
 statement is not honored when resolving imports.
+
+## What Lint Checks
+
+`lint` reports two kinds of problem:
+
+- **Errors** — syntax errors. The tool exits with code 1 when there is at least one.
+- **Warnings** — the model parses but is incomplete or inconsistent: circular imports, cyclic
+  specialization, and every `Unresolved reference` described above.
+
+The severity of an unresolved reference is **warning**, not error, so `lint` still exits with
+code 0 for a model whose only problems are unresolved names. To gate a pipeline on them, fail the
+build on any `warning:` line in the output. Beyond the declaration-level references (supertypes,
+typing, redefinitions, imports, `expose`, `satisfy`, `verify`, `allocate`, `dependency`, metadata,
+and the endpoints of connectors and transitions), `lint` also checks the names written *inside*
+these constructs, reporting each undeclared one at its own position:
+
+- `render <target>;` in a view — the rendering. `render asTreeDiagram;` needs `import Views::*;`
+  (in the view or an enclosing package) or the qualified `Views::asTreeDiagram`, because `Views`
+  is not imported implicitly. The tool-defined selectors (`asGeneralDiagram`,
+  `asStateTransitionDiagram`, `asActionFlowDiagram`, `asSequenceDiagram`, `asGridDiagram`) are
+  accepted as written, since no model can declare them.
+- A transition's `accept <payload>` — the payload type (`accept Sig`, `accept sig : Sig`), the
+  `via` target, and `at`/`after`/`when` expressions.
+- A transition's `if <guard>` and an action-flow `if <guard> then` — the features named in the
+  guard.
+- A transition's `do <effect>` — the referenced action (`do beep`; `do action beep;` declares it)
+  and the operands of `do send`.
+- An action-flow `accept`/`send` — the accepted payload type, and the `send` payload, `via`, and
+  `to` operands.
+- A state's `entry`/`do`/`exit` actions — the referenced action and any typing.
+- `constraint`, `require constraint`, and `assume constraint` expressions — the features named in
+  the expression.
+Operators (`and`, `or`, `not`, `xor`, `implies`, `==`, `+`, ...), literals (`true`, `false`,
+`null`, numbers), `self`, library functions (`size(x)`, `isEmpty(x)`, `x->forAll{...}`), the
+members selected with `.` (`sig.value` checks only `sig`), and the names a construct declares for
+itself (an `accept` payload's own name, the `in` parameters of a state, action, or constraint)
+are never reported. Not yet checked: the expressions of value clauses (`= expr`), the guard of
+the `first a if g then b;` succession form, and `if`/`while` action nodes.
 
 # Rendering
 
@@ -535,7 +575,9 @@ entire workspace:
   flag maps to — see "Dynamic (Ad-Hoc) Views" above). Every other rendering-style name
   (`asElementTable`, `asTextualNotation`, or an unrecognized name) — and a view declaring no
   `render` member at all — has **no effect** on which strategy renders the view; see
-  `ROADMAP.md` for further rendering-style selectors that may be added in future.
+  `ROADMAP.md` for further rendering-style selectors that may be added in future. Write the
+  Views-library renderings with `import Views::*;` (or qualified, `render Views::asTreeDiagram;`)
+  — `lint` reports an unqualified one with no such import as an unresolved reference.
 - `filter <expr>;` — a standalone view-body filter statement is now **evaluated** for a
   supported subset of SysML v2 filter-expression syntax (Phase 1): metadata classification
   tests (`@Type`, `@Pkg::Type`), boolean connectives (`and`, `or`, `not`, `xor`, `&`, `|`),
@@ -661,6 +703,8 @@ of confusion, so it is worth stating plainly:
 
 ```sysml
 package Vehicle {
+    private import Views::*;
+
     part def Engine {
         part cylinder[4];
     }
@@ -708,6 +752,8 @@ asTreeDiagram;`, or an empty view body) renders the **full workspace** instead.
 
 ```sysml
 package Vehicle {
+    private import Views::*;
+
     part def Engine {
         part cylinder[4];
     }

@@ -42,8 +42,8 @@ material indexed by `SemanticIndex`.
   per-entry (Phase 2a) when that entry's own `ExposeMember.BracketFilterExpressionText` parses and
   evaluates successfully; a view with no `Expose` edges renders the full workspace, unchanged
   from the pre-scoping baseline. `SysmlViewNode.RenderTargetName` (a rendering-style/format
-  selector, e.g. `asTreeDiagram`) is captured but never resolved into an edge and has no effect on
-  scope.
+  selector, e.g. `asTreeDiagram`) never becomes an edge and has no effect on scope (the reference
+  it writes is only checked, as a `ReferenceOccurrences` entry).
 - `Redefinition` — a feature redefinition reference (`redefines X;` / `:>> X`), sourced from the
   redefining feature's own qualified name (`SysmlFeatureNode.RedefinedFeatureName`) and
   targeting the resolved redefined-feature reference. Rendered by `GeneralViewLayoutStrategy` as

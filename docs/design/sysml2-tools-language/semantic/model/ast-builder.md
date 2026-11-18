@@ -698,6 +698,57 @@ body element, and every nested member is built, to stamp the node it returns (`S
 Positions are an in-memory property of nodes built from source; they are not serialized (see
 `SysmlNode`).
 
+##### Reference Occurrence Capture
+
+A reference written inside text the AST keeps only as raw text (a transition's trigger, guard and
+effect, an action-flow `accept`/`send` node's payload, a state action's declaration, a constraint
+expression, a view's `render` target) cannot be found by `LocateReferences`, which matches the
+texts the node already declares. `AstBuilder` instead walks the concrete syntax tree of those
+parts (`CollectReferenceOccurrences` / `CollectOccurrences`) and stores each reference it
+recognizes, with the position of its first token, in `SysmlNode.ReferenceOccurrences`.
+
+The walk records exactly these reference forms: a feature reference in an expression (a
+`baseExpression` that is a bare qualified name), a `typeReference` (`as T`, `is`-type tests, `@T`,
+`new T(...)`), and the typing, subsetting, and reference-subsetting targets of a declaration
+(`accept sig : Sig`, `do beep`, `entry action a : T`). Everything that is *not* a feature
+reference is skipped, which is what keeps valid models free of false warnings:
+
+- operators and literals (tokens, never names);
+- the function of an invocation (`f(x)`, `isEmpty(x)`) and of an arrow call (`c->size()`,
+  `c->forAll{...}`), whose resolution needs implicit imports of the function libraries, and the
+  member selected through `.` (`a.b` yields only `a`), which is resolved through `a`'s type;
+- named-argument names, redefinitions, and everything inside a nested body (`{ ... }`,
+  `ActionBodyContext`, `BodyExpressionContext`), whose names are declared locally;
+- the implicit feature names `self`, `that`, `start`, `done` (`ImplicitFeatureNames`), which every
+  occurrence/action inherits; implicit specialization (#93) is not modeled, so name resolution
+  cannot see them;
+- the names the construct declares for itself: an `accept` payload's own name
+  (`DeclaredPayloadNames`, usable by the same transition's guard and effect), a constraint body's
+  own parameters and local usages (`NamesDeclaredWithin`), and the names of bare usages
+  (`in x : T;`, `x : T;`, the grammar's `defaultReferenceUsage`) anywhere in the outermost
+  enclosing declaration (`BareUsageNames`, memoized per declaration). `AstBuilder` builds no
+  node for a bare usage, so name resolution cannot see it; the set is deliberately an
+  over-approximation, because a false warning on a valid model costs more than a missed warning
+  on a typo that coincides with a nested parameter name.
+
+The roots collected per construct: a transition's guard expression, trigger and effect
+(`TransitionOccurrences`, all four transition builders); an action-flow guarded succession's guard;
+an `accept` node's declaration (`AcceptDeclarationOccurrences`); a `send` node's declaration and
+operands; a state `entry`/`do`/`exit` action's declaration alternatives; a constraint body or the
+reference form of a requirement constraint; and, for a view, every `render` member
+(`ExtractRenderOccurrences`: the direct reference, or the typing of the placeholder form, minus
+the tool-defined selectors `asGeneralDiagram`, `asStateTransitionDiagram`, `asActionFlowDiagram`,
+`asSequenceDiagram` and `asGridDiagram` — the `DiagramTypeRouter` tokens beyond the Views library,
+which no model can declare; the list is repeated in `ToolDefinedRenderTargets` because the
+Language library cannot reference Core).
+
+Two declarations were added so that these references can resolve: `VisitRenderingUsage` builds a
+`rendering` usage (keyword `rendering`) so the Views library's `rendering asTreeDiagram : …`
+exists as `Views::asTreeDiagram`, and a view's own `import` statements are kept as the view's
+`Children` (`ExtractViewImports`; nothing else in a view body becomes a child) so a view-local
+`import Views::*;` applies to its `render` target. Like `ReferencePositions`,
+`ReferenceOccurrences` is an in-memory property of nodes built from source and is not serialized.
+
 ##### Error Handling
 
 Anonymous elements (null declared names) are silently skipped — visitor methods return `null`

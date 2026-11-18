@@ -59,7 +59,9 @@ system, subsystem, and unit levels:
         redefinition, import, satisfy, verify, allocate, expose, and (in a final pass) dotted
         feature-chain connect/transition references by KerML 8.2.3.5 name resolution (delegating
         to `NameResolver`: member visibility, filtered imports, import scoping); detects circular
-        imports; returns a `SemanticIndex` of resolved edges
+        imports; returns a `SemanticIndex` of resolved edges; also resolves the references written
+        inside expressions (guards, triggers, effects, `accept`/`send` payloads, constraints, `render`
+        targets) and reports each unresolved one at its token position
       - **NameResolver** (Unit) — public KerML 8.2.3.5 name resolver (owned, imported, inherited,
         aliased, and short-named memberships; full and visible resolution) used by
         `ReferenceResolver` (in an internal resolving mode) and by layout strategies for
