@@ -7097,6 +7097,52 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A reference whose text is the same as the declaring element's own name is located at the
+    ///     reference token, not at the declaration's identifier: a self-specialization, a
+    ///     redefinition and a typing named like the declaration, and a reference to the
+    ///     declaration's own short name.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ReferenceNamedLikeDeclaration_LocatedAtReferenceToken()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def A {
+                    attribute x redefines x;
+                }
+                part y : y;
+                part def <S> N :> S;
+            }
+            """);
+
+        // Assert: the second x/y/S on each line is the reference (columns are one-based)
+        var redefinition = FeatureAt(result, "P::A::x");
+        Assert.Equal(new SourcePosition(3, 31), redefinition.ReferencePositions["x"]);
+        var typing = FeatureAt(result, "P::y");
+        Assert.Equal(new SourcePosition(5, 14), typing.ReferencePositions["y"]);
+        var subclass = DefinitionAt(result, "P::N");
+        Assert.Equal(new SourcePosition(6, 23), subclass.ReferencePositions["S"]);
+    }
+
+    /// <summary>
+    ///     A cyclic specialization of a definition by itself is located at the supertype reference
+    ///     that closes the cycle, not at the declaring identifier.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SelfSpecialization_ReportsReferenceColumn()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("part def SelfA :> SelfA;\n");
+
+        // Assert: "part def SelfA :> " is 18 characters, so the reference starts at column 19
+        var diagnostic = Assert.Single(
+            result.Diagnostics, d => d.Message.StartsWith("Cyclic specialization", StringComparison.Ordinal));
+        Assert.Equal(1, diagnostic.Line);
+        Assert.Equal(19, diagnostic.Column);
+    }
+
+    /// <summary>
     ///     A syntax error is reported with a one-based line and a one-based column, the same
     ///     convention as every other diagnostic (the first character of the file is (1,1)).
     /// </summary>

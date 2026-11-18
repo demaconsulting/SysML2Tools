@@ -70,7 +70,8 @@ All nodes carry:
   transition source) has no entry.
 
   These four are populated by `AstBuilder` and consumed by `ReferenceResolver` and
-  `SupertypeWalker` to locate diagnostics. They are marked `[JsonIgnore]`: positions are only
+  `SupertypeWalker` to locate diagnostics. They are marked `[JsonIgnore]` on `SysmlNode`
+  (`SysmlViewNode`'s forwarding location properties excepted — see the view section): positions are only
   needed while a workspace's own source files are being resolved (the stdlib is resolved when it
   is pre-compiled, and its diagnostics, with positions, are what is serialized), so they are
   deliberately not part of the serialized stdlib format, which keeps `stdlib.json.gz` small and
@@ -236,7 +237,10 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   original token spacing, not `RuleContext.GetText()`'s whitespace-stripped form) and never
   inspected by `ReferenceResolver`. The Language Filtering subsystem parses and evaluates this raw
   text later when `GeneralViewLayoutStrategy` renders the view.
-- `SourceFilePath`, `SourceLine`, `SourceColumn` — inherited from `SysmlNode` (see above): the
+- `SourceFilePath`, `SourceLine`, `SourceColumn` — forward to the `SysmlNode` properties (see above)
+  but are redeclared (`new`, with their original `init` signatures) on `SysmlViewNode` so binaries
+  compiled when they were declared here keep working, and — unlike other nodes — remain serialized
+  for views: the
   path of the file declaring the view (null
   for a view not built from a source file, such as a synthesized `--auto` or dynamic view) and
   the one-based line and one-based column (matching the `SysmlDiagnostic.Column` convention) of

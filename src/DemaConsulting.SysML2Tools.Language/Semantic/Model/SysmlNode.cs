@@ -681,6 +681,43 @@ public sealed class SysmlViewNode : SysmlNode
     public string? FilterExpressionText { get; init; }
 
     /// <summary>
+    ///     Gets the path of the source file declaring this view, or <see langword="null"/> when
+    ///     the view was not built from a user source file (e.g. a synthesized <c>--auto</c> or
+    ///     dynamic view). Forwards to <see cref="SysmlNode.SourceFilePath"/>; it is redeclared
+    ///     here, with its original <c>init</c> signature, only for binary compatibility with code
+    ///     compiled when the property was declared on this type. Unlike other nodes, a view's
+    ///     source location is serialized (as before).
+    /// </summary>
+    public new string? SourceFilePath
+    {
+        get => base.SourceFilePath;
+        init => base.SourceFilePath = value;
+    }
+
+    /// <summary>
+    ///     Gets the one-based line number of this view's declaration, or 0 when unknown. Forwards
+    ///     to <see cref="SysmlNode.SourceLine"/>; redeclared for binary compatibility (see
+    ///     <see cref="SourceFilePath"/>).
+    /// </summary>
+    public new int SourceLine
+    {
+        get => base.SourceLine;
+        init => base.SourceLine = value;
+    }
+
+    /// <summary>
+    ///     Gets the one-based column of this view's declaration, matching the
+    ///     <c>SysmlDiagnostic.Column</c> convention, or 0 when unknown. Forwards to
+    ///     <see cref="SysmlNode.SourceColumn"/>; redeclared for binary compatibility (see
+    ///     <see cref="SourceFilePath"/>).
+    /// </summary>
+    public new int SourceColumn
+    {
+        get => base.SourceColumn;
+        init => base.SourceColumn = value;
+    }
+
+    /// <summary>
     ///     Gets the raw source text of every <c>filter [&lt;expression&gt;];</c> member of this view,
     ///     in source order — the view's owned view conditions (SysML 8.3.26.11
     ///     <c>viewCondition</c>), all of which an exposed element must satisfy.

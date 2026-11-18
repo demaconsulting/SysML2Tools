@@ -130,12 +130,17 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     import references are written; the whole context is searched only when the header does
     ///     not contain the text (references written in the body such as <c>expose</c> and
     ///     <c>verify</c> members). A text with no match (a synthesized name) is left unlocated.
+    ///     The declaration's own identifier tokens (its name and short name) are not references,
+    ///     so a reference spelled like them (<c>part def A :&gt; A;</c>) is located at the
+    ///     reference token; they are only used when nothing else matches.
     /// </remarks>
     private static void LocateReferences(SysmlNode node, Antlr4.Runtime.ParserRuleContext context)
     {
         Dictionary<string, SourcePosition>? positions = null;
         List<Antlr4.Runtime.IToken>? header = null;
         List<Antlr4.Runtime.IToken>? all = null;
+        HashSet<int>? headerSkip = null;
+        HashSet<int>? allSkip = null;
 
         foreach (var text in ReferenceTexts(node))
         {
@@ -146,11 +151,13 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             }
 
             header ??= CollectTokens(context, headerOnly: true);
-            var position = FindReference(header, text);
+            headerSkip ??= DeclarationTokenIndexes(header, node);
+            var position = FindReference(header, text, headerSkip);
             if (position is null)
             {
                 all ??= CollectTokens(context, headerOnly: false);
-                position = FindReference(all, text);
+                allSkip ??= DeclarationTokenIndexes(all, node);
+                position = FindReference(all, text, allSkip);
             }
 
             if (position is { } found)
@@ -234,11 +241,64 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     a whole reference (not preceded or followed by a <c>::</c> or <c>.</c> qualifier token)
     ///     is preferred over one embedded in a longer qualified name.
     /// </summary>
-    private static SourcePosition? FindReference(List<Antlr4.Runtime.IToken> tokens, string reference)
+    private static SourcePosition? FindReference(
+        List<Antlr4.Runtime.IToken> tokens, string reference, HashSet<int> declarationTokens)
+    {
+        // A reference spelled like the declaring element's own name (`part def A :> A;`,
+        // `attribute x redefines x;`) is located at the reference, not at the declaration
+        // identifier; the declaration tokens are only used when nothing else matches (an implied
+        // name taken from the reference itself, e.g. `part :>> x;`).
+        return FindReferenceRun(tokens, reference, declarationTokens)
+               ?? FindReferenceRun(tokens, reference, []);
+    }
+
+    /// <summary>
+    ///     Returns the index of the first token spelling the declaration's own name and the index of
+    ///     the token inside its <c>&lt;short name&gt;</c> — the identification tokens, which are the
+    ///     declaration rather than a reference to it.
+    /// </summary>
+    private static HashSet<int> DeclarationTokenIndexes(List<Antlr4.Runtime.IToken> tokens, SysmlNode node)
+    {
+        var indexes = new HashSet<int>();
+        if (!string.IsNullOrEmpty(node.Name))
+        {
+            var quoted = $"'{node.Name}'";
+            var index = tokens.FindIndex(t => t.Text == node.Name || t.Text == quoted);
+            if (index >= 0)
+            {
+                indexes.Add(index);
+            }
+        }
+
+        // The short name is assigned to the node only after the node is built, so it is
+        // recognized by its tokens (`<` name `>`) rather than by node.ShortName.
+        for (var i = 0; i + 2 < tokens.Count; i++)
+        {
+            if (tokens[i].Text == "<" && tokens[i + 2].Text == ">")
+            {
+                indexes.Add(i + 1);
+                break;
+            }
+        }
+
+        return indexes;
+    }
+
+    /// <summary>
+    ///     Finds the first run of tokens spelling <paramref name="reference"/> whose first token is
+    ///     not in <paramref name="skipStarts"/>.
+    /// </summary>
+    private static SourcePosition? FindReferenceRun(
+        List<Antlr4.Runtime.IToken> tokens, string reference, HashSet<int> skipStarts)
     {
         SourcePosition? embedded = null;
         for (var start = 0; start < tokens.Count; start++)
         {
+            if (skipStarts.Contains(start))
+            {
+                continue;
+            }
+
             var consumed = 0;
             var end = start;
             while (end < tokens.Count && consumed < reference.Length)

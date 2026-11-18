@@ -46,6 +46,8 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition
           - WorkspaceLoader_LoadAsync_UnresolvedReferences_ReportDistinctPositions
+          - WorkspaceLoader_LoadAsync_ReferenceNamedLikeDeclaration_LocatedAtReferenceToken
+          - WorkspaceLoader_LoadAsync_SelfSpecialization_ReportsReferenceColumn
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-MembershipVisibilityAndAliases
         title: >-

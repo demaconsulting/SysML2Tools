@@ -668,7 +668,11 @@ body element, and every nested member is built, to stamp the node it returns (`S
   connector references are written; the whole context is searched only when the header does not
   contain the text (references written in a body, such as `expose` and `verify`). A run that is a
   whole reference (not adjacent to a `::` or `.` qualifier token) is preferred over one embedded
-  in a longer qualified name. A text with no match is left unlocated and diagnostics about it fall
+  in a longer qualified name. The declaration's own identifier tokens (its name and
+  `<short name>`) are not references: a
+  reference spelled like them (`part def A :> A;`, `attribute x redefines x;`) is located at the
+  reference token, and the identifier is used only when nothing else matches (an implied name
+  taken from the reference). A text with no match is left unlocated and diagnostics about it fall
   back to the declaration position. This is done centrally, after each node is built, so the many
   per-construct visitors need no change.
 

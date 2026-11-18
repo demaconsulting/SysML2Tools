@@ -86,13 +86,17 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewSourceLocation
         title: >-
           SysmlViewNode (like every SysmlNode) shall expose SourceFilePath, SourceLine, and
-          SourceColumn: the declaring file path (null when not built from a source file) and the
-          one-based line and one-based column of the view's declaration (0 when unknown).
+          SourceColumn (still declared on SysmlViewNode itself, as forwarding properties, for
+          binary compatibility, and still serialized for views): the declaring file path (null when
+          not built from a source file) and the one-based line and one-based column of the view's
+          declaration (0 when unknown).
         justification: |
           View-level diagnostics produced after loading (such as the empty-view render warning)
           must name the file and line of the offending view so users can find and fix it.
         tests:
           - WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation
+          - SysmlViewNode_SourceLocationProperties_AreDeclaredOnViewNode
+          - Serialize_ViewNodeSourceLocation_RoundTrips
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-SourcePositions
         title: >-

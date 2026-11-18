@@ -145,6 +145,8 @@ external services or additional configuration are required beyond a standard .NE
 | `VisitViewDefinition` filter capture | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | View declaration source location (`view def` and `view`) | `WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation` |
 | Declaration and reference positions | `WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition` |
+| Reference spelled like its declaration | `WorkspaceLoader_LoadAsync_ReferenceNamedLike...` |
+| Self-specialization cycle column | `WorkspaceLoader_LoadAsync_SelfSpecialization_ReportsReferenceColumn` |
 | Visibility, short name, and alias capture | `WorkspaceLoader_LoadAsync_VisibilityShortNameAndAlias_Captured` |
 | View conditions and view definition | `WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured` |
 | `VisitViewUsage` expose capture | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |

@@ -50,9 +50,8 @@ and `ReferencePositions` are `[JsonIgnore]`. They are only read while a workspac
 being resolved, and the standard library is resolved when it is pre-compiled, so its positions
 are never needed at run time — the diagnostics it produced, which now carry real positions
 instead of `(0,0)`, are what is serialized. Leaving the positions out keeps `stdlib.json.gz`
-essentially the same size. (The view-declaration source fields formerly serialized on
-`SysmlViewNode` moved to `SysmlNode` and are likewise no longer written; a deserialized view
-node has no source location, which only affects view diagnostics for stdlib views.)
+essentially the same size. (`SysmlViewNode` keeps its own forwarding
+`SourceFilePath`/`SourceLine`/`SourceColumn` properties, which are serialized exactly as before.)
 
 #### Dependencies
 

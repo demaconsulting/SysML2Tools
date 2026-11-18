@@ -77,6 +77,8 @@ external services or additional configuration are required beyond a standard .NE
 | `RenderTargetName` unresolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | View `SourceFilePath`/`SourceLine`/`SourceColumn` | `WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation` |
+| View properties declared on `SysmlViewNode` | `SysmlViewNode_SourceLocationProperties_AreDeclaredOnViewNode` |
+| View source location serialized | `Serialize_ViewNodeSourceLocation_RoundTrips` |
 | Source positions are not serialized | `Serialize_SourcePositions_AreNotPersisted` |
 | `Visibility`, `ShortName`, `SysmlAliasNode` | `WorkspaceLoader_LoadAsync_VisibilityShortNameAndAlias_Captured` |
 | `FilterExpressionTexts`, `ViewDefinitionName` | `WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured` |
