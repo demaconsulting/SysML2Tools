@@ -112,7 +112,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         {
             node.SourceFilePath ??= _filePath;
             node.SourceLine = start.Line;
-            node.SourceColumn = start.Column;
+            node.SourceColumn = start.Column + 1;
         }
 
         LocateReferences(node, context);
@@ -259,7 +259,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 continue;
             }
 
-            var position = new SourcePosition(tokens[start].Line, tokens[start].Column);
+            var position = new SourcePosition(tokens[start].Line, tokens[start].Column + 1);
             var whole = (start == 0 || !IsQualifier(tokens[start - 1])) &&
                         (end == tokens.Count || !IsQualifier(tokens[end]));
             if (whole)
@@ -2371,7 +2371,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             FilterExpressionTexts = filterExpressionTexts,
             SourceFilePath = _filePath,
             SourceLine = context.Start.Line,
-            SourceColumn = context.Start.Column,
+            SourceColumn = context.Start.Column + 1,
         };
     }
 
@@ -2411,7 +2411,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ViewDefinitionName = ExtractFeatureTyping(context.usageDeclaration()?.featureSpecializationPart()),
             SourceFilePath = _filePath,
             SourceLine = context.Start.Line,
-            SourceColumn = context.Start.Column,
+            SourceColumn = context.Start.Column + 1,
         };
     }
 

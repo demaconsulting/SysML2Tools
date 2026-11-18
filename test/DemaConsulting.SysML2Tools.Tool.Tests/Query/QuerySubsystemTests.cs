@@ -603,7 +603,7 @@ public class QuerySubsystemTests
     [Fact]
     public async Task QuerySubsystem_LoadDiagnostic_PrintsFileLineColumnSeverityMessage()
     {
-        // Arrange: a model whose supertype reference (line 2, column 18) does not resolve
+        // Arrange: a model whose supertype reference (line 2, column 19) does not resolve
         var tempFile = Path.Combine(Path.GetTempPath(), $"query_diag_format_{Guid.NewGuid():N}.sysml");
         await File.WriteAllTextAsync(
             tempFile, "package P {\n    part def X :> DoesNotExist;\n}\n", TestContext.Current.CancellationToken);
@@ -620,7 +620,7 @@ public class QuerySubsystemTests
 
             // Assert: the diagnostic uses the lint format, on a line of its own, with no record dump
             var output = outWriter.ToString();
-            var expected = $"{tempFile}(2,18): warning: Unresolved reference: 'DoesNotExist'";
+            var expected = $"{tempFile}(2,19): warning: Unresolved reference: 'DoesNotExist'";
             Assert.Contains(expected, output.Split('\n').Select(line => line.TrimEnd('\r')));
             Assert.DoesNotContain("SysmlDiagnostic", output);
             Assert.DoesNotContain("FilePath =", output);

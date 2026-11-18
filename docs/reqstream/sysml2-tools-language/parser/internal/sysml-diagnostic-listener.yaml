@@ -12,14 +12,16 @@ sections:
       - id: SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener-CaptureSyntaxErrors
         title: >-
           The Parser subsystem shall capture both lexer and parser syntax errors as
-          Error-severity diagnostics carrying the file path, line number, and column offset of the
-          offending token.
+          Error-severity diagnostics carrying the file path, one-based line number, and one-based
+          column number of the offending token.
         justification: |
           Collecting lexer and parser errors uniformly with precise location information gives
           callers a single, consistent list of problems regardless of which ANTLR4 stage detected
-          the error.
+          the error. The column is one-based, like the line, so it matches the `file(line,col)`
+          convention of compilers, editors, and CI annotations.
         tests:
           - ParseSource_InvalidSyntax_ReportsError
+          - WorkspaceLoader_LoadAsync_SyntaxError_ReportsOneBasedColumn
 
       - id: SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener-PathPropagation
         title: >-

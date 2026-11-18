@@ -40,7 +40,7 @@ internal static class DiagnosticFormatter
     /// <param name="diagnostic">The diagnostic to format.</param>
     /// <returns>The single-line text, without a trailing newline or indentation.</returns>
     /// <remarks>
-    ///     Stateless and thread-safe. The line is one-based and the column is zero-based, exactly
+    ///     Stateless and thread-safe. The line is one-based and the column is one-based, exactly
     ///     as carried by the diagnostic.
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="diagnostic"/> is <see langword="null"/>.</exception>

@@ -87,7 +87,7 @@ sections:
         title: >-
           SysmlViewNode (like every SysmlNode) shall expose SourceFilePath, SourceLine, and
           SourceColumn: the declaring file path (null when not built from a source file) and the
-          one-based line and zero-based column of the view's declaration (0 when unknown).
+          one-based line and one-based column of the view's declaration (0 when unknown).
         justification: |
           View-level diagnostics produced after loading (such as the empty-view render warning)
           must name the file and line of the offending view so users can find and fix it.

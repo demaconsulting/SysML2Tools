@@ -23,7 +23,9 @@ properties.
 - *Postconditions*: When `diagnostic.FilePath` is non-empty the result is
   `{FilePath}({Line},{Column}): {severity}: {Message}`; otherwise it is `{severity}: {Message}`.
   `{severity}` is the lowercase name of `DiagnosticSeverity` (`info`, `warning`, or `error`).
-  `Line` is one-based and `Column` is zero-based, exactly as carried by the diagnostic.
+  `Line` and `Column` are both one-based (the first character of a line is column 1) — the
+  convention of MSBuild, GCC, editor problem matchers, and GitHub annotations — and are printed
+  exactly as carried by the diagnostic, which stores one-based values (see `SysmlDiagnostic`).
 
 The location is omitted for a diagnostic that is not tied to a file (an empty `FilePath`)
 because `(0,0)` would suggest a real position. The `path(line,col): severity: message` shape is

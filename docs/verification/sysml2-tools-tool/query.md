@@ -188,8 +188,8 @@ list used by other commands.
 #### QuerySubsystem_LoadDiagnostic_PrintsFileLineColumnSeverityMessage (QuerySubsystemTests.cs)
 
 Verifies that running a query over a model with an unresolved supertype reference (`part def X
-:> DoesNotExist;`, written at line 2, column 18) prints the load diagnostic as the line
-`<file>(2,18): warning: Unresolved reference: 'DoesNotExist'` — the exact format `lint` uses,
+:> DoesNotExist;`, written at line 2, column 19) prints the load diagnostic as the line
+`<file>(2,19): warning: Unresolved reference: 'DoesNotExist'` — the exact format `lint` uses,
 located at the reference text — and never as a raw `SysmlDiagnostic { ... }` record dump.
 Satisfies `SysML2Tools-Tool-Query-LoadDiagnosticFormat`.
 

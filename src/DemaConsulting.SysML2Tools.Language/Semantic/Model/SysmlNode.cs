@@ -150,7 +150,7 @@ public abstract class SysmlNode
     public int SourceLine { get; set; }
 
     /// <summary>
-    ///     Gets or sets the zero-based column offset of this element's declaration within its
+    ///     Gets or sets the one-based column number of this element's declaration within its
     ///     line, matching the <c>SysmlDiagnostic.Column</c> convention, or 0 when unknown.
     /// </summary>
     [JsonIgnore]
@@ -182,7 +182,7 @@ public abstract class SysmlNode
 ///     A position within a source file.
 /// </summary>
 /// <param name="Line">One-based line number.</param>
-/// <param name="Column">Zero-based column offset within the line, matching <c>SysmlDiagnostic.Column</c>.</param>
+/// <param name="Column">One-based column number within the line, matching <c>SysmlDiagnostic.Column</c>.</param>
 public readonly record struct SourcePosition(int Line, int Column);
 
 /// <summary>

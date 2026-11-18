@@ -92,7 +92,8 @@ path(line,col): severity: message
 ```
 
 - `path` is the file the diagnostic is about, as it was resolved from your patterns.
-- `line` is one-based and `col` is zero-based (the first character of a line is column `0`).
+- `line` and `col` are both one-based: the first character of a file is line 1, column 1. This is
+  the convention of MSBuild, GCC, editor problem matchers, and GitHub annotations.
 - `severity` is `error`, `warning`, or `info`, in lowercase.
 - A diagnostic that is not tied to a file has no `path(line,col):` prefix and prints as just
   `severity: message`.
@@ -103,10 +104,10 @@ them.
 
 For an `Unresolved reference` warning the position is that of the reference text as written. For
 example, with `part def X :> DoesNotExist;` indented four spaces on line 2 of `c.sysml`, the
-reference `DoesNotExist` starts at column 18:
+reference `DoesNotExist` starts at column 19:
 
 ```text
-c.sysml(2,18): warning: Unresolved reference: 'DoesNotExist'
+c.sysml(2,19): warning: Unresolved reference: 'DoesNotExist'
 ```
 
 The position is that of the first character of the reference (`DoesNotExist`) for a supertype,
@@ -123,8 +124,10 @@ If the same name is unresolved several times in one file it is reported once, at
 For `query --format json`, those lines are still written to standard output before the JSON
 document, exactly as before.
 
-The diagnostics in the JSON produced by `export` are unchanged: each carries `FilePath`, `Line`,
-`Column`, `Severity`, and `Message` as separate fields.
+The diagnostics in the JSON produced by `export` carry `FilePath`, `Line`, `Column`, `Severity`,
+and `Message` as separate fields, using the same one-based `Line` and `Column` as the console
+lines above (`0` when the position is unknown). Syntax-error and unresolved-reference columns
+changed from zero-based to one-based in this release.
 
 # Linting
 
@@ -753,7 +756,7 @@ prints an informational hint, located at the view's declaration in the same
 `file(line,col): severity:` form `lint` uses (see [Diagnostic Format](#diagnostic-format)):
 
 ```text
-design-views.sysml(9,4): info: View 'SoftwareStructureView': 'expose BuildMark;' exposes the
+design-views.sysml(9,5): info: View 'SoftwareStructureView': 'expose BuildMark;' exposes the
   package element itself, so it is drawn as a package node without contents; use
   'expose BuildMark::**;' to also show the members.
 ```

@@ -298,7 +298,7 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-UnresolvedPositions
         title: >-
           ReferenceResolver.ResolveAll shall locate each unresolved-reference Warning at the
-          position (one-based line, zero-based column) of the reference text as written — for
+          position (one-based line, one-based column) of the reference text as written — for
           supertype, subsetting, typing, redefinition, import, expose, view-definition, connector
           endpoint, transition source/target, satisfy, verify, allocation, dependency, and
           metadata-type references — falling back to the position of the owning declaration when

@@ -78,7 +78,7 @@ external services or additional configuration are required beyond a standard .NE
 - Every unresolved reference — supertype, subsetting, typing, redefinition, import, `expose`,
   view definition, connector (`connect`/`bind`) endpoint, transition target, metadata type,
   dependency, allocation, `satisfy`, and `verify` — is reported at the one-based line and
-  zero-based column of the reference text as written (not `(0,0)`); two references on different
+  one-based column of the reference text as written (not `(0,0)`); two references on different
   lines and in different files are reported at their own positions and files; and a circular
   import is reported at the import statement that closes the cycle, in its own file.
 

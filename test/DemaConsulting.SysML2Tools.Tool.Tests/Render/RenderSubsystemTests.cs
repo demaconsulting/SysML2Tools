@@ -758,7 +758,7 @@ public class RenderSubsystemTests
             Assert.Equal(0, context.ExitCode);
             Assert.True(File.Exists(Path.Combine(outputDir, "StructureView.svg")));
             var output = outWriter.ToString();
-            Assert.Contains($"{tempFile}(5,4): info: View 'StructureView'", output);
+            Assert.Contains($"{tempFile}(5,5): info: View 'StructureView'", output);
             Assert.Contains("use 'expose Pkg::**;'", output);
         }
         finally
@@ -1363,7 +1363,7 @@ public class RenderSubsystemTests
     [Fact]
     public async Task RenderSubsystem_LoadDiagnostic_PrintsFileLineColumnSeverityMessage()
     {
-        // Arrange: a model whose supertype reference (line 2, column 18) does not resolve
+        // Arrange: a model whose supertype reference (line 2, column 19) does not resolve
         var tempDir = Path.Combine(Path.GetTempPath(), $"render_diag_format_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
         var tempFile = Path.Combine(tempDir, "c.sysml");
@@ -1383,7 +1383,7 @@ public class RenderSubsystemTests
 
             // Assert: the diagnostic uses the lint format, on a line of its own, with no record dump
             var output = outWriter.ToString();
-            var expected = $"{tempFile}(2,18): warning: Unresolved reference: 'DoesNotExist'";
+            var expected = $"{tempFile}(2,19): warning: Unresolved reference: 'DoesNotExist'";
             Assert.Contains(expected, output.Split('\n').Select(line => line.TrimEnd('\r')));
             Assert.DoesNotContain("SysmlDiagnostic", output);
             Assert.DoesNotContain("FilePath =", output);

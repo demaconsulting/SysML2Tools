@@ -24,7 +24,8 @@ and parser errors are recorded identically.
 ##### `Append(int line, int column, string msg)`
 
 Constructs a `SysmlDiagnostic` with the captured `filePath`, the reported one-based line and
-zero-based column, `DiagnosticSeverity.Error`, and the ANTLR4 message, and adds it to the shared
+one-based column (ANTLR's zero-based position plus one), `DiagnosticSeverity.Error`, and the
+ANTLR4 message, and adds it to the shared
 list.
 
 #### Dependencies

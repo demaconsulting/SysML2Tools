@@ -4104,7 +4104,7 @@ public sealed class WorkspaceLoaderTests
 
     /// <summary>
     ///     A <c>view</c> usage and a <c>view def</c> each record their declaring file path and the
-    ///     one-based line and zero-based column of their declaration, so view-level diagnostics
+    ///     one-based line and one-based column of their declaration, so view-level diagnostics
     ///     can be located in the source.
     /// </summary>
     [Fact]
@@ -4133,12 +4133,12 @@ public sealed class WorkspaceLoaderTests
                 result.Workspace.Declarations["P::VD"]);
             Assert.Equal(tempFile, viewDef.SourceFilePath);
             Assert.Equal(2, viewDef.SourceLine);
-            Assert.Equal(4, viewDef.SourceColumn);
+            Assert.Equal(5, viewDef.SourceColumn);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
                 result.Workspace.Declarations["P::V"]);
             Assert.Equal(tempFile, view.SourceFilePath);
             Assert.Equal(3, view.SourceLine);
-            Assert.Equal(4, view.SourceColumn);
+            Assert.Equal(5, view.SourceColumn);
         }
         finally
         {
@@ -7058,7 +7058,7 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     Every kind of unresolved reference reports the one-based line and zero-based column of
+    ///     Every kind of unresolved reference reports the one-based line and one-based column of
     ///     the reference text as written, not <c>(0,0)</c>. Each source contains the unresolved
     ///     <paramref name="reference"/> exactly once, so its position in the source is the
     ///     expected position of the diagnostic.
@@ -7083,7 +7083,7 @@ public sealed class WorkspaceLoaderTests
     {
         // Arrange: the expected position is that of the single occurrence of the reference text
         var expectedLine = 1 + source[..source.IndexOf(reference, StringComparison.Ordinal)].Count(c => c == '\n');
-        var expectedColumn = source.IndexOf(reference, StringComparison.Ordinal) - (source.LastIndexOf('\n', source.IndexOf(reference, StringComparison.Ordinal)) + 1);
+        var expectedColumn = source.IndexOf(reference, StringComparison.Ordinal) - (source.LastIndexOf('\n', source.IndexOf(reference, StringComparison.Ordinal)) + 1) + 1;
 
         // Act
         var result = await LoadModelsAsync(source);
@@ -7094,6 +7094,23 @@ public sealed class WorkspaceLoaderTests
         Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
         Assert.Equal(expectedLine, diagnostic.Line);
         Assert.Equal(expectedColumn, diagnostic.Column);
+    }
+
+    /// <summary>
+    ///     A syntax error is reported with a one-based line and a one-based column, the same
+    ///     convention as every other diagnostic (the first character of the file is (1,1)).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SyntaxError_ReportsOneBasedColumn()
+    {
+        // Arrange / Act: the very first character is already invalid
+        var result = await LoadModelsAsync("@@@ NOT VALID SYSML @@@");
+
+        // Assert: the earliest error is at line 1, column 1
+        var first = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).MinBy(d => d.Column);
+        Assert.NotNull(first);
+        Assert.Equal(1, first.Line);
+        Assert.Equal(1, first.Column);
     }
 
     /// <summary>
@@ -7113,13 +7130,13 @@ public sealed class WorkspaceLoaderTests
             }
             """);
 
-        // Assert: Missing1 is on line 3 (column 11); Missing2 is on line 4 (column 26)
+        // Assert: Missing1 is on line 3 (column 12); Missing2 is on line 4 (column 27)
         var first = Assert.Single(result.Diagnostics, d => d.Message == "Unresolved reference: 'Missing1'");
         Assert.Equal(3, first.Line);
-        Assert.Equal(11, first.Column);
+        Assert.Equal(12, first.Column);
         var second = Assert.Single(result.Diagnostics, d => d.Message == "Unresolved reference: 'Missing2'");
         Assert.Equal(4, second.Line);
-        Assert.Equal(26, second.Column);
+        Assert.Equal(27, second.Column);
     }
 
     /// <summary>
@@ -7156,7 +7173,7 @@ public sealed class WorkspaceLoaderTests
         var diagnostic = Assert.Single(result.Diagnostics, d => d.Message.StartsWith("Cyclic specialization", StringComparison.Ordinal));
         Assert.EndsWith(".sysml", diagnostic.FilePath, StringComparison.Ordinal);
         Assert.True(diagnostic.Line is 1 or 2, $"Unexpected line {diagnostic.Line}");
-        Assert.Equal(17, diagnostic.Column);
+        Assert.Equal(18, diagnostic.Column);
     }
 
     /// <summary>

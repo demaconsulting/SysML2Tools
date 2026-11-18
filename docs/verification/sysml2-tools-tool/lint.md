@@ -43,7 +43,7 @@ failing exit code — distinguishing this case from "no patterns supplied at all
 #### LintSubsystem_Report_UnresolvedReference_ReportsReferencePosition (LintSubsystemTests.cs)
 
 Verifies that linting a model with an unresolved supertype reference (`part def X :>
-DoesNotExist;`, written at line 2, column 18) writes `<file>(2,18): warning: Unresolved
+DoesNotExist;`, written at line 2, column 19) writes `<file>(2,19): warning: Unresolved
 reference: 'DoesNotExist'` — located at the reference text rather than at `(0,0)`. Satisfies
 `SysML2Tools-Tool-Lint-Report`.
 

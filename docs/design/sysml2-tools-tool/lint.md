@@ -61,7 +61,7 @@ the same formatter `render` and `query` use, so all three commands print identic
 `{FilePath}({Line},{Column}): {severity}: {Message}`
 
 where `{severity}` is the lowercased `DiagnosticSeverity` enum value name. The line is one-based
-and the column is zero-based. For an unresolved reference the position is that of the reference
+and the column is one-based. For an unresolved reference the position is that of the reference
 text as written, or of the owning declaration when the text was not located (see the
 `ReferenceResolver` design).
 

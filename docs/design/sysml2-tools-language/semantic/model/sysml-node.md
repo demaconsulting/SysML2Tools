@@ -60,7 +60,7 @@ All nodes carry:
   enclosing node, not to `X` (see `SysmlAnnotation` design doc for known limitations).
 - `SourceFilePath`, `SourceLine`, `SourceColumn` — the file that declares the element (null when
   the element was not built from a source file, such as a synthesized `--auto` or dynamic view, or
-  one loaded from the pre-compiled stdlib) and the one-based line and zero-based column (matching
+  one loaded from the pre-compiled stdlib) and the one-based line and one-based column (matching
   the `SysmlDiagnostic.Column` convention) at which its declaration starts, 0 when unknown.
 - `ReferencePositions` — the `SourcePosition` (line, column) of the first token of each reference
   text the node declares (supertypes, subsetting, typing, redefinition, imports, `expose`
@@ -239,7 +239,7 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 - `SourceFilePath`, `SourceLine`, `SourceColumn` — inherited from `SysmlNode` (see above): the
   path of the file declaring the view (null
   for a view not built from a source file, such as a synthesized `--auto` or dynamic view) and
-  the one-based line and zero-based column (matching the `SysmlDiagnostic.Column` convention) of
+  the one-based line and one-based column (matching the `SysmlDiagnostic.Column` convention) of
   the view's declaration, 0 when unknown. Recorded by `AstBuilder` so view-level diagnostics
   produced after loading — such as `DiagramRenderer`'s empty-view warning — can be located.
 
