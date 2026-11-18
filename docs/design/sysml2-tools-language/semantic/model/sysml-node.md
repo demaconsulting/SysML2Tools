@@ -68,8 +68,15 @@ All nodes carry:
   `dependency`, and metadata-type references), keyed by the text exactly as `ReferenceResolver`
   resolves it. A reference whose text matches no token (a synthesized name such as an implicit
   transition source) has no entry.
+- `ReferenceOccurrences` — each reference the node writes inside text the AST keeps only as raw
+  text (a view's `render` target, a transition's trigger/guard/effect, an `accept`/`send` node's
+  payload, a state action's declaration, a constraint expression), as a `ReferenceOccurrence`
+  (`Name`, `Position`), in source order. Unlike `ReferencePositions` it is a list of occurrences,
+  so the same name written twice is two entries. `ReferenceResolver` resolves each and reports
+  every unresolved one at its position, recording no edge (see the `AstBuilder` and
+  `ReferenceResolver` designs).
 
-  These four are populated by `AstBuilder` and consumed by `ReferenceResolver` and
+  These five are populated by `AstBuilder` and consumed by `ReferenceResolver` and
   `SupertypeWalker` to locate diagnostics. They are marked `[JsonIgnore]` on `SysmlNode`
   (`SysmlViewNode`'s forwarding location properties excepted — see the view section): positions are only
   needed while a workspace's own source files are being resolved (the stdlib is resolved when it
@@ -190,10 +197,11 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   `asElementTable`) — never a content-scoping subject. Extracted by the shared
   `AstBuilder.ExtractRenderTargetName` helper, which follows the same two-form fallback pattern
   (direct reference, then typed placeholder) `VisitSatisfyRequirementUsage` already uses.
-  Captured verbatim only: `ReferenceResolver` never inspects or resolves this value (no edge is
-  produced, no diagnostic is emitted), and it has no effect on `GeneralViewLayoutStrategy`'s
-  rendered scope. Reserved for a possible future capability that selects among rendering-style
-  strategies — see the project ROADMAP.
+  Captured verbatim: `ReferenceResolver` produces no edge for this value, and it has no effect on
+  `GeneralViewLayoutStrategy`'s rendered scope; the reference it writes is resolved separately
+  as one of the view's `ReferenceOccurrences` (an unqualified target without `import Views::*;`
+  is reported as an unresolved reference). Reserved for a possible future capability that selects
+  among rendering-style strategies — see the project ROADMAP.
 - `ExposeMembers` — each `expose <name>[::**[<expr>]];` member in a `view` usage's body, in
   source order, paired as an
   `ExposeMember(string QualifiedName, string? BracketFilterExpressionText, ExposeRecursionKind RecursionKind, string? RawReferenceText)`

@@ -83,6 +83,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-InterfaceAndFlowUsages
           - SysML2Tools-Language-Semantic-Model-AstBuilder-MessagePayload
           - SysML2Tools-Language-Semantic-Model-AstBuilder-EventOccurrences
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceOccurrences
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
@@ -114,7 +115,8 @@ sections:
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-CircularImport
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeResolution
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeUnresolvedWarning
-          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewRenderFilterNeverResolved
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewFilterNeverResolved
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ExpressionReferences
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-RedefinitionResolution
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-DependencyCrossProduct
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-BindingFeatureChain

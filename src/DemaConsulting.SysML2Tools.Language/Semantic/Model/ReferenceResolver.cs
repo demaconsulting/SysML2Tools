@@ -632,9 +632,9 @@ internal sealed class ReferenceResolver
         // ExposeMember object it came from, via ResolvedExposeMembers. An exposed member must be
         // visible from the view (a private member of another package is not). RenderTargetName
         // (a view's render member) names a rendering style or format, not a content-scoping
-        // subject -- per the SysML v2 grammar it never refers to model content, so
-        // ReferenceResolver never inspects it, mirroring how FilterExpressionText (raw source
-        // text, not a reference) is also intentionally never touched here.
+        // subject, so it produces no Expose edge; its reference is resolved separately, as a
+        // ReferenceOccurrence (see ResolveReferenceOccurrences). FilterExpressionText is raw
+        // source text, not a reference, so it is intentionally never touched here.
         if (node is SysmlViewNode view)
         {
             var resolvedExposeMembers = new List<(ExposeMember Member, string ResolvedQualifiedName)>();
@@ -660,6 +660,11 @@ internal sealed class ReferenceResolver
             }
         }
 
+        // References written inside raw expression/declaration text (transition triggers, guards
+        // and effects, accept/send payloads, state action declarations, render targets): resolved
+        // like any other reference, but located per occurrence and without an edge.
+        ResolveReferenceOccurrences(node, scope, file);
+
         if (nodeEdges.Count > 0)
         {
             node.ResolvedEdges = nodeEdges;
@@ -670,6 +675,43 @@ internal sealed class ReferenceResolver
         foreach (var child in node.Children)
         {
             ResolveNode(child, file, resolvedInFile, childScope, edges);
+        }
+    }
+
+    /// <summary>
+    ///     Resolves each <see cref="SysmlNode.ReferenceOccurrences"/> entry of
+    ///     <paramref name="node"/> and reports every one that does not resolve as an
+    ///     "Unresolved reference" Warning at its own token position.
+    /// </summary>
+    /// <remarks>
+    ///     A <c>render</c> target is resolved in the view's own namespace (so an
+    ///     <c>import Views::*;</c> written in the view's body applies); every other occurrence is
+    ///     resolved in the namespace that owns the node, like the node's typing and supertypes.
+    ///     Each occurrence is reported, not each distinct name: the same undeclared name used in
+    ///     two guards is two places to fix. No <see cref="SysmlEdge"/> is recorded because the
+    ///     occurrences have no single edge kind yet (the reference is to a feature, a type, or a
+    ///     rendering depending on the context), so the resolved/unresolved outcome is the only
+    ///     result; the standard library is checked when it is compiled, not when it is loaded.
+    /// </remarks>
+    private void ResolveReferenceOccurrences(SysmlNode node, string? scope, LoadedFile file)
+    {
+        if (node.ReferenceOccurrences.Count == 0)
+        {
+            return;
+        }
+
+        var occurrenceScope = node is SysmlViewNode { QualifiedName: { Length: > 0 } viewName } ? viewName : scope;
+        foreach (var occurrence in node.ReferenceOccurrences)
+        {
+            if (!TryResolve(occurrence.Name, occurrenceScope, file.RootImports, out _))
+            {
+                _diagnostics.Add(new SysmlDiagnostic(
+                    file.FilePath,
+                    occurrence.Position.Line,
+                    occurrence.Position.Column,
+                    DiagnosticSeverity.Warning,
+                    $"Unresolved reference: '{occurrence.Name}'"));
+            }
         }
     }
 

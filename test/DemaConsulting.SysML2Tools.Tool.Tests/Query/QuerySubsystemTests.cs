@@ -62,7 +62,7 @@ public class QuerySubsystemTests
             state def Light {
                 state stop;
                 state go;
-                transition first stop if t then go;
+                transition first stop if true then go;
             }
         }
         """;

@@ -148,25 +148,60 @@ sections:
         tests:
           - RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic
 
-      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewRenderFilterNeverResolved
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewFilterNeverResolved
         title: >-
-          ReferenceResolver.ResolveAll shall never inspect or resolve a view's RenderTargetName
-          or FilterExpressionText: no edge is produced and no diagnostic is emitted for either,
+          ReferenceResolver.ResolveAll shall never inspect or resolve a view's
+          FilterExpressionText: no edge is produced and no diagnostic is emitted for it,
           regardless of content.
         justification: |
-          RenderTargetName names a rendering style/format per the SysML v2 grammar (e.g.
-          `asTreeDiagram`, `asElementTable`), never model content — attempting to resolve it as a
-          reference could only ever produce a false "Unresolved reference" diagnostic or
-          coincidentally match an unrelated stdlib symbol of the same name (confirmed against the
-          OMG test corpus, where every `render` member names a rendering-style identifier).
-          FilterExpressionText is likewise raw source text, not a reference, and full filter
-          expression evaluation is deferred future work. Excluding both from resolution removes
-          that false-diagnostic risk while preserving the genuine unresolved-reference signal for
-          a bogus `expose` entry.
+          FilterExpressionText is raw source text, not a reference, and full filter expression
+          evaluation is deferred future work. Excluding it from resolution removes the
+          false-diagnostic risk while preserving the genuine unresolved-reference signal for a
+          bogus `expose` entry. (A view's `render` target, by contrast, is a reference and is
+          resolved: see the ExpressionReferences requirement.)
         tests:
-          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
           - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
           - RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ExpressionReferences
+        title: >-
+          ReferenceResolver.ResolveAll shall resolve every entry of a node's ReferenceOccurrences —
+          the references AstBuilder located inside a view's `render` target, a transition's
+          trigger payload (type, `via` target, and `at`/`after`/`when` expression), guard and
+          effect, an action-flow `accept`/`send` node's payload and `via`/`to` operands, an
+          action-flow decision guard, a state `entry`/`do`/`exit` action's declaration, and a
+          constraint or requirement-constraint expression — by KerML 8.2.3.5 name resolution, and
+          shall emit an "Unresolved reference" Warning at the position of each occurrence that
+          does not resolve (every occurrence, not once per name), recording no edge. A `render`
+          target shall be resolved in the view's own namespace; every other occurrence in the
+          namespace that owns the node. Operators, literals, `self`/`that`/`start`/`done`,
+          library functions (invoked or called through `->`), members selected through `.`,
+          named-argument names, redefinitions, the names a construct declares for itself
+          (an `accept` payload's name, a body's parameters and local usages, bare `in`/`out`
+          parameters), and anything in a nested body shall not be reported.
+        justification: |
+          Before this requirement a misspelled or undeclared name in a guard, a trigger, a send
+          operand, a constraint, or a `render` target went unnoticed, even though the OMG Pilot
+          Implementation rejects it, so `lint` could not serve as a model-validity gate. These
+          references are kept by the AST only as raw text, so AstBuilder locates them from the
+          syntax tree, where a feature reference can be told apart from an operator, a literal,
+          or a library function; the resolver then applies the same name resolution as every other
+          reference. The standard library is checked when it is compiled; the severity stays
+          Warning, like every other unresolved reference. The tool-defined `render` selectors
+          (`asGeneralDiagram` and the other `DiagramTypeRouter` tokens beyond the Views library)
+          are documented selectors that no model can declare, so they are not reported. Value
+          expressions (`= expr`) are not yet
+          covered because several modeling gaps (quoted short names, prefix-metadata-declared
+          usages, KerML-declared library features, member access through variants) would make them
+          report valid models.
+        tests:
+          - WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition
+          - WorkspaceLoader_LoadAsync_ExpressionReferencesDeclared_NoUnresolvedWarning
+          - WorkspaceLoader_LoadAsync_LibraryFunctionsAndOperatorsInExpressions_NoUnresolvedWarning
+          - WorkspaceLoader_LoadAsync_UnresolvedExpressionReferenceTwice_ReportsEachOccurrence
+          - WorkspaceLoader_LoadAsync_ElevatorStateModel_ReportsUndeclaredNamesAtTokens
+          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawResolvedWithoutEdge
+          - WorkspaceLoader_LoadAsync_RenderingUsage_IsDeclared
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-RedefinitionResolution
         title: >-

@@ -30,9 +30,22 @@ external services or additional configuration are required beyond a standard .NE
 - A view usage's resolved `expose <name>;` reference is recorded as an `Expose`-kind `SysmlEdge`;
   an unresolved `expose` reference produces a Warning diagnostic naming the unresolved
   identifier and no edge. A view's `render <target>;` member (a rendering style/format selector
-  per the SysML v2 grammar, never content) is captured on `SysmlViewNode.RenderTargetName` but
-  never inspected by `ReferenceResolver` — no edge is produced and no diagnostic is emitted for
-  it, even when the named identifier is not declared anywhere in the file.
+  per the SysML v2 grammar, never content) is captured on `SysmlViewNode.RenderTargetName` and
+  produces no edge; the reference it writes is resolved in the view's own namespace as one of the
+  view's `ReferenceOccurrences`, so `render asTreeDiagram;` with `import Views::*;` (anywhere in
+  the view's namespace chain, including the view's own body), or `render Views::asTreeDiagram;`,
+  is silent, while an unqualified target with no import produces a Warning at the target token.
+- Each reference written inside an expression — a transition's guard, trigger payload (type,
+  `via` target) and effect, an action-flow `accept`/`send` node's payload and `via`/`to` operands,
+  an action-flow decision guard, a state `entry`/`do`/`exit` action's declaration, and a
+  constraint or requirement-constraint expression — that does not resolve produces an
+  `Unresolved reference` Warning at that token's position, once per occurrence (the same name
+  written twice is reported twice) and with no edge; one that resolves (a declared feature, a
+  bare `in` parameter, a named `accept` payload used in its own guard, a body's own parameters)
+  produces nothing. Operators, literals, `self`, library functions (`size(…)`, `isEmpty(…)`,
+  `->forAll{…}`), selected members, and named-argument names are never reported. The
+  tool-defined `render` selectors (`asGridDiagram`, `asGeneralDiagram`, …) resolve without an
+  import.
 - A resolved feature redefinition reference (`redefines X;` / `:>> X`) is recorded as a
   `Redefinition`-kind `SysmlEdge`; an unresolved one produces a Warning diagnostic naming the
   unresolved identifier and no edge. A redefinition never resolves to the redefining feature
@@ -106,7 +119,12 @@ external services or additional configuration are required beyond a standard .NE
 | Wildcard import records edge | `WorkspaceLoader_LoadAsync_WildcardImport_RecordsImportEdge` |
 | Named import records edge | `WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge` |
 | Unresolved import — Warning, no crash | `WorkspaceLoader_LoadAsync_UnresolvedImport_ProducesWarningNoCrash` |
-| RenderTargetName captured raw | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
+| RenderTargetName, no edge | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawResolvedWithoutEdge` |
+| Unresolved at token positions | `WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition` |
+| Declared — no Warning | `WorkspaceLoader_LoadAsync_ExpressionReferencesDeclared_NoUnresolvedWarning` |
+| No false positives | `WorkspaceLoader_LoadAsync_LibraryFunctionsAndOperatorsInExpressions_NoUnresolvedWarning` |
+| Reported per occurrence | `WorkspaceLoader_LoadAsync_UnresolvedExpressionReferenceTwice_ReportsEachOccurrence` |
+| Pilot parity (elevator) | `WorkspaceLoader_LoadAsync_ElevatorStateModel_ReportsUndeclaredNamesAtTokens` |
 | View definition typing edge | `WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured` |
 | Resolved expose name records edge | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | E2E diagnostic visibility | `RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic` |

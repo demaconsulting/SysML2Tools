@@ -28,7 +28,14 @@ external services or additional configuration are required beyond a standard .NE
 - A metadata annotation in an element body is captured as a `SysmlMetadataNode` child with its
   raw type reference and any supported literal attribute values.
 - `VisitViewDefinition` captures `render <target>;` and `filter [<expr>];` members' raw text on
-  the corresponding `SysmlViewNode`, and leaves both null for a view with an empty body.
+  the corresponding `SysmlViewNode`, and leaves both null for a view with an empty body. Each
+  `render` target, a transition's trigger/guard/effect, an `accept`/`send` node's payload and
+  operands, a state action's declaration, and a constraint expression also have their references
+  located from the syntax tree and recorded with token positions on `ReferenceOccurrences`,
+  excluding operators, literals, `self`, library functions, selected members, named-argument names
+  and the names the construct declares for itself (a payload name, a body's parameters, bare `in`
+  parameters); a `rendering` usage is registered as a declaration, and a view's own `import`
+  statements are kept as its children.
 - `VisitViewUsage` (a named `view` usage, not a `view def` definition) captures the same
   render/filter members plus `expose <name>;` members, producing a `SysmlViewNode` with
   populated `ExposeMembers` (each entry pairing its qualified-name reference text, its own
@@ -141,7 +148,9 @@ external services or additional configuration are required beyond a standard .NE
 | Usage-level `subsets`/`:>` capture | `WorkspaceLoader_LoadAsync_UsageLevelSubsetting_PopulatesSupertypeNames` |
 | Metadata annotation capture | `AstBuilder_BareMetadataAnnotation_CapturesMetadataNode` |
 | Metadata literal attribute capture | `AstBuilder_MetadataAnnotationWithBooleanAttribute_CapturesLiteralValue` |
-| `VisitViewDefinition` render | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
+| `VisitViewDefinition` render | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawResolvedWithoutEdge` |
+| Transition reference occurrences | `WorkspaceLoader_LoadAsync_TransitionExpressions_CaptureReferenceOccurrences` |
+| `rendering` usage declared | `WorkspaceLoader_LoadAsync_RenderingUsage_IsDeclared` |
 | `VisitViewDefinition` filter capture | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | View declaration source location (`view def` and `view`) | `WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation` |
 | Declaration and reference positions | `WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition` |

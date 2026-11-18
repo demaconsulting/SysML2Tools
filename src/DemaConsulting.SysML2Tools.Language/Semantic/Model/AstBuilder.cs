@@ -942,6 +942,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 Target = ConnectorEndReference(
                     guardedTargetSuccession.transitionSuccessionMember()?.transitionSuccession()?.connectorEndMember()),
                 Guard = guardedTargetSuccession.guardExpressionMember()?.ownedExpression()?.GetText(),
+                ReferenceOccurrences = CollectReferenceOccurrences(
+                    null, guardedTargetSuccession.guardExpressionMember()?.ownedExpression()),
             };
         }
 
@@ -988,11 +990,23 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     {
         var declaration = context.acceptNodeDeclaration();
         var payload = OriginalTextOrNull(declaration?.acceptParameterPart());
-        return BuildActionNodeFeature(
+        var node = BuildActionNodeFeature(
             declaration?.actionNodeUsageDeclaration()?.usageDeclaration(),
             "accept",
             payload is null ? null : $"accept {payload}");
+        node.ReferenceOccurrences = AcceptDeclarationOccurrences(declaration);
+        return node;
     }
+
+    /// <summary>
+    ///     Collects the reference occurrences of an <c>accept</c> declaration: the payload type or
+    ///     expression, the <c>via</c> target, and the typing of the accept action itself.
+    /// </summary>
+    private IReadOnlyList<ReferenceOccurrence> AcceptDeclarationOccurrences(
+        SysMLv2Parser.AcceptNodeDeclarationContext? declaration) =>
+        CollectReferenceOccurrences(
+            DeclaredPayloadNames(declaration?.acceptParameterPart()),
+            declaration);
 
     /// <inheritdoc/>
     public override SysmlNode? VisitSendNode(SysMLv2Parser.SendNodeContext context)
@@ -1000,7 +1014,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var declaration = context.actionNodeUsageDeclaration()?.usageDeclaration()
             ?? context.actionUsageDeclaration()?.usageDeclaration();
         var payload = OriginalTextSpanOrNull(context.nodeParameterMember(), context.senderReceiverPart());
-        return BuildActionNodeFeature(declaration, "send", payload is null ? null : $"send {payload}");
+        var node = BuildActionNodeFeature(declaration, "send", payload is null ? null : $"send {payload}");
+        node.ReferenceOccurrences = CollectReferenceOccurrences(
+            null, declaration, context.nodeParameterMember(), context.senderReceiverPart());
+        return node;
     }
 
     /// <inheritdoc/>
@@ -1119,6 +1136,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 {
                     FeatureKeyword = "constraint",
                     ExpressionText = expressionText,
+                    ReferenceOccurrences = ConstraintBodyOccurrences(context.calculationBody()),
                 },
             ];
 
@@ -1342,6 +1360,17 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     public override SysmlNode? VisitItemUsage(SysMLv2Parser.ItemUsageContext context)
     {
         return BuildUsageNode(context.usage(), "item");
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    ///     A <c>rendering</c> usage (<c>rendering asTreeDiagram : GraphicalRendering;</c>, as the
+    ///     Views library declares its renderings) is a named, referenceable member: a view's
+    ///     <c>render asTreeDiagram;</c> resolves to it, so it must be a declaration.
+    /// </remarks>
+    public override SysmlNode? VisitRenderingUsage(SysMLv2Parser.RenderingUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "rendering");
     }
 
     /// <inheritdoc/>
@@ -1687,6 +1716,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             {
                 FeatureKeyword = keyword,
                 ExpressionText = reference.GetText(),
+                ReferenceOccurrences = CollectReferenceOccurrences(null, reference, usage.featureSpecializationPart()),
             };
         }
 
@@ -1704,6 +1734,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 FeatureTyping = specialization.Typing,
                 Multiplicity = specialization.Multiplicity,
                 ExpressionText = expressionText,
+                ReferenceOccurrences = ConstraintBodyOccurrences(usage.calculationBody()),
             },
             usage.constraintUsageDeclaration()?.usageDeclaration(),
             usage.constraintUsageDeclaration()?.valuePart());
@@ -1731,6 +1762,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 FeatureTyping = specialization.Typing,
                 Multiplicity = specialization.Multiplicity,
                 ExpressionText = expressionText,
+                ReferenceOccurrences = ConstraintBodyOccurrences(context.calculationBody()),
             },
             context.constraintUsageDeclaration()?.usageDeclaration(),
             context.constraintUsageDeclaration()?.valuePart());
@@ -1964,6 +1996,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Guard = guard,
             Trigger = OriginalTextOrNull(usage?.triggerActionMember()?.triggerAction()),
             Effect = OriginalTextOrNull(usage?.effectBehaviorMember()?.effectBehaviorUsage()),
+            ReferenceOccurrences = TransitionOccurrences(
+                usage?.guardExpressionMember(), usage?.triggerActionMember(), usage?.effectBehaviorMember()),
         };
     }
 
@@ -1990,6 +2024,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Source = sourceName,
             Target = target,
             Guard = guard,
+            ReferenceOccurrences = CollectReferenceOccurrences(null, guarded?.guardExpressionMember()?.ownedExpression()),
         };
     }
 
@@ -2028,6 +2063,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     {
         var name = ExtractStateActionName(usage);
 
+        // The declaration (not the nested body) of whichever action alternative is present.
+        var acceptDeclaration = usage?.stateAcceptActionUsage()?.acceptNodeDeclaration();
+
         return new SysmlFeatureNode
         {
             Name = name,
@@ -2036,6 +2074,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Children = Array.Empty<SysmlNode>(),
             Annotations = Array.Empty<SysmlAnnotation>(),
             ActionText = ExtractStateActionText(usage),
+            ReferenceOccurrences = CollectReferenceOccurrences(
+                DeclaredPayloadNames(acceptDeclaration?.acceptParameterPart()),
+                usage?.statePerformActionUsage()?.performActionUsageDeclaration(),
+                acceptDeclaration,
+                usage?.stateSendActionUsage()?.sendNodeDeclaration(),
+                usage?.stateAssignmentActionUsage()?.assignmentNodeDeclaration()),
         };
     }
 
@@ -2088,6 +2132,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Guard = guard,
             Trigger = OriginalTextOrNull(context.triggerActionMember()?.triggerAction()),
             Effect = OriginalTextOrNull(context.effectBehaviorMember()?.effectBehaviorUsage()),
+            ReferenceOccurrences = TransitionOccurrences(
+                context.guardExpressionMember(), context.triggerActionMember(), context.effectBehaviorMember()),
         };
     }
 
@@ -2293,6 +2339,54 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         node.ConjugatedFeatureTyping = ExtractConjugatedTypingName(specializationPart);
         node.ValueText = OriginalTextOrNull(valuePart?.featureValue());
         return node;
+    }
+
+    /// <summary>
+    ///     Collects the reference occurrences of a constraint or calculation body: the feature
+    ///     references of its expressions. Every name the body declares for itself (its parameters
+    ///     and local usages) is excluded, because the body's declarations are not modeled as AST
+    ///     nodes and so cannot be resolved.
+    /// </summary>
+    private IReadOnlyList<ReferenceOccurrence> ConstraintBodyOccurrences(SysMLv2Parser.CalculationBodyContext? body) =>
+        body is null ? Array.Empty<ReferenceOccurrence>() : CollectReferenceOccurrences(NamesDeclaredWithin(body), body);
+
+    /// <summary>
+    ///     Returns every name declared (by an identification or feature identification) inside
+    ///     <paramref name="tree"/>, without descending into nested bodies (an inline
+    ///     <c>{ in i : T; ... }</c> expression body or a nested calculation/definition body): a
+    ///     name such a body declares is local to it and must not hide a reference outside it.
+    /// </summary>
+    private static IReadOnlySet<string> NamesDeclaredWithin(Antlr4.Runtime.Tree.IParseTree tree)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Stack<Antlr4.Runtime.Tree.IParseTree>();
+        pending.Push(tree);
+        while (pending.Count > 0)
+        {
+            var item = pending.Pop();
+            if (!ReferenceEquals(item, tree) &&
+                item is SysMLv2Parser.BodyExpressionContext or SysMLv2Parser.CalculationBodyContext or SysMLv2Parser.DefinitionBodyContext)
+            {
+                continue;
+            }
+            var declared = item switch
+            {
+                SysMLv2Parser.IdentificationContext identification => GetDeclaredName(identification),
+                SysMLv2Parser.FeatureIdentificationContext featureIdentification => GetDeclaredName(featureIdentification),
+                _ => null,
+            };
+            if (declared is not null)
+            {
+                names.Add(declared);
+            }
+
+            for (var i = 0; i < item.ChildCount; i++)
+            {
+                pending.Push(item.GetChild(i));
+            }
+        }
+
+        return names;
     }
 
     /// <summary>
@@ -2556,6 +2650,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             QualifiedName = qualifiedName,
             SupertypeNames = supertypeNames,
             RenderTargetName = renderTargetName,
+            Children = ExtractViewImports(context.viewDefinitionBody()?.viewDefinitionBodyItem() ?? []),
+            ReferenceOccurrences = ExtractRenderOccurrences(context.viewDefinitionBody()?.viewDefinitionBodyItem() ?? []),
             FilterExpressionText = filterExpressionTexts.FirstOrDefault(),
             FilterExpressionTexts = filterExpressionTexts,
             SourceFilePath = _filePath,
@@ -2594,6 +2690,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Name = name,
             QualifiedName = qualifiedName,
             RenderTargetName = renderTargetName,
+            Children = ExtractViewImports(bodyItems),
+            ReferenceOccurrences = ExtractRenderOccurrences(bodyItems),
             ExposeMembers = exposeMembers,
             FilterExpressionText = filterExpressionTexts.FirstOrDefault(),
             FilterExpressionTexts = filterExpressionTexts,
@@ -2707,6 +2805,335 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             SysMLv2Parser.ViewBodyItemContext usageItem => usageItem.elementFilterMember(),
             _ => null,
         };
+
+    /// <summary>
+    ///     Builds the children of a view from its body: the <c>import</c> statements it declares,
+    ///     which apply to the view's own namespace (so a view-local <c>import Views::*;</c> makes
+    ///     its <c>render asTreeDiagram;</c> resolve). Nothing else in a view body is a child — its
+    ///     <c>render</c>, <c>filter</c> and <c>expose</c> members are captured as properties.
+    /// </summary>
+    private IReadOnlyList<SysmlNode> ExtractViewImports<TItem>(IEnumerable<TItem> bodyItems)
+        where TItem : Antlr4.Runtime.ParserRuleContext
+    {
+        var imports = new List<SysmlNode>();
+        foreach (var item in bodyItems)
+        {
+            var importRule = item switch
+            {
+                SysMLv2Parser.ViewDefinitionBodyItemContext definitionItem => definitionItem.definitionBodyItem()?.importRule(),
+                SysMLv2Parser.ViewBodyItemContext usageItem => usageItem.definitionBodyItem()?.importRule(),
+                _ => null,
+            };
+            if (importRule is not null && Visit(importRule) is { } import)
+            {
+                imports.Add(import);
+            }
+        }
+
+        return imports.Count == 0 ? Array.Empty<SysmlNode>() : imports;
+    }
+
+    /// <summary>
+    ///     Collects the <see cref="ReferenceOccurrence"/> of every <c>render &lt;target&gt;;</c>
+    ///     member in a view's body: the direct reference of <c>render asTreeDiagram;</c>, or the
+    ///     typing of the typed-placeholder form. Shared by both view builders like
+    ///     <see cref="ExtractViewRenderAndFilter"/>.
+    /// </summary>
+    private IReadOnlyList<ReferenceOccurrence> ExtractRenderOccurrences<TItem>(IEnumerable<TItem> bodyItems)
+        where TItem : Antlr4.Runtime.ParserRuleContext
+    {
+        var roots = new List<Antlr4.Runtime.Tree.IParseTree>();
+        foreach (var item in bodyItems)
+        {
+            if (GetViewRenderingMember(item)?.viewRenderingUsage() is not { } usage)
+            {
+                continue;
+            }
+
+            // Direct form: the rendering is referenced (and may be further specialized). Placeholder
+            // form: `render rendering r : T;` declares a usage whose typing is the reference.
+            if (usage.ownedReferenceSubsetting() is { } reference)
+            {
+                roots.Add(reference);
+                if (usage.featureSpecializationPart() is { } specialization)
+                {
+                    roots.Add(specialization);
+                }
+            }
+            else if (usage.usage()?.usageDeclaration()?.featureSpecializationPart() is { } placeholderTyping)
+            {
+                roots.Add(placeholderTyping);
+            }
+        }
+
+        var occurrences = CollectReferenceOccurrences(null, roots.ToArray());
+
+        // The tool-defined selectors are accepted as written (see ToolDefinedRenderTargets).
+        return occurrences.Any(o => ToolDefinedRenderTargets.Contains(o.Name))
+            ? occurrences.Where(o => !ToolDefinedRenderTargets.Contains(o.Name)).ToList()
+            : occurrences;
+    }
+
+    /// <summary>
+    ///     The <c>render</c> selectors this tool defines beyond the Views library (which declares
+    ///     only <c>asTreeDiagram</c>, <c>asInterconnectionDiagram</c>, <c>asElementTable</c> and
+    ///     <c>asTextualNotation</c>): each names one of its layout strategies in
+    ///     <c>DiagramTypeRouter</c> (the Core library, which this library cannot reference, so the
+    ///     list is repeated here). They are documented user-facing selectors that no model can
+    ///     declare, so reporting them as unresolved would flag the tool's own documented usage.
+    /// </summary>
+    private static readonly HashSet<string> ToolDefinedRenderTargets = new(StringComparer.Ordinal)
+    {
+        "asGeneralDiagram",
+        "asStateTransitionDiagram",
+        "asActionFlowDiagram",
+        "asSequenceDiagram",
+        "asGridDiagram",
+    };
+
+    /// <summary>
+    ///     The names a feature expression may use without any declaration: the features every
+    ///     occurrence inherits from the kernel library (<c>self</c>, <c>that</c>) and the
+    ///     <c>start</c>/<c>done</c> pseudo-features every action and state inherits. Implicit
+    ///     specialization (#93) is not modeled, so name resolution cannot see them; reporting them
+    ///     would flag valid models.
+    /// </summary>
+    private static readonly HashSet<string> ImplicitFeatureNames =
+        new(StringComparer.Ordinal) { "self", "that", "start", "done" };
+
+    /// <summary>
+    ///     Collects the references written inside the given concrete-syntax subtrees (an
+    ///     expression, an <c>accept</c> payload, a state action declaration, a <c>render</c>
+    ///     target): the names an expression uses as features, and the types, subsetted features,
+    ///     and references a declaration names, each with the position of its token.
+    /// </summary>
+    /// <remarks>
+    ///     The subtrees are walked rather than scanned as text because only the syntax tree tells a
+    ///     feature reference from everything else an expression is made of. Not collected, by
+    ///     design: operators and literals (they are tokens, not names); the function of an
+    ///     invocation (<c>f(x)</c>) and of an arrow call (<c>c-&gt;size()</c>), which are library
+    ///     functions whose resolution needs implicit imports of the function libraries; the member
+    ///     selected by <c>.</c> (<c>a.b</c> yields only <c>a</c>), which is resolved through the
+    ///     type of <c>a</c>; parameter names of a named argument; redefinitions (resolved against
+    ///     the general types of the owner); and anything inside a nested body (<c>{ … }</c>), whose
+    ///     names are declared locally.
+    /// </remarks>
+    /// <param name="declaredHere">
+    ///     Names the construct itself declares (an <c>accept</c> payload's name), which its guard
+    ///     and effect may legitimately use; such a name is never a reference. May be null.
+    /// </param>
+    /// <param name="roots">The subtrees to collect from; null entries are ignored.</param>
+    /// <returns>The occurrences in source order, or an empty list when there are none.</returns>
+    private IReadOnlyList<ReferenceOccurrence> CollectReferenceOccurrences(
+        IReadOnlySet<string>? declaredHere,
+        params Antlr4.Runtime.Tree.IParseTree?[] roots)
+    {
+        var occurrences = new List<ReferenceOccurrence>();
+        foreach (var root in roots.OfType<Antlr4.Runtime.Tree.IParseTree>())
+        {
+            var found = new List<ReferenceOccurrence>();
+            CollectOccurrences(root, declaredHere, found);
+
+            // Names declared by bare usages (`in x : T;`, `x : T;`) are members the AST does not
+            // model, so name resolution cannot see them; they are filtered here, where the syntax
+            // tree still shows them. Computed only when there is something to filter.
+            if (found.Count > 0 && BareUsageNames(root) is { Count: > 0 } bareNames)
+            {
+                found.RemoveAll(occurrence => bareNames.Contains(occurrence.Name));
+            }
+
+            occurrences.AddRange(found);
+        }
+
+        return occurrences.Count == 0 ? Array.Empty<ReferenceOccurrence>() : occurrences;
+    }
+
+    /// <summary>
+    ///     The names declared by bare usages, per outermost enclosing declaration, memoized so a
+    ///     declaration with many expressions is scanned once.
+    /// </summary>
+    private readonly Dictionary<Antlr4.Runtime.ParserRuleContext, HashSet<string>> _bareUsageNamesByDeclaration = new();
+
+    /// <summary>
+    ///     Returns the names declared by bare usages (<c>in vehicle : Vehicle;</c>,
+    ///     <c>x : T;</c> — the grammar's <c>defaultReferenceUsage</c>) anywhere inside the
+    ///     outermost declaration (the one directly in a package) that encloses
+    ///     <paramref name="tree"/>, or an empty set when there is none.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="AstBuilder"/> builds no node for such a usage, so its name is a real, visible
+    ///     member that name resolution cannot find; an expression using it (the parameters of a
+    ///     state or action) would otherwise be flagged. The set is deliberately an
+    ///     over-approximation — it spans the whole outermost declaration rather than only the
+    ///     bodies enclosing the expression — because a false warning on a valid model costs more
+    ///     than a missed warning on a typo that happens to match a nested parameter name.
+    /// </remarks>
+    private IReadOnlySet<string> BareUsageNames(Antlr4.Runtime.Tree.IParseTree tree)
+    {
+        // Find the outermost declaration: climb until the parent is a package body element.
+        Antlr4.Runtime.ParserRuleContext? outermost = null;
+        for (var current = tree.Parent as Antlr4.Runtime.ParserRuleContext;
+             current is not null and not (SysMLv2Parser.PackageBodyElementContext or SysMLv2Parser.RootNamespaceContext);
+             current = current.Parent as Antlr4.Runtime.ParserRuleContext)
+        {
+            outermost = current;
+        }
+
+        if (outermost is null)
+        {
+            return new HashSet<string>();
+        }
+
+        if (!_bareUsageNamesByDeclaration.TryGetValue(outermost, out var names))
+        {
+            names = new HashSet<string>(StringComparer.Ordinal);
+            var pending = new Stack<Antlr4.Runtime.Tree.IParseTree>();
+            pending.Push(outermost);
+            while (pending.Count > 0)
+            {
+                var item = pending.Pop();
+                if (item is SysMLv2Parser.BodyExpressionContext)
+                {
+                    // An inline expression body's parameters are local to it.
+                    continue;
+                }
+
+                if (item is SysMLv2Parser.DefaultReferenceUsageContext bare &&
+                    bare.usage()?.usageDeclaration()?.identification() is { } identification &&
+                    GetDeclaredName(identification) is { } declared)
+                {
+                    names.Add(declared);
+                }
+
+                for (var i = 0; i < item.ChildCount; i++)
+                {
+                    pending.Push(item.GetChild(i));
+                }
+            }
+
+            _bareUsageNamesByDeclaration[outermost] = names;
+        }
+
+        return names;
+    }
+
+    /// <summary>
+    ///     Recursive worker of <see cref="CollectReferenceOccurrences"/>: records the reference
+    ///     forms it recognizes and otherwise descends into the children of <paramref name="tree"/>.
+    /// </summary>
+    private static void CollectOccurrences(
+        Antlr4.Runtime.Tree.IParseTree tree,
+        IReadOnlySet<string>? declaredHere,
+        List<ReferenceOccurrence> occurrences)
+    {
+        switch (tree)
+        {
+            case SysMLv2Parser.BodyExpressionContext or SysMLv2Parser.ActionBodyContext or SysMLv2Parser.ActionBodyItemContext:
+                // A nested body declares its own names and is not part of this expression.
+                return;
+            case SysMLv2Parser.OwnedFeatureTypingContext typing:
+                AddOccurrence(typing.qualifiedName(0), declaredHere, occurrences);
+                return;
+            case SysMLv2Parser.OwnedSubsettingContext subsetting:
+                AddOccurrence(subsetting.qualifiedName(0), declaredHere, occurrences);
+                return;
+            case SysMLv2Parser.OwnedReferenceSubsettingContext referenceSubsetting:
+                AddOccurrence(referenceSubsetting.qualifiedName(0), declaredHere, occurrences);
+                return;
+            case SysMLv2Parser.TypeReferenceContext typeReference:
+                AddOccurrence(typeReference.qualifiedName(), declaredHere, occurrences);
+                return;
+            case SysMLv2Parser.NamedArgumentContext named:
+                // The parameter name is not a reference; the argument expression is.
+                CollectOccurrencesFromChild(named.ownedExpression(), declaredHere, occurrences);
+                return;
+            case SysMLv2Parser.ConstructorExpressionContext constructor:
+                AddOccurrence(constructor.qualifiedName(), declaredHere, occurrences);
+                CollectOccurrencesFromChild(constructor.argumentList(), declaredHere, occurrences);
+                return;
+            case SysMLv2Parser.BaseExpressionContext { } baseExpression when baseExpression.qualifiedName() is { } name:
+                if (baseExpression.argumentList() is { } arguments)
+                {
+                    // An invocation: its function is not checked, its arguments are expressions.
+                    CollectOccurrencesFromChild(arguments, declaredHere, occurrences);
+                }
+                else
+                {
+                    AddOccurrence(name, declaredHere, occurrences);
+                }
+
+                return;
+        }
+
+        for (var i = 0; i < tree.ChildCount; i++)
+        {
+            CollectOccurrences(tree.GetChild(i), declaredHere, occurrences);
+        }
+    }
+
+    /// <summary>Null-tolerant entry to <see cref="CollectOccurrences"/> for an optional child context.</summary>
+    private static void CollectOccurrencesFromChild(
+        Antlr4.Runtime.Tree.IParseTree? child,
+        IReadOnlySet<string>? declaredHere,
+        List<ReferenceOccurrence> occurrences)
+    {
+        if (child is not null)
+        {
+            CollectOccurrences(child, declaredHere, occurrences);
+        }
+    }
+
+    /// <summary>
+    ///     Records <paramref name="name"/> as a reference occurrence at its first token, unless it
+    ///     is missing or malformed (a parse error already reported it), an implicit feature name
+    ///     (see <see cref="ImplicitFeatureNames"/>), or a name the enclosing construct declares.
+    /// </summary>
+    private static void AddOccurrence(
+        SysMLv2Parser.QualifiedNameContext? name,
+        IReadOnlySet<string>? declaredHere,
+        List<ReferenceOccurrence> occurrences)
+    {
+        if (name is null || name.exception is not null || name.Start is not { } start)
+        {
+            return;
+        }
+
+        var text = name.GetText();
+        if (text.Length == 0 || ImplicitFeatureNames.Contains(text) || declaredHere?.Contains(text) == true)
+        {
+            return;
+        }
+
+        occurrences.Add(new ReferenceOccurrence(text, new SourcePosition(start.Line, start.Column + 1)));
+    }
+
+    /// <summary>
+    ///     Returns the name an <c>accept</c> payload declares for itself (<c>accept sig : Sig</c>
+    ///     declares <c>sig</c>), as a set the guard and effect of the same transition may use; an
+    ///     empty set when the payload is unnamed or absent.
+    /// </summary>
+    private static IReadOnlySet<string> DeclaredPayloadNames(SysMLv2Parser.AcceptParameterPartContext? acceptPart)
+    {
+        var payload = acceptPart?.payloadParameterMember()?.payloadParameter();
+        var identification = payload?.payloadFeature()?.identification() ?? payload?.identification();
+        var name = identification is null ? null : GetDeclaredName(identification);
+        return name is null ? new HashSet<string>() : new HashSet<string> { name };
+    }
+
+    /// <summary>
+    ///     Collects the reference occurrences of a transition's trigger, guard, and effect (in
+    ///     source order) — the
+    ///     parts the transition keeps only as raw text.
+    /// </summary>
+    private IReadOnlyList<ReferenceOccurrence> TransitionOccurrences(
+        SysMLv2Parser.GuardExpressionMemberContext? guard,
+        SysMLv2Parser.TriggerActionMemberContext? trigger,
+        SysMLv2Parser.EffectBehaviorMemberContext? effect) =>
+        CollectReferenceOccurrences(
+            DeclaredPayloadNames(trigger?.triggerAction()?.acceptParameterPart()),
+            trigger?.triggerAction(),
+            guard?.ownedExpression(),
+            effect?.effectBehaviorUsage());
 
     /// <summary>
     ///     Extracts the raw reference text of a <c>render &lt;target&gt;;</c> statement, preferring

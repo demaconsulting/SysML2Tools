@@ -16,7 +16,8 @@
    (`ConnectionKeyword == "allocation"`) endpoint, `SysmlDependencyNode` from/to name lists, and
    `SysmlViewNode` expose entries and view definition in all AST nodes by KerML 8.2.3.5 name
    resolution (`NameResolver`), emitting a Warning for any name not found and recording a
-   `SysmlEdge` for any name (or pair of names) that resolves.
+   `SysmlEdge` for any name (or pair of names) that resolves. The same pass resolves each node's
+   `ReferenceOccurrences` (see "Expression References" below), reporting without recording an edge.
 4. **Feature-chain resolution (pass 2)** — after pass 1 has completed for every file root,
    resolves dotted feature chains (e.g. `engine.fuelPort`) referenced by `SysmlConnectionNode`
    (`ConnectionKeyword == "connection"`, `"message"`, or `"binding"`) endpoints and
@@ -50,7 +51,9 @@ definition, connector (`connect`/`bind`/message) endpoints, transition source an
 `satisfy`, `verify`, allocation endpoints, `dependency`, and metadata-type references; the
 owner-position fallback applies only to texts with no token. Deduplication is unchanged: the
 Warning is emitted once per distinct name per file, at the first owner that references it, so the
-count of diagnostics is identical to before positions were added. `NameResolver` emits no
+count of diagnostics is identical to before positions were added. References inside expressions
+(`ReferenceOccurrences`, see "Expression References") carry their own exact token position and are
+reported per occurrence rather than once per name. `NameResolver` emits no
 diagnostics and is unchanged.
 
 ##### Reference Resolution
@@ -375,9 +378,49 @@ no edge):
   `ExposeScopeResolver`'s responsibility (Phase 2a), given the per-entry containment-subtree
   candidate set only that unit can compute. `RenderTargetName` names a rendering style/format
   (e.g. `asTreeDiagram`, `asElementTable`) per the SysML v2 grammar — never model content — so
-  `ReferenceResolver` never inspects it: no edge is produced and no diagnostic is emitted for it,
-  exactly mirroring how `FilterExpressionText` (raw source text, not a reference) is also never
-  inspected here.
+  it produces no `Expose` edge and no scoping; the *reference* it writes is resolved as one of the
+  view's `ReferenceOccurrences` (see "Expression References"). `FilterExpressionText` (raw source
+  text, not a reference) is never inspected here.
+
+##### Expression References
+
+References that the AST keeps only as raw text — a view's `render` target, a transition's trigger
+payload, guard and effect, an action-flow `accept`/`send` node's payload and `via`/`to` operands,
+an action-flow decision guard, a state `entry`/`do`/`exit` action's declaration, and a constraint
+or requirement-constraint expression — are located by `AstBuilder` from the syntax tree into
+`SysmlNode.ReferenceOccurrences` (name plus token position; see the `AstBuilder` design).
+`ResolveReferenceOccurrences`, called from `ResolveNode` for every node, resolves each occurrence
+with `TryResolve` and, when it does not resolve, adds the standard `Unresolved reference: '<name>'`
+Warning at the occurrence's own `(line, column)`.
+
+- **Local namespace.** A `render` target is resolved in the *view's own* namespace (its qualified
+  name), so an `import Views::*;` written in the view's body applies (`AstBuilder` keeps a view's
+  `import` statements as its children for this reason); every other occurrence is resolved in the
+  namespace that owns the node (`scope` of `ResolveNode`), exactly like the node's typing.
+  `Views` is not implicitly imported: `render asTreeDiagram;` without `import Views::*;` or the
+  qualified `Views::asTreeDiagram` is unresolved, as in the OMG Pilot Implementation. The five
+  tool-defined selectors (`asGeneralDiagram`, `asStateTransitionDiagram`, `asActionFlowDiagram`,
+  `asSequenceDiagram`, `asGridDiagram` — the `DiagramTypeRouter` tokens beyond the Views library)
+  are not collected (`AstBuilder.ToolDefinedRenderTargets`): they are documented selectors that no
+  model can declare, so reporting them would flag the tool's own documented usage.
+- **Reported per occurrence.** Unlike the name-keyed deduplication of the other reference kinds,
+  every unresolved occurrence is reported: the same undeclared guard name used in two transitions
+  is two places to fix, and the Pilot reports both.
+- **No edge.** The occurrences have no single edge kind (a feature, a type, or a rendering,
+  depending on the context), so only the resolved/unresolved outcome is produced. Edges are a
+  follow-up.
+- **Severity.** Warning, like every other unresolved reference. The standard library has no
+  `ReferenceOccurrences` after deserialization (`[JsonIgnore]`); it is checked when it is
+  compiled by `StdlibGen`, which adds two justified warnings to the standard library's own
+  diagnostics: `Anything` (`Base::Anything` is a KerML declaration the SysML grammar does not
+  model, the cause of the existing `Base::Anything` warnings) and `receiver` (inherited from a
+  KerML-declared supertype; implicit specialization, #93).
+- **Not covered (follow-ups).** Value expressions (`= expr`, `:= expr`) of usages — enabling them
+  reported valid OMG corpus models because of unrelated modeling gaps (a quoted name such as `'mi'`
+  not matching its short name, usages declared with a metadata prefix, KerML
+  library features such as `TrigFunctions::pi`, `::` access into variants); the guard of the
+  `first … if … then …` succession form (no AST node is built for it); `if`/`while`/`for` action
+  nodes; invocation function names; members selected through `.`; redefinitions; edge creation.
 
 ##### Local Namespace of a Reference
 

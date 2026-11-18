@@ -170,6 +170,50 @@ public class LintSubsystemTests
     }
 
     /// <summary>
+    ///     LintCommand reports an undeclared name inside a transition guard, a trigger payload and a
+    ///     <c>render</c> target as warnings at the token's position, while a declared name, an
+    ///     operator, and a library-function call are not reported — the exit code stays 0 because the
+    ///     severity of an unresolved reference is Warning.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Report_UnresolvedExpressionReferences_ReportsTokenPositionsAsWarnings()
+    {
+        // Arrange: undeclared guard `atFloor` (line 5, col 31), trigger payload `Arrived` (line 6,
+        // col 35), and render target `asTreeDiagram` (line 8, col 25); `ready` is declared.
+        var tempFile = Path.Combine(Path.GetTempPath(), $"lint_test_{Guid.NewGuid():N}.sysml");
+        await File.WriteAllTextAsync(
+            tempFile,
+            "package P {\n    state def S {\n        attribute ready : ScalarValues::Boolean;\n        state a;\n" +
+            "        transition first a if atFloor and ready and not ready->isEmpty() then a;\n" +
+            "        transition first a accept Arrived then a;\n    }\n    view def V { render asTreeDiagram; }\n}\n",
+            TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: lint the file
+            using var context = Context.Create(["lint", tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: each undeclared name is a warning at its token; nothing else is reported
+            var lines = outWriter.ToString().Split('\n').Select(line => line.TrimEnd('\r')).ToList();
+            Assert.Contains($"{tempFile}(5,31): warning: Unresolved reference: 'atFloor'", lines);
+            Assert.Contains($"{tempFile}(6,35): warning: Unresolved reference: 'Arrived'", lines);
+            Assert.Contains($"{tempFile}(8,25): warning: Unresolved reference: 'asTreeDiagram'", lines);
+            Assert.Equal(3, lines.Count(line => line.Contains("Unresolved reference", StringComparison.Ordinal)));
+            Assert.Equal(0, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     LintCommand returns exit code 1 when error-severity diagnostics are present.
     /// </summary>
     [Fact]

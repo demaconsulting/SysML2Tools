@@ -120,7 +120,7 @@ sections:
           `RenderTargetName` names a rendering style/format, not content, so it is captured
           verbatim only and never drives scoping or resolution.
         tests:
-          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
+          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawResolvedWithoutEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewFilterExpression
@@ -712,3 +712,26 @@ sections:
           nothing new to order by.
         tests:
           - WorkspaceLoader_LoadAsync_EventOccurrences_AreCapturedInDeclarationOrder
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceOccurrences
+        title: >-
+          AstBuilder shall locate, from the syntax tree, the references written inside a view's
+          `render` target, a transition's trigger/guard/effect, an action-flow `accept`/`send`
+          node, a state action's declaration, and a constraint expression, and record each with
+          the position of its first token on the node's ReferenceOccurrences — excluding
+          operators, literals, `self`/`that`/`start`/`done`, the function of an invocation or
+          `->` call, the member selected through `.`, named-argument names, redefinitions,
+          the names the construct or its enclosing declaration declares for itself, and anything
+          inside a nested body — and shall register `rendering` usages and a view's own
+          `import` statements as declarations.
+        justification: |
+          The AST keeps these expressions as raw text, which cannot tell a feature reference from
+          an operator or a library function; only the syntax tree can, so the references are
+          located where it is still available and ReferenceResolver resolves them like any other.
+          `rendering` usages (`Views::asTreeDiagram`) and view-local imports must be declarations
+          for a `render` target to resolve.
+        tests:
+          - WorkspaceLoader_LoadAsync_TransitionExpressions_CaptureReferenceOccurrences
+          - WorkspaceLoader_LoadAsync_LibraryFunctionsAndOperatorsInExpressions_NoUnresolvedWarning
+          - WorkspaceLoader_LoadAsync_RenderingUsage_IsDeclared
+          - WorkspaceLoader_LoadAsync_ExpressionReferencesDeclared_NoUnresolvedWarning

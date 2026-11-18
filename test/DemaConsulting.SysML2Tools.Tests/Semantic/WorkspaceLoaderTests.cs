@@ -4305,15 +4305,16 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member naming a rendering-style
-    ///     identifier that is not declared anywhere in the file (which would have failed
-    ///     resolution under the old, incorrect content-scoping semantics) produces zero
-    ///     diagnostics and zero edges sourced from the view — <c>ReferenceResolver</c> never
-    ///     inspects <c>RenderTargetName</c> — while <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.RenderTargetName"/>
-    ///     is still captured verbatim.
+    ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member naming a rendering that the
+    ///     view's namespace can see (<c>Views::*</c> is imported) produces zero diagnostics and zero
+    ///     edges sourced from the view, while
+    ///     <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.RenderTargetName"/> is
+    ///     still captured verbatim. The target is resolved (see
+    ///     <see cref="WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition"/> for the
+    ///     unresolved case) but records no edge.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic()
+    public async Task WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawResolvedWithoutEdge()
     {
         // Arrange
         var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
@@ -4321,6 +4322,7 @@ public sealed class WorkspaceLoaderTests
         {
             await File.WriteAllTextAsync(tempFile, """
                 package P {
+                    private import Views::*;
                     view def V {
                         render asTreeDiagram;
                     }
@@ -7128,6 +7130,27 @@ public sealed class WorkspaceLoaderTests
     [InlineData("package P {\n    part def A;\n    allocate A to GhostAllocate;\n}\n", "GhostAllocate")]
     [InlineData("package P {\n    requirement def R;\n    satisfy R by GhostSatisfy;\n}\n", "GhostSatisfy")]
     [InlineData("package P {\n    verification def VC {\n        objective {\n            verify GhostVerify;\n        }\n    }\n}\n", "GhostVerify")]
+    [InlineData("package P {\n    view def V {\n        render ghostRender;\n    }\n}\n", "ghostRender")]
+    [InlineData("package P {\n    view v {\n        render ghostRenderUsage;\n    }\n}\n", "ghostRenderUsage")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a if ghostGuard then b;\n    }\n}\n", "ghostGuard")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a if 1 < ghostOperand and true then b;\n    }\n}\n", "ghostOperand")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a accept GhostTrigger then b;\n    }\n}\n", "GhostTrigger")]
+    [InlineData("package P {\n    attribute def Sig;\n    state def S {\n        state a;\n        state b;\n        transition first a accept Sig via ghostVia then b;\n    }\n}\n", "ghostVia")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a accept sig : GhostSignalType then b;\n    }\n}\n", "GhostSignalType")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a do ghostEffect then b;\n    }\n}\n", "ghostEffect")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a do send ghostSendEffect to b then b;\n    }\n}\n", "ghostSendEffect")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        if ghostAttachedGuard then b;\n    }\n}\n", "ghostAttachedGuard")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        accept GhostAttachedTrigger then b;\n    }\n}\n", "GhostAttachedTrigger")]
+    [InlineData("package P {\n    state def S {\n        entry ghostEntry;\n    }\n}\n", "ghostEntry")]
+    [InlineData("package P {\n    state def S {\n        exit action cleanup : GhostExitType;\n    }\n}\n", "GhostExitType")]
+    [InlineData("package P {\n    action def A {\n        action a accept GhostPayload;\n    }\n}\n", "GhostPayload")]
+    [InlineData("package P {\n    action def A {\n        action a send ghostSendOperand to ghostReceiver;\n    }\n}\n", "ghostSendOperand")]
+    [InlineData("package P {\n    action def A {\n        action a send ghostSendOperand to ghostReceiver;\n    }\n}\n", "ghostReceiver")]
+    [InlineData("package P {\n    action def A {\n        action a send 1 via ghostVia to ghostTo;\n    }\n}\n", "ghostVia")]
+    [InlineData("package P {\n    action def A {\n        action a;\n        then decide d;\n        if ghostDecisionGuard then a;\n        else a;\n    }\n}\n", "ghostDecisionGuard")]
+    [InlineData("package P {\n    part def A {\n        attribute x;\n        constraint { x <= ghostConstraint }\n    }\n}\n", "ghostConstraint")]
+    [InlineData("package P {\n    constraint def C {\n        in x : ScalarValues::Real;\n        x > ghostConstraintDef\n    }\n}\n", "ghostConstraintDef")]
+    [InlineData("package P {\n    requirement def R {\n        subject s;\n        require constraint { s.size > ghostRequired }\n    }\n}\n", "ghostRequired")]
     public async Task WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition(string source, string reference)
     {
         // Arrange: the expected position is that of the single occurrence of the reference text
@@ -7497,6 +7520,352 @@ public sealed class WorkspaceLoaderTests
         Assert.DoesNotContain("Parts::Wheel", names);
         Assert.Contains("Parts::Part", names);
         Assert.Contains("Parts::Wheel", result.Workspace.Declarations.Keys);
+    }
+
+    /// <summary>
+    ///     Expression-borne references that resolve — a guard naming a declared feature or a bare
+    ///     <c>in</c> parameter, a named <c>accept</c> payload used in its own guard, trigger payload
+    ///     types, effect and state-action references, action-flow <c>accept</c>/<c>send</c>/decision
+    ///     references, and constraint expressions — produce no "Unresolved reference" warning.
+    /// </summary>
+    /// <param name="source">The model source; every reference in it resolves.</param>
+    [Theory]
+    [InlineData("""
+        package P {
+            state def S {
+                attribute ok : ScalarValues::Boolean;
+                state a;
+                state b;
+                transition first a if ok then b;
+            }
+        }
+        """)]
+    [InlineData("""
+        package P {
+            state def S {
+                in ok : ScalarValues::Boolean;
+                state a;
+                state b;
+                transition first a if ok then b;
+            }
+        }
+        """)]
+    [InlineData("""
+        package P {
+            attribute def Sig { attribute level : ScalarValues::Integer; }
+            state def S {
+                state a;
+                state b;
+                transition first a accept sig : Sig if sig.level > 3 then b;
+                transition first b accept Sig then a;
+            }
+        }
+        """)]
+    [InlineData("""
+        package P {
+            attribute def Sig;
+            state def S {
+                port line;
+                action beep;
+                state a;
+                state b;
+                transition first a accept Sig via line do beep then b;
+                transition first b do action inline then a;
+            }
+        }
+        """)]
+    [InlineData("""
+        package P {
+            state def S {
+                action beep;
+                entry beep;
+                do action regulate;
+                exit action cleanup;
+                state a;
+                accept ScalarValues::Real then a;
+            }
+        }
+        """)]
+    [InlineData("""
+        package P {
+            attribute def Order;
+            action def Handle {
+                attribute inStock : ScalarValues::Boolean;
+                attribute parcel;
+                part carrier;
+                action receive accept Order;
+                then decide stockCheck;
+                if inStock then ship;
+                else reject;
+                action ship send parcel to carrier;
+                action reject;
+            }
+        }
+        """)]
+    [InlineData("""
+        package P {
+            part def Vehicle {
+                attribute mass : ScalarValues::Real;
+                attribute limit : ScalarValues::Real;
+                constraint { mass <= limit }
+            }
+            constraint def Limit { in x : ScalarValues::Real; x > 0 }
+            requirement def R {
+                subject v : Vehicle;
+                in extra : ScalarValues::Real;
+                require constraint { v.mass <= extra }
+            }
+        }
+        """)]
+    [InlineData("""
+        package P {
+            private import Views::*;
+            view def V { render asTreeDiagram; }
+        }
+        """)]
+    [InlineData("""
+        package P {
+            view def V { render Views::asInterconnectionDiagram; }
+            view v { render Views::asTreeDiagram; }
+        }
+        """)]
+    [InlineData("""
+        package P {
+            view def V {
+                private import Views::*;
+                render asElementTable;
+            }
+        }
+        """)]
+    [InlineData("""
+        private import Views::*;
+        package P {
+            view def V { render asTreeDiagram; }
+        }
+        """)]
+    [InlineData("""
+        package P {
+            view def V { render asGridDiagram; }
+            view v1 { render asGeneralDiagram; }
+            view v2 { render asStateTransitionDiagram; }
+            view v3 { render asActionFlowDiagram; }
+            view v4 { render asSequenceDiagram; }
+        }
+        """)]
+    public async Task WorkspaceLoader_LoadAsync_ExpressionReferencesDeclared_NoUnresolvedWarning(string source)
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(source);
+
+        // Assert
+        Assert.DoesNotContain(
+            result.Diagnostics,
+            d => d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Operators, literals, <c>self</c>, library functions (invoked or called through
+    ///     <c>-&gt;</c>), selected members, named-argument names, and the names a body declares for
+    ///     itself are not references: guards and constraints built from them produce no
+    ///     "Unresolved reference" warning — the guard against flagging valid models.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_LibraryFunctionsAndOperatorsInExpressions_NoUnresolvedWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                private import ScalarValues::*;
+                state def S {
+                    in flag : Boolean;
+                    in count : Integer;
+                    in items : Integer[*];
+                    state a;
+                    state b;
+                    transition first a if flag and not (count > 2) or count == 0 xor false implies true then b;
+                    transition first b if items->size() > 0 and isEmpty(items) and items->forAll{in i : Integer; i > 0} then a;
+                    transition first a if self != null and items.size > 1 and count in 1..5 then b;
+                    transition first b if count >= 1 ? flag : true then a;
+                }
+                part def Vehicle {
+                    attribute items : Integer[*];
+                    constraint { items->size() > 0 and isEmpty(items) and items->forAll{in i : Integer; i > 0} implies true }
+                    constraint { self.items->isEmpty() or not (items->size() == 0) }
+                }
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(
+            result.Diagnostics,
+            d => d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     The same undeclared name written in two places is reported at each place — each
+    ///     occurrence is a separate thing to fix — at its own one-based line and column.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnresolvedExpressionReferenceTwice_ReportsEachOccurrence()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package P {\n    state def S {\n        state a;\n        state b;\n" +
+            "        transition first a if ghost then b;\n        transition first b if ghost then a;\n    }\n}\n");
+
+        // Assert
+        var positions = result.Diagnostics
+            .Where(d => d.Message == "Unresolved reference: 'ghost'")
+            .Select(d => (d.Line, d.Column))
+            .ToList();
+        Assert.Equal([(5, 31), (6, 31)], positions);
+    }
+
+    /// <summary>
+    ///     A parameter declared by a nested expression body (<c>forAll{ in i : T; ... }</c>) is
+    ///     local to it: it does not hide an undeclared <c>i</c> referenced outside that body, which
+    ///     is still reported — once, at the outer reference.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_NestedBodyParameter_DoesNotHideOuterReference()
+    {
+        // Arrange / Act: the outer `i` (line 5, col 22) is undeclared; the inner `i` is the lambda's own
+        var result = await LoadModelsAsync(
+            "package P {\n    private import ScalarValues::*;\n    part def V {\n        attribute items : Integer[*];\n" +
+            "        constraint { i > 0 and items->forAll{in i : Integer; i > 0} }\n    }\n}\n");
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Message == "Unresolved reference: 'i'");
+        Assert.Equal((5, 22), (diagnostic.Line, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     A transition's references are reported in source order — trigger, then guard, then
+    ///     effect — not in the order the builder happens to collect them.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TransitionTriggerGuardEffect_ReportedInSourceOrder()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package P {\n    state def S {\n        state a;\n        state b;\n" +
+            "        transition first a accept Sig if missingGuard do missingEffect then b;\n    }\n}\n");
+
+        // Assert: diagnostics in emission order
+        var names = result.Diagnostics
+            .Where(d => d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal))
+            .Select(d => d.Message["Unresolved reference: '".Length..^1])
+            .ToList();
+        Assert.Equal(["Sig", "missingGuard", "missingEffect"], names);
+    }
+
+    /// <summary>
+    ///     The references of a transition's trigger, guard and effect are captured on the node with
+    ///     their token positions, in source order, and exclude operators, literals, the payload's own
+    ///     name, library-function calls and member selections.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TransitionExpressions_CaptureReferenceOccurrences()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package P {\n    state def S {\n        state a;\n        state b;\n" +
+            "        transition first a accept sig : Sig via line if sig.x > count and not flag do beep then b;\n    }\n}\n");
+
+        // Assert
+        var transition = Assert.Single(
+            DefinitionAt(result, "P::S").Children.OfType<SysmlTransitionNode>(),
+            t => t.Source == "a");
+        Assert.Equal(
+            [
+                new ReferenceOccurrence("Sig", new SourcePosition(5, 41)),
+                new ReferenceOccurrence("line", new SourcePosition(5, 49)),
+                new ReferenceOccurrence("count", new SourcePosition(5, 65)),
+                new ReferenceOccurrence("flag", new SourcePosition(5, 79)),
+                new ReferenceOccurrence("beep", new SourcePosition(5, 87)),
+            ],
+            transition.ReferenceOccurrences.OrderBy(o => o.Position.Column));
+    }
+
+    /// <summary>
+    ///     A <c>rendering</c> usage is a declaration: the standard library's
+    ///     <c>Views::asTreeDiagram</c> exists, so a view's <c>render Views::asTreeDiagram;</c>
+    ///     resolves, and a user <c>rendering</c> usage is registered with its keyword.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RenderingUsage_IsDeclared()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("package P { rendering r : Views::GraphicalRendering; }");
+
+        // Assert
+        Assert.Contains("Views::asTreeDiagram", result.Workspace!.Declarations.Keys);
+        Assert.Equal("rendering", FeatureAt(result, "P::r").FeatureKeyword);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     The elevator state-machine gallery model, as originally written, names a signal type, a
+    ///     guard and an effect target that are not declared anywhere: each is reported — at the
+    ///     token's line and column, matching the OMG Pilot's own unresolved-reference errors — and the
+    ///     declared <c>dimLights</c>/<c>holdOpen</c>/<c>chime</c>/<c>sounder</c> actions are not.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ElevatorStateModel_ReportsUndeclaredNamesAtTokens()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package ElevatorController {
+
+                // An elevator control state machine.
+                state def ElevatorStates {
+                    state idle;
+                    accept callReceived if doorsClear do action dimLights then doorsClosing;
+                    state doorsOpening {
+                        entry action openDoors;
+                        do action holdOpen;
+                        exit action chime;
+                    }
+                    state doorsOpen;
+                    state doorsClosing {
+                        entry action sounder;
+                    }
+                    state movingUp;
+                    state movingDown;
+
+                    first start then idle;
+                    transition first doorsClosing if doorsClosed then movingUp;
+                    transition first movingUp if atFloor then doorsOpening;
+                    transition first movingDown if atFloor then doorsOpening;
+                    transition first doorsOpening if doorsAreOpen then doorsOpen;
+                    transition first doorsOpen accept timeout then doorsClosing;
+                    transition first doorsClosing if goingDown then movingDown;
+                    transition first doorsOpen accept shutdown then done;
+                }
+
+                view def ElevatorStateTransitionView {}
+            }
+            """);
+
+        // Assert
+        var reported = result.Diagnostics
+            .Where(d => d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal))
+            .OrderBy(d => d.Line).ThenBy(d => d.Column)
+            .Select(d => (d.Message["Unresolved reference: '".Length..^1], d.Line, d.Column))
+            .ToList();
+        Assert.Equal(
+            [
+                ("callReceived", 6, 16),
+                ("doorsClear", 6, 32),
+                ("doorsClosed", 20, 42),
+                ("atFloor", 21, 38),
+                ("atFloor", 22, 40),
+                ("doorsAreOpen", 23, 42),
+                ("timeout", 24, 43),
+                ("goingDown", 25, 42),
+                ("shutdown", 26, 43),
+            ],
+            reported);
     }
 }
 

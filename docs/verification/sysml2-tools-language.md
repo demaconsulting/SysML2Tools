@@ -20,6 +20,10 @@ SDK installation.
 - Invalid SysML syntax produces at least one `Error`-severity diagnostic.
 - `WorkspaceLoader` correctly registers qualified names from SysML packages and definitions.
 - Unresolved supertype references produce `Warning`-severity diagnostics.
+- An undeclared name in a transition guard, trigger, effect, an action-flow `accept`/`send`
+  node, a state action, a constraint expression, or a view's `render` target produces an
+  `Unresolved reference` `Warning` at the name's token (see the ReferenceResolver verification);
+  operators, literals, and library functions in those expressions are not reported.
 - References follow KerML 8.2.3.5 name resolution: a private (or protected) member is not
   reachable through a qualified name from another package, a filtered import
   (`import P::*[@X];`) admits only the elements its filter accepts, and an import applies only
