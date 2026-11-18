@@ -734,15 +734,15 @@ internal sealed class ReferenceResolver
         }
 
         // Transition source/target (an implied/omitted Source produces no edge — documented
-        // limitation, since there is nothing to walk a chain from). Source additionally falls
+        // limitation, since there is nothing to walk a chain from). Both ends additionally fall
         // back to TryResolveInheritedActionMember (see its doc comment) when the ordinary
-        // dotted-chain walk fails — this is the only reference kind allowed that fallback, since
-        // it exists specifically to resolve inherited pseudostate-like features (`start`/`done`)
-        // used as a transition's implicit initial source (e.g. `first start then off;`).
+        // dotted-chain walk fails — these are the only reference kinds allowed that fallback,
+        // since it exists specifically to resolve the inherited `start`/`done` pseudo-features
+        // (e.g. `first start then off;` and `then done;`).
         if (node is SysmlTransitionNode transition)
         {
-            var resolvedSource = ResolveTransitionSource(transition.Source, file, resolvedInFile, scope, node);
-            var resolvedTarget = ResolveFeatureChainSide(transition.Target, file, resolvedInFile, scope, node);
+            var resolvedSource = ResolveTransitionEnd(transition.Source, file, resolvedInFile, scope, node);
+            var resolvedTarget = ResolveTransitionEnd(transition.Target, file, resolvedInFile, scope, node);
 
             if (resolvedSource is not null && resolvedTarget is not null)
             {
@@ -793,50 +793,51 @@ internal sealed class ReferenceResolver
     }
 
     /// <summary>
-    ///     Resolves a <see cref="SysmlTransitionNode"/>'s <c>Source</c> side. Behaves exactly like
-    ///     <see cref="ResolveFeatureChainSide"/> (same diagnostic/deduplication behavior) except
-    ///     that, when the ordinary dotted-chain walk fails, it also tries
+    ///     Resolves one end (<c>Source</c> or <c>Target</c>) of a <see cref="SysmlTransitionNode"/>.
+    ///     Behaves exactly like <see cref="ResolveFeatureChainSide"/> (same diagnostic/deduplication
+    ///     behavior) except that, when the ordinary dotted-chain walk fails, it also tries
     ///     <see cref="TryResolveInheritedActionMember"/> before giving up — the narrow fallback
-    ///     that lets an implied initial-pseudostate transition (e.g. <c>first start then off;</c>)
-    ///     resolve <c>start</c>/<c>done</c>, inherited members that ordinary scope/import
-    ///     resolution can never see since they are not declared or imported anywhere in the
-    ///     referencing file. This fallback is deliberately scoped to Transition <c>Source</c> only
-    ///     — not <c>Target</c>, and not connection/binding endpoints — per ROADMAP.md's explicit
-    ///     instruction.
+    ///     that lets the standard <c>start</c> and <c>done</c> pseudo-features resolve on either end
+    ///     of a succession or transition (<c>first start then off;</c> and
+    ///     <c>then done;</c> / <c>transition first x accept e then done;</c>). They are inherited
+    ///     members that ordinary scope/import resolution can never see, since they are not declared
+    ///     or imported anywhere in the referencing file. This fallback is deliberately scoped to
+    ///     transition ends only — not connection/binding endpoints or any other reference kind.
     /// </summary>
-    private string? ResolveTransitionSource(
-        string? source,
+    private string? ResolveTransitionEnd(
+        string? end,
         LoadedFile file,
         HashSet<string> resolvedInFile,
         string? scope,
         SysmlNode owner)
     {
-        if (source is not { Length: > 0 })
+        if (end is not { Length: > 0 })
         {
             return null;
         }
 
-        if (TryResolveFeatureChain(source, scope, file.RootImports, out var resolved))
+        if (TryResolveFeatureChain(end, scope, file.RootImports, out var resolved))
         {
             return resolved;
         }
 
-        if (TryResolveInheritedActionMember(scope, source, out var inherited))
+        if (TryResolveInheritedActionMember(scope, end, out var inherited))
         {
             return inherited;
         }
 
-        ReportUnresolved(source, file.FilePath, resolvedInFile, owner);
+        ReportUnresolved(end, file.FilePath, resolvedInFile, owner);
         return null;
     }
 
     /// <summary>
-    ///     Narrow fallback for resolving a Transition <c>Source</c> that names a member inherited
-    ///     from the enclosing state/action's type or ancestor chain, rather than declared/imported
-    ///     directly — the shape needed for real SysML v2 initial-pseudostate/entry-action idioms
-    ///     like <c>first start then off;</c>, where <c>start</c> is a real feature every state
-    ///     definition/usage inherits from <c>Actions::Action</c>
-    ///     (<c>action start: Action :&gt;&gt; startShot</c>), not a special keyword.
+    ///     Narrow fallback for resolving a Transition <c>Source</c> or <c>Target</c> that names a
+    ///     member inherited from the enclosing state/action's type or ancestor chain, rather than
+    ///     declared/imported directly — the shape needed for real SysML v2 initial-pseudostate and
+    ///     completion idioms like <c>first start then off;</c> and <c>then done;</c>, where
+    ///     <c>start</c>/<c>done</c> are real features every action and state inherits from
+    ///     <c>Actions::Action</c> (SysML v2.0 Systems Library, <c>Action::start</c>/<c>Action::done</c>; a
+    ///     state is an Action via <c>States::StateAction</c>), not special keywords.
     ///     <para/>
     ///     Resolution order: (1) if the enclosing node (the current <paramref name="scope"/>)
     ///     has a resolved <see cref="SysmlEdgeKind.Typing"/> edge (e.g. a

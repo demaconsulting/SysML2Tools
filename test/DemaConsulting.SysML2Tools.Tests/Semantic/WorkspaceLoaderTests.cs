@@ -7298,6 +7298,105 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A succession target <c>then done;</c> in an action body, and a transition target
+    ///     <c>then done</c> in a state body, resolve <c>done</c> to the standard library's
+    ///     <c>Actions::Action::done</c> with no "Unresolved reference" diagnostic.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DoneTarget_ResolvesToStdlibActionMember()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def A {
+                    first start;
+                    then step;
+                    action step;
+                    then done;
+                }
+                state def S {
+                    entry; then idle;
+                    state idle;
+                    transition first idle then done;
+                }
+            }
+            """);
+
+        // Assert: neither pseudo-feature is reported, and both completion edges reach Action::done
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference", StringComparison.Ordinal));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "P::A::step", "Actions::Action::done"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "P::S::idle", "Actions::Action::done"));
+    }
+
+    /// <summary>
+    ///     <c>first start then x;</c> and the bare <c>first start;</c> resolve <c>start</c> to the
+    ///     standard library's <c>Actions::Action::start</c> in an action body with no diagnostic.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_StartSource_InActionBody_ResolvesToStdlibActionMember()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def A {
+                    first start then step;
+                    action step;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference", StringComparison.Ordinal));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "Actions::Action::start", "P::A::step"));
+    }
+
+    /// <summary>
+    ///     The <c>start</c>/<c>done</c> fallback does not hide real mistakes: a succession target
+    ///     that names nothing still produces an "Unresolved reference" warning, while the
+    ///     <c>done</c> in the same body does not.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnknownSuccessionTarget_StillWarnsButDoneDoesNot()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def A {
+                    first start;
+                    then missing;
+                    then done;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Contains(result.Diagnostics, d => d.Message == "Unresolved reference: 'missing'");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message == "Unresolved reference: 'done'");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message == "Unresolved reference: 'start'");
+    }
+
+    /// <summary>
+    ///     A name <c>done</c> used as a succession target outside a state or action (here a part
+    ///     definition) is not given the pseudo-feature fallback and is still reported.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DoneTarget_OutsideActionOrState_StillWarns()
+    {
+        // Arrange / Act: a succession inside a part def is not an action body
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Q {
+                    action step;
+                    first step then done;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Contains(result.Diagnostics, d => d.Message == "Unresolved reference: 'done'");
+    }
+
+    /// <summary>
     ///     A user package named like a standard-library package (<c>Parts</c>) contributes
     ///     user-origin members: its own members are not in <see cref="SysmlWorkspace.StdlibNames"/>
     ///     (which holds exactly the embedded seed's qualified names), while real standard-library

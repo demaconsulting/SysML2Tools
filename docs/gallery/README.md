@@ -159,9 +159,8 @@ of a standalone `transition` statement, and shows a full `trigger [guard] / effe
 `doorsOpen` → `doorsClosing` transition is a plain `accept timeout` trigger, drawn as a back edge
 that ends in a flush open chevron.
 
-The model's `then done;` produces one lint warning, `Unresolved reference: 'done'`: the reference
-resolver resolves the inherited `start`/`done` names only as a transition *source*. The diagram is
-unaffected. Composite (nested) states are not drawn yet; see the roadmap.
+The model's `then done;` resolves `done` to the standard library's `Actions::Action::done` and
+reports no lint warning. Composite (nested) states are not drawn yet; see the roadmap.
 
 Model: [`models/03-elevator-state.sysml`](models/03-elevator-state.sysml) ·
 SVG: [`svg/ElevatorStateTransitionView.svg`](svg/ElevatorStateTransitionView.svg)
@@ -186,7 +185,7 @@ or `else`; the `else` branch ends in the crossed-circle terminate node `abort`. 
 uses the compact `action checkout; then restoreDependencies;` idiom instead of a standalone
 `first ... then ...;` succession statement.
 
-The model's `then done;` produces one lint warning, `Unresolved reference: 'done'` (see section 3).
+The model's `then done;` reports no lint warning (see section 3).
 
 Model: [`models/04-pipeline-action-flow.sysml`](models/04-pipeline-action-flow.sysml) ·
 SVG: [`svg/PipelineActionFlowView.svg`](svg/PipelineActionFlowView.svg)
@@ -416,8 +415,7 @@ SVG: [`svg/VehiclePackagesGeneralView.svg`](svg/VehiclePackagesGeneralView.svg)
 A deliberately small state machine that shows the state notation on its own: `standby` lists an
 `entry` action, `heating` lists `entry`, `do`, and `exit` actions in compartments titled with the
 keyword, `heat [tempLow] / beep` is a full `trigger [guard] / effect` label, `cooled` is a back
-edge into `standby`, and the machine starts at an initial state and ends in a final state. The
-model's `then done;` produces one lint warning (see section 3).
+edge into `standby`, and the machine starts at an initial state and ends in a final state.
 
 Model: [`models/12-heater-state.sysml`](models/12-heater-state.sysml) ·
 SVG: [`svg/HeaterStateView.svg`](svg/HeaterStateView.svg)
@@ -431,8 +429,7 @@ SVG: [`svg/HeaterStateView.svg`](svg/HeaterStateView.svg)
 A deliberately small action flow that shows the action-flow notation on its own: a start node,
 `receive` as an accept action, a decision (a diamond) that branches on `[inStock]` or `else`, a
 fork and a join drawn as thick bars, `ship` as a send action, a done node after `ship`, and a
-crossed-circle terminate node after `reject`. The model's `then done;` produces one lint warning
-(see section 3).
+crossed-circle terminate node after `reject`.
 
 Model: [`models/13-order-action-flow.sysml`](models/13-order-action-flow.sysml) ·
 SVG: [`svg/OrderActionFlowView.svg`](svg/OrderActionFlowView.svg)
