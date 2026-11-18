@@ -18,9 +18,11 @@ subsystem contains one unit: `LintCommand`.
 - *Contract*: `internal static async Task RunAsync(Context context)` — reads
   `context.Lint!.Files` (the list of glob patterns supplied as positional CLI arguments,
   parsed by `LintArgumentParser` and exposed via `context.Lint`), resolves them to file
-  paths via `GlobFileCollector.Collect`, awaits `WorkspaceLoader.LoadAsync`, writes each
+  paths via `GlobFileCollector.Collect`, awaits
+  `WorkspaceLoader.LoadAsync(files, stdlibTable, options.StrictUnresolved)`, writes each
   diagnostic, and calls `context.WriteError` if any error-severity diagnostics were found
-  (which sets exit code 1).
+  (which sets exit code 1). Unresolved references are warning-severity diagnostics unless
+  `--strict-unresolved` was supplied, in which case they are errors.
 - *Constraints*: If no file patterns were supplied at all, writes a "no input files specified"
   error message and returns immediately without invoking the loader. If one or more patterns
   were supplied but none resolve to any file, writes a distinct "no files matched" error
@@ -32,8 +34,9 @@ subsystem contains one unit: `LintCommand`.
 
 `RunAsync` reads its options from `context.Lint`, a `LintOptions` instance populated by
 `Cli.LintArgumentParser` when `Context.Create` dispatches to the `lint` command. `lint`
-recognizes no flags of its own; every argument after the `lint` command token is a file glob
-pattern, and `LintArgumentParser` rejects any `-`-prefixed token (e.g., `lint --auto file.sysml`)
+recognizes one flag of its own, the boolean `--strict-unresolved` (`LintOptions.StrictUnresolved`,
+default `false`); every other argument after the `lint` command token is a file glob
+pattern, and `LintArgumentParser` rejects any other `-`-prefixed token (e.g., `lint --auto file.sysml`)
 with `ArgumentException($"Unsupported argument '{arg}' for the 'lint' command.")` — flags that
 belong to `render` or `query` are never silently accepted by `lint`.
 
@@ -50,10 +53,19 @@ distinct `"lint: no files matched the given pattern(s)."` error and returns — 
 and "patterns supplied but none matched".
 
 Otherwise it logs a `"Linting N file(s)..."` status line, awaits
-`WorkspaceLoader.LoadAsync(files, stdlibTable)`, then iterates over `result.Diagnostics`.
+`WorkspaceLoader.LoadAsync(files, stdlibTable, options.StrictUnresolved)`, then iterates over
+`result.Diagnostics`.
 Error-severity diagnostics are written via `context.WriteError`; all others via
 `context.WriteLine`. After reporting all diagnostics it writes either a summary error count
 (via `context.WriteError`) or a `"lint: no errors found."` message (via `context.WriteLine`).
+
+Because unresolved references are Warnings by default, `lint` exits 0 for a model whose only
+problems are unresolved references (every reference kind: supertype, typing, import, `expose`,
+connector endpoints, transitions, guards, `render` targets, and so on). With `--strict-unresolved`
+they are Errors and `lint` exits 1. The strict mode is opt-in while name resolution still has known
+gaps (see the `WorkspaceLoader` design, "Unresolved-Reference Severity Policy"). Circular imports,
+cyclic specialization, and the portability warning for SysML2Tools extension `render` selectors
+(`asGeneralDiagram`, ...) are always warnings and never affect the exit code.
 
 The diagnostic output format is produced by the shared `DiagnosticFormatter.Format`
 (`DemaConsulting.SysML2Tools.Utilities`, see `docs/design/sysml2-tools-tool/utilities/diagnostic-formatter.md`),
@@ -65,8 +77,10 @@ and the column is one-based. For an unresolved reference the position is that of
 text as written, or of the owning declaration when the text was not located (see the
 `ReferenceResolver` design).
 
-`LintCommand.PrintHelp(Context context)` prints `lint`'s usage line and a note that it accepts
-no flags of its own. This is the single source of truth for both `lint --help` (dispatched from
+`LintCommand.PrintHelp(Context context)` prints `lint`'s usage line (`lint [--strict-unresolved]
+<files...>`), a description (syntax errors are errors and give a non-zero exit code; unresolved
+references, circular imports, and tool-specific render selectors are warnings), and an Options
+section listing `--strict-unresolved`. This is the single source of truth for both `lint --help` (dispatched from
 `Program.RunAsync`'s command-aware help block) and `help lint` (dispatched from
 `Help.HelpCommand.Run`); neither entry point duplicates the help text. Every line printed by
 `PrintHelp` is sourced from `LintStrings`, a hand-written, culture-aware `ResourceManager`

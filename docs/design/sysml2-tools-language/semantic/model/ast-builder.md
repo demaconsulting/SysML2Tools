@@ -444,7 +444,7 @@ and `calc` usage builders, so a `requirement r : R;` keeps `R` as its `FeatureTy
 resolver records the `Typing` edge that the General view draws as a `r : R` label and a
 feature-typing edge (#113). Redefinition and subsetting clauses of these usages are deliberately
 not captured: resolving them needs the implicit specialization of actions, states and
-requirements (#93), and capturing them now would only add unresolved-reference warnings for valid
+requirements (#93), and capturing them now would only add unresolved-reference diagnostics for valid
 models. The case-kind and `calc` usage builders (`BuildCaseUsageNode`,
 `VisitCalculationUsage`) mirror the definition-side builders: they capture the name, the
 typing and multiplicity and (for the case kinds) the nested verified-requirement names, but do not
@@ -593,8 +593,9 @@ State Transition View precedent: anonymous fork/decide/send is the *dominant* re
 the OMG training corpus (e.g. `then fork;` immediately followed by several `then` successions),
 so leaving these nodes nameless would make it impossible to wire their successions or render a
 distinct badge for them. The synthetic name is never registered in the symbol table
-(`QualifiedName` stays `null`, so `$`-prefixed names never resolve and surface only as cosmetic
-"unresolved reference" warnings) and is blanked from rendered labels by
+(`QualifiedName` stays `null`, so `$`-prefixed names never resolve and, when written by a model,
+surface as "unresolved reference" diagnostics — a Warning by default, an Error with
+`strictUnresolved`) and is blanked from rendered labels by
 `ActionFlowViewLayoutStrategy`; it exists purely as an internal succession-wiring mechanism. When
 the control node instead has an *explicitly declared* name (e.g. `fork buildFork;`), it is treated
 like any other named feature: `QualifiedName` is populated via the same `QualifyName` helper used
@@ -711,7 +712,7 @@ The walk records exactly these reference forms: a feature reference in an expres
 `baseExpression` that is a bare qualified name), a `typeReference` (`as T`, `is`-type tests, `@T`,
 `new T(...)`), and the typing, subsetting, and reference-subsetting targets of a declaration
 (`accept sig : Sig`, `do beep`, `entry action a : T`). Everything that is *not* a feature
-reference is skipped, which is what keeps valid models free of false warnings:
+reference is skipped, which is what keeps valid models free of false diagnostics:
 
 - operators and literals (tokens, never names);
 - the function of an invocation (`f(x)`, `isEmpty(x)`) and of an arrow call (`c->size()`,
@@ -736,11 +737,12 @@ The roots collected per construct: a transition's guard expression, trigger and 
 an `accept` node's declaration (`AcceptDeclarationOccurrences`); a `send` node's declaration and
 operands; a state `entry`/`do`/`exit` action's declaration alternatives; a constraint body or the
 reference form of a requirement constraint; and, for a view, every `render` member
-(`ExtractRenderOccurrences`: the direct reference, or the typing of the placeholder form, minus
-the tool-defined selectors `asGeneralDiagram`, `asStateTransitionDiagram`, `asActionFlowDiagram`,
-`asSequenceDiagram` and `asGridDiagram` — the `DiagramTypeRouter` tokens beyond the Views library,
-which no model can declare; the list is repeated in `ToolDefinedRenderTargets` because the
-Language library cannot reference Core).
+(`ExtractRenderOccurrences`: the direct reference, or the typing of the placeholder form). The five
+SysML2Tools extension selectors (`asGeneralDiagram`, `asStateTransitionDiagram`,
+`asActionFlowDiagram`, `asSequenceDiagram`, `asGridDiagram`) are **not** dropped: they stay in
+`ReferenceOccurrences`, and `ReferenceResolver` accepts them with a portability Warning (see its
+design) instead of treating them as unresolved. The AST therefore holds no copy of the selector
+list.
 
 Two declarations were added so that these references can resolve: `VisitRenderingUsage` builds a
 `rendering` usage (keyword `rendering`) so the Views library's `rendering asTreeDiagram : …`

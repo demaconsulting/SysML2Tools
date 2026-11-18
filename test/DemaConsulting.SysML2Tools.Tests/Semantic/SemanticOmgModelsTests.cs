@@ -64,4 +64,97 @@ public sealed class SemanticOmgModelsTests
             Assert.Fail($"Expected zero errors but got {errors.Count}:\n{messages}");
         }
     }
+
+    /// <summary>
+    ///     The custom and test-case model fixtures load with zero diagnostics of any severity,
+    ///     both by default and in strict unresolved-reference mode.
+    /// </summary>
+    /// <param name="strict">Whether strict unresolved-reference mode is enabled.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CustomAndTestCaseModels_AllModels_LoadWithZeroDiagnostics(bool strict)
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var sysmlFiles = new[] { "Custom", "TestCases" }
+            .Select(folder => Path.Combine(modelsRoot, folder))
+            .Where(Directory.Exists)
+            .SelectMany(folder => Directory.GetFiles(folder, "*.sysml", SearchOption.AllDirectories))
+            .ToArray();
+        if (sysmlFiles.Length == 0)
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync(sysmlFiles, stdlibTable, strict);
+
+        // Assert
+        if (result.Diagnostics.Count > 0)
+        {
+            var messages = string.Join(
+                "\n",
+                result.Diagnostics.Select(d => $"  {d.FilePath}({d.Line},{d.Column}): {d.Severity}: {d.Message}"));
+            Assert.Fail($"Expected zero diagnostics but got {result.Diagnostics.Count}:\n{messages}");
+        }
+    }
+
+    /// <summary>
+    ///     In strict mode the OMG corpus reports its known unresolved references (resolver gaps)
+    ///     as Errors; the count must never grow beyond the recorded baseline. Lower the baseline
+    ///     whenever resolver gaps are closed. The default run reports none of them as Errors.
+    /// </summary>
+    [Fact]
+    public async Task SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline()
+    {
+        // Arrange
+        const int baseline = 161;
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var omgRoot = Path.Combine(modelsRoot, "OMG");
+        if (!Directory.Exists(omgRoot))
+        {
+            return;
+        }
+
+        var sysmlFiles = Directory.GetFiles(omgRoot, "*.sysml", SearchOption.AllDirectories);
+        if (sysmlFiles.Length == 0)
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var strictResult = await WorkspaceLoader.LoadAsync(sysmlFiles, stdlibTable, strictUnresolved: true);
+        var defaultResult = await WorkspaceLoader.LoadAsync(sysmlFiles, stdlibTable);
+
+        // Assert — in strict mode every unresolved reference is an Error, and there are no more
+        // than the baseline
+        var unresolved = strictResult.Diagnostics
+            .Where(d => d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal))
+            .ToList();
+        Assert.All(
+            unresolved,
+            d => Assert.Equal(DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Error, d.Severity));
+        Assert.True(
+            unresolved.Count <= baseline,
+            $"Expected at most {baseline} unresolved references in the OMG corpus but got {unresolved.Count}.");
+
+        // Assert — by default none of them is an Error
+        Assert.DoesNotContain(
+            defaultResult.Diagnostics,
+            d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Error &&
+                 d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal));
+    }
 }

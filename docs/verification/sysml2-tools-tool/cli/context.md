@@ -17,6 +17,9 @@ N/A - standard test environment.
 - All flag properties are correctly set for each recognized argument.
 - `ArgumentException` is thrown for all unknown or malformed arguments.
 - `ExitCode` is 1 after `WriteError` is called and 0 otherwise.
+- The boolean `--strict-unresolved` option is parsed for `lint`, `render`, `export`, and
+  `query` (defaulting to false) and is rejected for `help`; any other spelling of an
+  unresolved-reference option is rejected as an unsupported argument.
 - Silent mode suppresses console output but does not affect the log file.
 
 #### Test Scenarios
@@ -282,3 +285,44 @@ called with `["help", "bogus-command"]`; an `ArgumentException` containing
 called with `["help", "query", "bogus-verb"]`; an `ArgumentException` containing
 `"bogus-verb"` is thrown (reusing `QueryVerbParsing.Parse`'s error message). This scenario is
 tested by `Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException`.
+
+**Context_Create_LintCommand_WithStrictUnresolved_SetsStrictUnresolved** /
+**Context_Create_LintCommand_WithoutStrictUnresolved_DefaultsFalse**: `Context.Create` is called
+with `["lint", "--strict-unresolved", "a.sysml"]` and `["lint", "a.sysml"]`;
+`Lint.StrictUnresolved` is true (with `Lint.Files` equal to `["a.sysml"]`) and false
+respectively. These scenarios are tested by
+`Context_Create_LintCommand_WithStrictUnresolved_SetsStrictUnresolved` and
+`Context_Create_LintCommand_WithoutStrictUnresolved_DefaultsFalse`.
+
+**Context_Create_RenderCommand_WithStrictUnresolved_SetsStrictUnresolved** /
+**Context_Create_RenderCommand_WithoutStrictUnresolved_DefaultsFalse** /
+**Context_Create_ExportCommand_WithStrictUnresolved_SetsStrictUnresolved** /
+**Context_Create_ExportCommand_WithoutStrictUnresolved_DefaultsFalse**: `Context.Create` is
+called with `["render", "--strict-unresolved", "a.sysml"]` / `["render", "a.sysml"]` and
+`["export", "--strict-unresolved", "a.sysml"]` / `["export", "a.sysml"]`;
+`Render.StrictUnresolved` / `Export.StrictUnresolved` is true when the flag is given (with the
+file list holding `"a.sysml"`) and false when it is absent. These scenarios are tested by
+`Context_Create_RenderCommand_WithStrictUnresolved_SetsStrictUnresolved`,
+`Context_Create_RenderCommand_WithoutStrictUnresolved_DefaultsFalse`,
+`Context_Create_ExportCommand_WithStrictUnresolved_SetsStrictUnresolved`, and
+`Context_Create_ExportCommand_WithoutStrictUnresolved_DefaultsFalse`.
+
+**Context_Create_QueryCommand_WithStrictUnresolved_SetsQueryStrictUnresolved** /
+**Context_Create_QueryCommand_WithoutStrictUnresolved_DefaultsFalse**: `Context.Create` is
+called with `["query", "list", "--strict-unresolved", "a.sysml"]` and
+`["query", "list", "a.sysml"]`; `Context.QueryStrictUnresolved` is true and false respectively,
+`Query` is populated by Core's unchanged parser, and `QueryFiles` equals `["a.sysml"]` for the
+first. These scenarios are tested by
+`Context_Create_QueryCommand_WithStrictUnresolved_SetsQueryStrictUnresolved` and
+`Context_Create_QueryCommand_WithoutStrictUnresolved_DefaultsFalse`.
+
+**Context_Create_HelpCommand_StrictUnresolvedFlag_ThrowsArgumentException**: `Context.Create` is
+called with `["help", "--strict-unresolved"]`; an `ArgumentException` is thrown because the flag
+is out of scope for `help`. This scenario is tested by
+`Context_Create_HelpCommand_StrictUnresolvedFlag_ThrowsArgumentException`.
+
+**Context_Create_WarnUnresolvedFlag_ThrowsArgumentException**: `Context.Create` is called for
+each of `lint`, `render`, `export`, and `query` with the former opt-out spelling of the
+unresolved-reference option; an `ArgumentException` naming the option is thrown
+because it is no longer supported. This scenario is tested by
+`Context_Create_WarnUnresolvedFlag_ThrowsArgumentException`.

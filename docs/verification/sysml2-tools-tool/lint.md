@@ -26,9 +26,22 @@ temporary directory and clean them up after each test.
   returns exit code 0.
 - `LintCommand.RunAsync` with invalid SysML input writes at least one diagnostic in the
   `path(line,col): severity: message` format and sets exit code 1.
-- Error-severity diagnostics are written via `context.WriteError`; informational diagnostics
-  are written via `context.WriteLine`.
-- `lint --help` prints lint-specific usage (not the generic top-level command list), and is
+- Error-severity diagnostics are written via `context.WriteError`; informational and
+  warning-severity diagnostics are written via `context.WriteLine`.
+- An unresolved reference in a user file is a Warning-severity diagnostic by default: it is
+  written via `context.WriteLine` and `lint` exits 0 when nothing else is wrong; with
+  `--strict-unresolved` the same diagnostic is an Error, written via `context.WriteError`, and
+  `lint` exits 1. Strict mode promotes only unresolved references: other warnings such as a
+  circular import stay warnings, and a reference into the standard library produces no
+  diagnostic.
+- A SysML2Tools extension `render` selector the model does not declare (`asGridDiagram`,
+  `asGeneralDiagram`, …) produces one portability Warning at the token, never an Error and
+  independent of `--strict-unresolved`; the standard selectors (`Views::asTreeDiagram`,
+  `Views::asInterconnectionDiagram`) produce no diagnostic.
+- Every model in `docs/gallery/models` lints with no diagnostics and exit code 0, with and
+  without `--strict-unresolved`.
+- `lint --help` prints lint-specific usage (`lint [--strict-unresolved] <files...>`) that
+  describes the warning default and the `--strict-unresolved` option, and is
   identical to `help lint`'s output (see the Help subsystem verification document).
 
 ### Test Scenarios
@@ -45,13 +58,77 @@ failing exit code — distinguishing this case from "no patterns supplied at all
 Verifies that linting a model with an unresolved supertype reference (`part def X :>
 DoesNotExist;`, written at line 2, column 19) writes `<file>(2,19): warning: Unresolved
 reference: 'DoesNotExist'` — located at the reference text rather than at `(0,0)`. Satisfies
+`SysML2Tools-Tool-Lint-Report` and `SysML2Tools-Tool-Lint-StrictUnresolved`.
+
+#### LintSubsystem_Report_UnresolvedExpressionReferences_ReportsTokenPositionsAsWarnings (LintSubsystemTests.cs)
+
+Verifies that an undeclared name in a transition guard, a trigger payload, and a `render`
+target is written as a `warning:` at the token's position, while a declared name, an operator,
+and a library-function call are not reported, and the exit code is 0. Satisfies
 `SysML2Tools-Tool-Lint-Report`.
+
+#### LintSubsystem_UnresolvedReference_ReportsWarningAndExitsZero (LintSubsystemTests.cs)
+
+Verifies that linting a model with an unresolved supertype reference writes the `warning:`
+line to the output, writes nothing containing "error" to the error stream, and leaves the exit
+code at 0. Satisfies `SysML2Tools-Tool-Lint-ExitCode` and `SysML2Tools-Tool-Lint-StrictUnresolved`.
+
+#### LintSubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorAndExitsOne (LintSubsystemTests.cs)
+
+Verifies that `lint --strict-unresolved` writes the same diagnostic as `error:` at the same
+position to the error stream, writes `lint: 1 error(s) found.`, writes no warning to the
+output, and exits 1. Satisfies `SysML2Tools-Tool-Lint-StrictUnresolved`.
+
+#### LintSubsystem_StrictUnresolved_CircularImport_RemainsWarning (LintSubsystemTests.cs)
+
+Verifies that under `--strict-unresolved` a circular import is still reported as a `warning:`
+and the exit code stays 0, so only unresolved references are promoted. Satisfies
+`SysML2Tools-Tool-Lint-StrictUnresolved`.
+
+#### LintSubsystem_StrictUnresolved_StandardLibraryReference_NoDiagnostics (LintSubsystemTests.cs)
+
+Verifies that a reference into the bundled standard library (`ScalarValues::Real`) produces no
+diagnostic under `--strict-unresolved`, reports "no errors found", and exits 0. Satisfies
+`SysML2Tools-Tool-Lint-StrictUnresolved`.
+
+#### LintSubsystem_Report_ToolRenderSelector_WritesPortabilityWarningAtToken (LintSubsystemTests.cs)
+
+Verifies that `render asGridDiagram;` without a declaration writes exactly one `warning:` at
+the token (line 2, column 21) stating that the selector is a SysML2Tools extension and naming
+`StandardViewDefinitions::GridView`, and the exit code is 0. Satisfies
+`SysML2Tools-Tool-Lint-PortabilityWarning`.
+
+#### LintSubsystem_StrictUnresolved_ToolRenderSelector_RemainsWarning (LintSubsystemTests.cs)
+
+Verifies that the same portability warning is still a `warning:` under `--strict-unresolved`,
+nothing is written to the error stream, and the exit code is 0. Satisfies
+`SysML2Tools-Tool-Lint-PortabilityWarning`.
+
+#### LintSubsystem_Report_StandardRenderSelectors_NoDiagnostics (LintSubsystemTests.cs)
+
+Verifies that `Views::asTreeDiagram` and `Views::asInterconnectionDiagram` render targets
+produce no diagnostic and `lint` reports "no errors found". Satisfies
+`SysML2Tools-Tool-Lint-PortabilityWarning`.
+
+#### LintSubsystem_Gallery_AllModels_NoDiagnosticsExitZero (LintSubsystemTests.cs)
+
+Verifies that every `.sysml` model in `docs/gallery/models` lints with no diagnostic line on
+either stream and exit code 0. Satisfies `SysML2Tools-Tool-Lint-ExitCode`.
+
+#### LintSubsystem_Gallery_StrictUnresolved_AllModels_NoDiagnosticsExitZero (LintSubsystemTests.cs)
+
+Verifies that every `.sysml` model in `docs/gallery/models` also lints with no diagnostic line
+on either stream and exit code 0 under `--strict-unresolved`. Satisfies
+`SysML2Tools-Tool-Lint-StrictUnresolved`.
 
 #### LintSubsystem_Help_PrintsLintSpecificUsage (LintSubsystemTests.cs)
 
-Verifies that `lint --help` prints the lint-specific usage line and does not print the
-generic top-level `"Commands:"` section — a regression-proofing test added alongside the
-`help` command's command-aware `--help` dispatch (see `docs/design/sysml2-tools-tool/help.md`).
+Verifies that `lint --help` prints the lint-specific usage line
+(`Usage: sysml2tools lint [--strict-unresolved] <files...>`), lists `--strict-unresolved`, and
+does not print the generic top-level `"Commands:"` section — a regression-proofing test added
+alongside the `help` command's command-aware `--help` dispatch (see
+`docs/design/sysml2-tools-tool/help.md`). Satisfies
+`SysML2Tools-Tool-Lint-StrictUnresolved`.
 
 #### LintSubsystem_Patterns_RecursiveGlob_ResolvesNestedFiles (LintSubsystemTests.cs)
 

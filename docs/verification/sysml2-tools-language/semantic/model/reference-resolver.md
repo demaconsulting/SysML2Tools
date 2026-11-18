@@ -5,7 +5,8 @@
 `ReferenceResolver` is an internal class verified indirectly through `WorkspaceLoaderTests`.
 Tests construct files with deliberate unresolved supertype, feature-typing, and import
 references and circular import declarations, then call `WorkspaceLoader.LoadAsync` and assert
-that the returned diagnostics contain the expected Warning entries and that
+that the returned diagnostics contain the expected Warning entries (Error entries with
+`strictUnresolved`) and that
 `SysmlWorkspace.Index` contains the expected resolved `SysmlEdge` entries. The absence of an
 infinite loop is verified implicitly by test completion within the xUnit v3 timeout.
 
@@ -18,7 +19,13 @@ external services or additional configuration are required beyond a standard .NE
 ##### Acceptance Criteria
 
 - An unresolved supertype name produces exactly one `Warning`-severity diagnostic per file
-  containing that name.
+  containing that name; with `strictUnresolved: true` the same diagnostic (same message and
+  position) is an `Error`. The default severity is `Warning`
+  (`WorkspaceLoader.DefaultUserUnresolvedSeverity`). The standard library seed is never re-resolved
+  at load time and adds no diagnostics, and the StdlibGen tool, which compiles the library,
+  reports its unresolved references as Warnings.
+- A circular import or cyclic specialization remains a `Warning` with `strictUnresolved` either
+  way.
 - A circular import chain between two files produces a `Warning`-severity diagnostic and
   `LoadAsync` returns (does not hang).
 - A resolved supertype name (registered in `SymbolTable`) produces no Warning diagnostic and
@@ -43,9 +50,20 @@ external services or additional configuration are required beyond a standard .NE
   written twice is reported twice) and with no edge; one that resolves (a declared feature, a
   bare `in` parameter, a named `accept` payload used in its own guard, a body's own parameters)
   produces nothing. Operators, literals, `self`, library functions (`size(…)`, `isEmpty(…)`,
-  `->forAll{…}`), selected members, and named-argument names are never reported. The
-  tool-defined `render` selectors (`asGridDiagram`, `asGeneralDiagram`, …) resolve without an
-  import.
+  `->forAll{…}`), selected members, and named-argument names are never reported.
+- A view's `render` target naming a SysML2Tools extension selector (`asGeneralDiagram`,
+  `asStateTransitionDiagram`, `asActionFlowDiagram`, `asSequenceDiagram`, `asGridDiagram`) that
+  does not resolve to a declaration produces exactly one `Warning` at the token — never an
+  `Error`, and unchanged by `strictUnresolved` — reading `'asGeneralDiagram' is a SysML2Tools
+  extension, not a standard SysML v2 rendering; the model will not validate in other tools. Use
+  a standard view definition instead (e.g. 'view v : StandardViewDefinitions::GeneralView').`
+  Each occurrence is reported. The standard selectors (`Views::asTreeDiagram`,
+  `Views::asInterconnectionDiagram`, `asElementTable`, `asTextualNotation`, in qualified,
+  imported, or bare form) produce no diagnostic; a selector the model declares itself
+  (`rendering asGridDiagram`) resolves normally with no warning; and the qualified
+  `Views::asGeneralDiagram` is an ordinary unresolved reference because `Views` has no such
+  member, an `Error` with `strictUnresolved`
+  (`WorkspaceLoader_LoadAsync_ToolRenderSelectorQualifiedWithStrictUnresolved_ReportsUnresolvedErrorNotPortability`).
 - A resolved feature redefinition reference (`redefines X;` / `:>> X`) is recorded as a
   `Redefinition`-kind `SysmlEdge`; an unresolved one produces a Warning diagnostic naming the
   unresolved identifier and no edge. A redefinition never resolves to the redefining feature
@@ -108,6 +126,23 @@ external services or additional configuration are required beyond a standard .NE
 | Position names the referencing file | `WorkspaceLoader_LoadAsync_UnresolvedReferencesInTwoFiles_ReportEachFilePath` |
 | Circular import file and position | `WorkspaceLoader_LoadAsync_CircularImport_ReportsFileAndPosition` |
 | Unresolved supertype reference | `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` |
+| `strictUnresolved` — Errors | `WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors` |
+| Expression Warning | `WorkspaceLoader_LoadAsync_UnresolvedExpressionReference_ProducesWarningAtToken` |
+| Strict expression | `WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedExpressionReference_ProducesErrorAtToken` |
+| Default severity is Warning | `WorkspaceLoader_DefaultUnresolvedSeverity_IsWarning` |
+| Warning resolver severity | `ReferenceResolver_ResolveAll_WarningSeverity_UnresolvedReferenceIsWarning` |
+| Cycle diagnostics stay Warnings | `WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings` |
+| Stdlib references, no diagnostics | `WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics` |
+| Stdlib compile stays Warning | `GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings` |
+| Valid custom and test-case models load clean | `CustomAndTestCaseModels_AllModels_LoadWithZeroDiagnostics` |
+| OMG corpus within baseline (strict) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
+| Selector Warning at token | `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` |
+| Standard selectors — no diagnostic | `WorkspaceLoader_LoadAsync_StandardRenderSelectors_ProduceNoDiagnostics` |
+| Selector + strict | `WorkspaceLoader_LoadAsync_ToolRenderSelectorWithStrictUnresolved_StillOnlyPortabilityWarning` |
+| Tool selector used twice — each reported | `WorkspaceLoader_LoadAsync_ToolRenderSelectorTwice_ReportsEachOccurrence` |
+| User-declared selector | `WorkspaceLoader_LoadAsync_ToolRenderSelectorUserDeclaredRendering_NoPortabilityWarning` |
+| Qualified selector | `WorkspaceLoader_LoadAsync_ToolRenderSelectorQualified_ReportsUnresolvedNotPortability` |
+| Five selectors | `WorkspaceLoader_LoadAsync_ToolRenderSelectorsDeclared_NoUnresolvedWarningOnlyPortabilityWarnings` |
 | Same-named defs, own package | `WorkspaceLoader_LoadAsync_SameNamedDefsInSiblingPackages_ResolveToOwningPackage` |
 | Local name before global library name | `WorkspaceLoader_LoadAsync_LocalNameShadowsGlobalLibraryName_ResolvesLocal` |
 | Local short name and alias win | `WorkspaceLoader_LoadAsync_LocalShortNameAndAlias_WinOverGlobalNames` |

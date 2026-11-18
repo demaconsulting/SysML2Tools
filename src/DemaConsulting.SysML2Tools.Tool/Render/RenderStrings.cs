@@ -70,4 +70,10 @@ internal static class RenderStrings
 
     /// <summary>Gets the --walk-depth option line.</summary>
     public static string Render_OptionWalkDepth => ResourceManager.GetString(nameof(Render_OptionWalkDepth))!;
+
+    /// <summary>Gets the first line of the --strict-unresolved option description.</summary>
+    public static string Render_OptionStrictUnresolved1 => ResourceManager.GetString(nameof(Render_OptionStrictUnresolved1))!;
+
+    /// <summary>Gets the second line of the --strict-unresolved option description.</summary>
+    public static string Render_OptionStrictUnresolved2 => ResourceManager.GetString(nameof(Render_OptionStrictUnresolved2))!;
 }

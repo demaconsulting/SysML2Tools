@@ -59,15 +59,27 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="Lint_Usage" xml:space="preserve">
-    <value>Usage: sysml2tools lint &lt;files...&gt;</value>
+    <value>Usage: sysml2tools lint [--strict-unresolved] &lt;files...&gt;</value>
   </data>
   <data name="Lint_Description1" xml:space="preserve">
-    <value>Parses the given SysML v2 / KerML files (and any file glob patterns) and reports</value>
+    <value>Parses the given SysML v2 / KerML files (and any file glob patterns), resolves their</value>
   </data>
   <data name="Lint_Description2" xml:space="preserve">
-    <value>syntax diagnostics. The 'lint' command accepts no flags of its own beyond the</value>
+    <value>references, and reports diagnostics. Syntax errors are errors (the command then exits</value>
   </data>
   <data name="Lint_Description3" xml:space="preserve">
-    <value>global options (see 'sysml2tools --help').</value>
+    <value>with a non-zero code); unresolved references, circular imports and tool-specific render</value>
+  </data>
+  <data name="Lint_Description4" xml:space="preserve">
+    <value>selectors are warnings. The global options (see 'sysml2tools --help') also apply.</value>
+  </data>
+  <data name="Lint_OptionsHeader" xml:space="preserve">
+    <value>Options:</value>
+  </data>
+  <data name="Lint_OptionStrictUnresolved1" xml:space="preserve">
+    <value>  --strict-unresolved        Report unresolved references as errors instead of warnings</value>
+  </data>
+  <data name="Lint_OptionStrictUnresolved2" xml:space="preserve">
+    <value>                             (exit code 1 for models that have any)</value>
   </data>
 </root>

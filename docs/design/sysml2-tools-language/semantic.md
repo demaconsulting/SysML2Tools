@@ -37,11 +37,14 @@ optionally seeded with a pre-populated symbol table.
 
 - *Type*: In-process .NET static async method.
 - *Role*: Provider.
-- *Contract*: Accepts `IEnumerable<string> filePaths` and an optional `SymbolTable? seedSymbolTable`;
+- *Contract*: Accepts `IEnumerable<string> filePaths`, an optional `SymbolTable? seedSymbolTable`
+  (the original two-parameter overload, kept for binary compatibility), and, in a second overload,
+  a required `bool strictUnresolved` (the two-parameter overload behaves as `false`);
   returns `Task<SysmlLoadResult>` containing a `SysmlWorkspace` with all qualified-name declarations
   and all collected diagnostics. When `seedSymbolTable` is provided, the workspace is initialized with
   a copy of its symbols before processing user files. User files are parsed in parallel on the
-  thread pool.
+  thread pool. Unresolved references in the user files are reported as Warning diagnostics by
+  default, or as Errors when `strictUnresolved` is `true`.
 - *Constraints*: `filePaths` must not be null; each path should be a readable file path.
 
 **SysmlLoadResult**: Aggregate result returned by `WorkspaceLoader.LoadAsync`.
@@ -50,6 +53,7 @@ optionally seeded with a pre-populated symbol table.
 - *Role*: Data transfer object.
 - *Contract*: Exposes `SysmlWorkspace? Workspace`, `IReadOnlyList<SysmlDiagnostic> Diagnostics`,
   and `bool HasErrors`.
+  Callers choose the unresolved-reference severity (see `WorkspaceLoader.LoadAsync`).
 
 **SysmlWorkspace**: Fully-loaded and semantically-resolved workspace.
 
@@ -74,8 +78,10 @@ optionally seeded with a pre-populated symbol table.
    and registering into the same `SymbolTable`.
 3. `ReferenceResolver.ResolveAll` traverses all AST nodes, resolves each supertype, feature-typing,
    and import reference by KerML 8.2.3.5 name resolution (`NameResolver`: member visibility,
-   filtered imports, import scoping), and emits Warning diagnostics for unresolved
-   references. It also builds an import graph and performs cycle detection, and returns a
+   filtered imports, import scoping), and emits a diagnostic for each unresolved
+   reference — a Warning by default, an Error when `strictUnresolved` is set (a view `render` target
+   naming a SysML2Tools extension selector gets a portability Warning instead). It also builds an
+   import graph and performs cycle detection (Warning), and returns a
    `SemanticIndex` over all resolved edges.
 4. `SupertypeWalker.WalkAll` traverses specialization chains for all symbols and emits Warning
    diagnostics for cyclic specialization.

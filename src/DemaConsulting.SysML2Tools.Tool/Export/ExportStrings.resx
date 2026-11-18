@@ -94,4 +94,10 @@
   <data name="Export_OptionFilter2" xml:space="preserve">
     <value>                             (see 'render --filter'); applied after --target</value>
   </data>
+  <data name="Export_OptionStrictUnresolved1" xml:space="preserve">
+    <value>  --strict-unresolved        Report unresolved references as errors instead of warnings</value>
+  </data>
+  <data name="Export_OptionStrictUnresolved2" xml:space="preserve">
+    <value>                             (Severity 2 in the JSON diagnostics; exit code unaffected)</value>
+  </data>
 </root>

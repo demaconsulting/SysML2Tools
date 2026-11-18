@@ -214,6 +214,235 @@ public class LintSubsystemTests
     }
 
     /// <summary>
+    ///     By default LintCommand reports an unresolved reference as a warning, prints the warning
+    ///     count and exits 0.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_UnresolvedReference_ReportsWarningAndExitsZero()
+    {
+        // Arrange / Act
+        var (output, error, exitCode) = await RunLintAsync(
+            "package P {\n    part def X :> DoesNotExist;\n}\n");
+
+        // Assert
+        Assert.Contains("(2,19): warning: Unresolved reference: 'DoesNotExist'", output);
+        Assert.DoesNotContain("error", error);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     With <c>--strict-unresolved</c> LintCommand reports an unresolved reference as an error
+    ///     at the reference text and exits 1.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorAndExitsOne()
+    {
+        // Arrange / Act
+        var (output, error, exitCode) = await RunLintAsync(
+            "package P {\n    part def X :> DoesNotExist;\n}\n", "--strict-unresolved");
+
+        // Assert
+        Assert.Contains("(2,19): error: Unresolved reference: 'DoesNotExist'", error);
+        Assert.Contains("lint: 1 error(s) found.", error);
+        Assert.DoesNotContain("warning", output);
+        Assert.Equal(1, exitCode);
+    }
+
+    /// <summary>
+    ///     <c>--strict-unresolved</c> promotes only unresolved references: a circular import stays a
+    ///     warning, so a model with only that diagnostic still exits 0.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_StrictUnresolved_CircularImport_RemainsWarning()
+    {
+        // Arrange / Act
+        var (output, error, exitCode) = await RunLintAsync(
+            "package A { import B::*; }\npackage B { import A::*; }\n", "--strict-unresolved");
+
+        // Assert
+        Assert.Contains("warning: Circular import detected", output);
+        Assert.DoesNotContain("error", error);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     A reference that resolves into the bundled standard library produces no diagnostic even
+    ///     with <c>--strict-unresolved</c>.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_StrictUnresolved_StandardLibraryReference_NoDiagnostics()
+    {
+        // Arrange / Act
+        var (output, error, exitCode) = await RunLintAsync(
+            "package P {\n    attribute def A { attribute r : ScalarValues::Real; }\n}\n", "--strict-unresolved");
+
+        // Assert
+        Assert.DoesNotMatch(@"\(\d+,\d+\): (error|warning)", output + error);
+        Assert.Contains("no errors found", output);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     LintCommand warns, at the token and with exit code 0, that a SysML2Tools extension render
+    ///     selector is not standard SysML v2, naming the standard view definition to use.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Report_ToolRenderSelector_WritesPortabilityWarningAtToken()
+    {
+        // Arrange / Act: `asGridDiagram` is at line 2, column 21
+        var (output, _, exitCode) = await RunLintAsync("package P {\n    view v { render asGridDiagram; }\n}\n");
+
+        // Assert
+        var lines = output.Split('\n').Select(line => line.TrimEnd('\r')).ToList();
+        var line = Assert.Single(lines, l => l.Contains(": warning: ", StringComparison.Ordinal));
+        Assert.Contains("(2,21): warning: 'asGridDiagram' is a SysML2Tools extension", line);
+        Assert.Contains("StandardViewDefinitions::GridView", line);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     The portability warning for a SysML2Tools extension render selector is a warning in
+    ///     strict mode too (exit code 0): <c>--strict-unresolved</c> does not promote it.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_StrictUnresolved_ToolRenderSelector_RemainsWarning()
+    {
+        // Arrange / Act
+        var (output, error, exitCode) = await RunLintAsync(
+            "package P {\n    view v { render asGridDiagram; }\n}\n", "--strict-unresolved");
+
+        // Assert
+        Assert.Contains("(2,21): warning: 'asGridDiagram' is a SysML2Tools extension", output);
+        Assert.DoesNotContain("error", error);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     LintCommand reports nothing for the standard <c>Views::asTreeDiagram</c> and
+    ///     <c>Views::asInterconnectionDiagram</c> render selectors.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Report_StandardRenderSelectors_NoDiagnostics()
+    {
+        // Arrange / Act
+        var (output, error, exitCode) = await RunLintAsync(
+            "package P {\n    view a { render Views::asTreeDiagram; }\n    view b { render Views::asInterconnectionDiagram; }\n}\n");
+
+        // Assert
+        Assert.DoesNotMatch(@"\(\d+,\d+\): (error|warning)", output + error);
+        Assert.Contains("no errors found", output);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     Every gallery model lints on its own with no diagnostics and exit code 0.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Gallery_AllModels_NoDiagnosticsExitZero()
+    {
+        await AssertGalleryModelsCleanAsync();
+    }
+
+    /// <summary>
+    ///     Every gallery model also lints with no diagnostics and exit code 0 under
+    ///     <c>--strict-unresolved</c>.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Gallery_StrictUnresolved_AllModels_NoDiagnosticsExitZero()
+    {
+        await AssertGalleryModelsCleanAsync("--strict-unresolved");
+    }
+
+    /// <summary>
+    ///     Lints each gallery model (with the given extra arguments) and asserts no diagnostics
+    ///     and exit code 0.
+    /// </summary>
+    private static async Task AssertGalleryModelsCleanAsync(params string[] extraArgs)
+    {
+        // Arrange: locate docs/gallery/models above the test assembly
+        var models = Directory.GetFiles(FindGalleryModels(), "*.sysml");
+        Assert.NotEmpty(models);
+
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        try
+        {
+            foreach (var model in models)
+            {
+                using var outWriter = new StringWriter();
+                using var errWriter = new StringWriter();
+                Console.SetOut(outWriter);
+                Console.SetError(errWriter);
+
+                // Act
+                using var context = Context.Create(["lint", .. extraArgs, model]);
+                await Program.RunAsync(context);
+
+                // Assert: no diagnostic line (path(line,col): severity: message) on either stream
+                Assert.DoesNotMatch(@"\(\d+,\d+\): (error|warning)", outWriter.ToString() + errWriter.ToString());
+                Assert.True(context.ExitCode == 0, $"{model} exited {context.ExitCode}");
+            }
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    /// <summary>
+    ///     Finds the <c>docs/gallery/models</c> directory above the test assembly.
+    /// </summary>
+    private static string FindGalleryModels()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir, "docs", "gallery", "models");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        throw new DirectoryNotFoundException("docs/gallery/models was not found above the test assembly.");
+    }
+
+    /// <summary>
+    ///     Lints the given model text with the given extra arguments and returns the captured
+    ///     standard output, standard error and exit code.
+    /// </summary>
+    private static async Task<(string Output, string Error, int ExitCode)> RunLintAsync(
+        string model, params string[] extraArgs)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"lint_test_{Guid.NewGuid():N}.sysml");
+        await File.WriteAllTextAsync(tempFile, model, TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        try
+        {
+            using var outWriter = new StringWriter();
+            using var errWriter = new StringWriter();
+            Console.SetOut(outWriter);
+            Console.SetError(errWriter);
+
+            using var context = Context.Create(["lint", .. extraArgs, tempFile]);
+            await Program.RunAsync(context);
+
+            return (outWriter.ToString(), errWriter.ToString(), context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     LintCommand returns exit code 1 when error-severity diagnostics are present.
     /// </summary>
     [Fact]
@@ -302,7 +531,8 @@ public class LintSubsystemTests
 
             // Assert: lint-specific usage line, not the generic top-level command list
             var output = outWriter.ToString();
-            Assert.Contains("Usage: sysml2tools lint <files...>", output);
+            Assert.Contains("Usage: sysml2tools lint [--strict-unresolved] <files...>", output);
+            Assert.Contains("--strict-unresolved", output);
             Assert.DoesNotContain("Commands:", output);
             Assert.Equal(0, context.ExitCode);
         }

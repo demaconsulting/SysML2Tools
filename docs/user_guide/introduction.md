@@ -123,13 +123,19 @@ If the same name is unresolved several times in one file it is reported once, at
 occurrence is reported at its own position.)
 
 `render` and `query` print the same lines for the diagnostics found while loading your model.
+They report the diagnostics and still produce their output. They exit with code 1 when any
+diagnostic is an error — a syntax error, or an unresolved reference when `--strict-unresolved` is
+given (see [What Lint Checks](#what-lint-checks)); by default an unresolved reference is a warning
+and does not change the exit code.
 For `query --format json`, those lines are still written to standard output before the JSON
 document, exactly as before.
 
 The diagnostics in the JSON produced by `export` carry `FilePath`, `Line`, `Column`, `Severity`,
 and `Message` as separate fields, using the same one-based `Line` and `Column` as the console
-lines above (`0` when the position is unknown). Syntax-error and unresolved-reference columns
-changed from zero-based to one-based in this release.
+lines above (`0` when the position is unknown). `Severity` is `2` for an error and `1` for a
+warning, so an unresolved reference has `"Severity": 1` (`2` with `--strict-unresolved`); the
+`export` command's exit code is not affected by the diagnostics. Syntax-error and
+unresolved-reference columns changed from zero-based to one-based in this release.
 
 # Linting
 
@@ -169,29 +175,64 @@ public (or use `import all`), or adjust the filter. Such a reference is reported
 `Unresolved reference` warning, and is **not drawn** by the layout views: a General view draws no
 edge for it, an Interconnection view does not expand the part, and a Grid view does not mark the
 specialization (compartment rows still show the written `: Type` text). The layouts never match
-it to a same-named element elsewhere, and add no second warning. A package-level `filter`
+it to a same-named element elsewhere, and add no second diagnostic. A package-level `filter`
 statement is not honored when resolving imports.
 
 ## What Lint Checks
 
 `lint` reports two kinds of problem:
 
-- **Errors** — syntax errors. The tool exits with code 1 when there is at least one.
-- **Warnings** — the model parses but is incomplete or inconsistent: circular imports, cyclic
-  specialization, and every `Unresolved reference` described above.
+- **Errors** — syntax errors. The tool exits with code 1 when there is at least one. With
+  `--strict-unresolved`, every `Unresolved reference` described above is an error too.
+- **Warnings** — the model parses but is incomplete, not portable, or inconsistent: circular imports,
+  cyclic specialization, SysML2Tools-specific `render` selectors (see
+  [Choosing the Diagram Type](#choosing-the-diagram-type)), and, by default, every
+  `Unresolved reference` described above. Warnings do not change the exit code.
 
-The severity of an unresolved reference is **warning**, not error, so `lint` still exits with
-code 0 for a model whose only problems are unresolved names. To gate a pipeline on them, fail the
-build on any `warning:` line in the output. Beyond the declaration-level references (supertypes,
+| Condition | Severity | `lint` exit code |
+| --- | --- | --- |
+| Syntax error; a file that cannot be read | error | 1 |
+| Unresolved reference in a model file (any kind) | warning; error if strict | 0; 1 if strict |
+| Circular import; cyclic specialization | warning | 0 |
+| SysML2Tools-specific `render` selector (portability) | warning | 0 |
+| Any diagnostic from the embedded standard library | never reported by `lint` | — |
+
+"Any kind" includes the references inside guards, triggers, `accept`/`send`, constraints, and
+`render` targets, and "strict" means `--strict-unresolved` was given. The embedded standard library
+is checked when the tool is built. The same
+severities apply to `render` and `query` (which still produce their output, and exit with code 1
+only when an error is present) and to the `Severity` values `export` reports (`1` for a warning,
+`2` for an error; `export` always exits with code 0).
+
+The severity of an unresolved reference is **warning**, not error, so by default `lint` still
+exits with code 0 for a model whose only problems are unresolved names. SysML v2 / KerML treat a
+name that cannot be resolved as an error, as the OMG Pilot Implementation does, so pass
+`--strict-unresolved` (accepted by `lint`, `render`, `query`, and `export`) to report unresolved
+references as errors and make `lint`, `render`, and `query` exit with code 1 when there are any.
+Without the option, gate a pipeline on them by failing the build on any `warning:` line instead.
+
+```bash
+# Unresolved references are errors, exit code 1 if any
+sysml2tools lint --strict-unresolved "src/**/*.sysml"
+```
+
+Strict reporting is not the default yet because name resolution has remaining gaps: some valid OMG
+examples use dotted feature chains or kernel library features that the resolver does not model, and
+they would be reported as errors. These gaps are tracked by issues #93 and #129. The default is
+planned to change to errors once the OMG corpus produces close to zero strict
+errors.
+
+Beyond the declaration-level references (supertypes,
 typing, redefinitions, imports, `expose`, `satisfy`, `verify`, `allocate`, `dependency`, metadata,
 and the endpoints of connectors and transitions), `lint` also checks the names written *inside*
 these constructs, reporting each undeclared one at its own position:
 
 - `render <target>;` in a view — the rendering. `render asTreeDiagram;` needs `import Views::*;`
   (in the view or an enclosing package) or the qualified `Views::asTreeDiagram`, because `Views`
-  is not imported implicitly. The tool-defined selectors (`asGeneralDiagram`,
+  is not imported implicitly. The SysML2Tools extension selectors (`asGeneralDiagram`,
   `asStateTransitionDiagram`, `asActionFlowDiagram`, `asSequenceDiagram`, `asGridDiagram`) are
-  accepted as written, since no model can declare them.
+  accepted as written, but `lint` warns at the token that they are not standard SysML v2 (see
+  [Choosing the Diagram Type](#choosing-the-diagram-type)).
 - A transition's `accept <payload>` — the payload type (`accept Sig`, `accept sig : Sig`), the
   `via` target, and `at`/`after`/`when` expressions.
 - A transition's `if <guard>` and an action-flow `if <guard> then` — the features named in the
@@ -229,6 +270,10 @@ sysml2tools render "src/**/*.sysml" --view SystemContext --output out --format s
 # Auto-render the top-level part def when no view is defined
 sysml2tools render model.sysml --auto --output out --format svg
 ```
+
+A model with an unresolved reference is still rendered and the warnings are reported. With
+`--strict-unresolved` they are errors and the command exits with code 1 (see
+[What Lint Checks](#what-lint-checks)).
 
 ## View Selection
 
@@ -327,7 +372,22 @@ The diagram type is chosen in this order:
    the raw names `asGeneralDiagram`, `asStateTransitionDiagram`, `asActionFlowDiagram`,
    `asSequenceDiagram`, and `asGridDiagram` as a tool extension: they are not `Views` members,
    must not be qualified with `Views::`, and a model that uses them does not validate with the OMG
-   Pilot Implementation. `asElementTable` and `asTextualNotation` have no matching diagram and
+   Pilot Implementation, so `lint` reports a **warning** at the token (rendering is unchanged):
+
+   ```text
+   m.sysml(6,16): warning: 'asGeneralDiagram' is a SysML2Tools extension, not a standard SysML v2
+   rendering; the model will not validate in other tools. Use a standard view definition instead
+   (e.g. 'view v : StandardViewDefinitions::GeneralView').
+   ```
+
+   (The diagnostic is one line; it is wrapped here.)
+
+   To make the model portable, drop the `render` member and type the view with the matching
+   standard view definition: `asGeneralDiagram` → `GeneralView`, `asStateTransitionDiagram` →
+   `StateTransitionView`, `asActionFlowDiagram` → `ActionFlowView`, `asSequenceDiagram` →
+   `SequenceView`, `asGridDiagram` → `GridView` (all in `StandardViewDefinitions`). The standard
+   selectors `Views::asTreeDiagram` and `Views::asInterconnectionDiagram` are not flagged.
+   `asElementTable` and `asTextualNotation` have no matching diagram and
    are ignored.
 2. The view's view definition, nearest first: a definition's `render` member, or a standard view
    definition.
@@ -581,7 +641,8 @@ entire workspace:
   recognizes `render asGeneralDiagram;`, `render asStateTransitionDiagram;`,
   `render asActionFlowDiagram;`, `render asSequenceDiagram;`, and `render asGridDiagram;` as a tool
   extension (raw names, not `Views` members; models using them do not validate with the OMG Pilot
-  Implementation). All seven tokens
+  Implementation, so `lint` warns at the token and suggests the standard `StandardViewDefinitions`
+  view definition — see "Choosing the Diagram Type"). All seven tokens
   each select their corresponding layout strategy, taking precedence over the name/supertype
   heuristic `DiagramTypeRouter` otherwise applies (the same tokens the `--view-type` dynamic-view
   flag maps to — see "Dynamic (Ad-Hoc) Views" above). Every other rendering-style name
@@ -1016,6 +1077,7 @@ the same order, so either format can be relied on for automated comparisons.
 | `--include-stdlib` | Include OMG standard library elements in results |
 | `--depth <#>` | Markdown heading depth (1-6, default: 1); Markdown output only, no effect on `--format json` |
 | `--heading <text>` | Replaces default `# query <verb>[: <element>]`; Markdown only, no effect on JSON |
+| `--strict-unresolved` | Report unresolved references as errors instead of warnings (exit code 1 when present) |
 
 # Exporting
 
@@ -1053,6 +1115,7 @@ sysml2tools export "src/**/*.sysml" --target Vehicle::Engine --filter "@Deprecat
 | `--include-stdlib` | Include OMG stdlib decls/edges (excluded by default); diagnostics are never stdlib-filtered |
 | `--target <qualified-name>` | Restrict output to the containment subtree rooted at this element |
 | `--filter <expr>` | Narrow output using a Phase 1 filter expression |
+| `--strict-unresolved` | Report unresolved references as errors (`Severity` 2 in the JSON; exit code unaffected) |
 
 ## Target Scoping and Filter Narrowing
 

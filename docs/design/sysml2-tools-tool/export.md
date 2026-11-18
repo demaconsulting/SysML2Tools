@@ -33,7 +33,7 @@ cooperating types:
 
 `ExportCommand.RunAsync` performs the same file-resolution and workspace-loading sequence as
 `query`/`render` (`GlobFileCollector.Collect`, `StdlibProvider.GetSymbolTable()`,
-`WorkspaceLoader.LoadAsync`), then:
+`WorkspaceLoader.LoadAsync(files, stdlibTable, options.StrictUnresolved)`), then:
 
 1. Filters `workspace.Declarations` down to entries whose qualified-name key is visible per
    `IsVisible` (see **Stdlib Filtering** below), producing the `ExportResult.Declarations`
@@ -147,7 +147,9 @@ statement but no `expose` statement.
   For `Import` and `Expose` edges the text keeps the wildcard/recursive markers as written
   (`P`, `P::*`, `P::**`) and excludes any `[filter]` expression.
 - `Diagnostics` (`IReadOnlyList<SysmlDiagnostic>`) — every diagnostic produced while loading
-  the workspace, unfiltered.
+  the workspace, unfiltered. `export` prints no load diagnostics to the console; they appear only
+  here. Unresolved references have `Severity` Warning (1) by default, and Error (2) with
+  `--strict-unresolved`.
 
 Each declaration node is the `SysmlNode` itself, so its additive modifier and notation members
 (`IsAbstract`, `IsVariation`, `IsIndividual`, `IsVariant`, `IsReference`, `Direction`, `IsOrdered`,
@@ -212,6 +214,9 @@ implemented directly without re-spiking.
   narrowing the (possibly `--target`-scoped) declaration/edge set; `null` means no filtering.
   See **Filter Narrowing** above.
 - `Files` (`IReadOnlyList<string>`) — file glob patterns.
+- `StrictUnresolved` (`bool`) — from `--strict-unresolved`; passed to `WorkspaceLoader.LoadAsync` so
+  unresolved references are reported as Error instead of Warning diagnostics in the exported
+  `Diagnostics`.
 
 ### ExportCommand
 
@@ -226,8 +231,10 @@ implemented directly without re-spiking.
 3. `WriteError`s "no input files" and returns (exit code 1) when `options.Files` is empty.
 4. Resolves `options.Files` via `GlobFileCollector.Collect`; `WriteError`s "no files matched
    the given pattern(s)" and returns when the pattern list resolved to zero files.
-5. Loads the workspace via `StdlibProvider.GetSymbolTable()` + `WorkspaceLoader.LoadAsync`;
-   `WriteError`s "workspace loading failed" and returns if `Workspace` is `null`.
+5. Loads the workspace via `StdlibProvider.GetSymbolTable()` +
+   `WorkspaceLoader.LoadAsync(files, stdlibTable, options.StrictUnresolved)`;
+   `WriteError`s "workspace loading failed" and returns if `Workspace` is `null`. Load
+   diagnostics are not printed; they are carried into the JSON `Diagnostics`.
 6. Builds the filtered `ExportResult` per **Command Semantics** above, including `--target`
    subtree scoping (`WriteError`s "--target '<name>' was not found in the workspace" and
    returns — no export produced — when the target does not resolve) and `--filter` narrowing
@@ -236,8 +243,12 @@ implemented directly without re-spiking.
 7. Renders as JSON or JSONL per `options.Format`.
 8. Writes to `options.Output` (file) or stdout.
 
-**`PrintHelp(Context context)`**: Prints the `export` usage line, its five options (with an
-explicit note that `--output` names a file, not a directory), and one example invocation,
+**`PrintHelp(Context context)`**: Prints the `export` usage line, its six options (with an
+explicit note that `--output` names a file, not a directory; the last is `--strict-unresolved`,
+a two-line description sourced from `Export_OptionStrictUnresolved1`/`Export_OptionStrictUnresolved2`
+whose second line states that unresolved references carry Severity 2 in the JSON diagnostics and
+that the exit code is unaffected),
+and one example invocation,
 sourced from `ExportStrings`.
 
 ### Localization / Resource Strings
@@ -256,6 +267,10 @@ the rationale).
 - Patterns given but none matched any files: `context.WriteError`; `Context.ExitCode`
   becomes 1.
 - Workspace failed to load: `context.WriteError`; `Context.ExitCode` becomes 1.
+- Load diagnostics, including unresolved references: never printed to the console and never
+  change the exit code (it stays 0); they are reported only in the JSON/JSONL `Diagnostics`,
+  where an unresolved reference has `Severity` Warning (1), or Error (2) with `--strict-unresolved`.
+  Consumers inspect `Diagnostics` to detect them.
 - `--target` does not resolve to a visible declaration (genuinely absent, or a
   standard-library declaration without `--include-stdlib`): `context.WriteError` reporting
   "--target '<name>' was not found in the workspace"; `Context.ExitCode` becomes 1; no export

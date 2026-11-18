@@ -631,4 +631,91 @@ public class QuerySubsystemTests
             File.Delete(tempFile);
         }
     }
+
+    /// <summary>
+    ///     By default a query over a model with an unresolved reference prints its result and
+    ///     exits 0; the diagnostic is a warning.
+    /// </summary>
+    [Fact]
+    public async Task QuerySubsystem_UnresolvedReference_ReportsWarningAndExitsZero()
+    {
+        // Arrange / Act
+        var (output, error, exitCode) = await RunQueryModelAsync(
+            "package P {\n    part def X :> DoesNotExist;\n}\n", "hierarchy", "--element", "P::X");
+
+        // Assert
+        Assert.Contains("(2,19): warning: Unresolved reference: 'DoesNotExist'", output);
+        Assert.Contains("P::X", output);
+        Assert.DoesNotContain("error", error);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     With <c>--strict-unresolved</c> the query reports the unresolved reference as an error
+    ///     and exits 1, but still prints its markdown result.
+    /// </summary>
+    [Fact]
+    public async Task QuerySubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorPrintsResultAndExitsOne()
+    {
+        // Arrange / Act
+        var (output, error, exitCode) = await RunQueryModelAsync(
+            "package P {\n    part def X :> DoesNotExist;\n}\n",
+            "hierarchy", "--element", "P::X", "--strict-unresolved");
+
+        // Assert
+        Assert.Contains("(2,19): error: Unresolved reference: 'DoesNotExist'", error);
+        Assert.DoesNotContain("warning", output);
+        Assert.Contains("P::X", output);
+        Assert.Equal(1, exitCode);
+    }
+
+    /// <summary>
+    ///     With <c>--strict-unresolved</c> and <c>--format json</c> the query still prints its JSON
+    ///     result, and exits 1.
+    /// </summary>
+    [Fact]
+    public async Task QuerySubsystem_StrictUnresolved_JsonFormat_ReportsErrorPrintsResultAndExitsOne()
+    {
+        // Arrange / Act
+        var (output, error, exitCode) = await RunQueryModelAsync(
+            "package P {\n    part def X :> DoesNotExist;\n}\n",
+            "hierarchy", "--element", "P::X", "--format", "json", "--strict-unresolved");
+
+        // Assert
+        Assert.Contains("(2,19): error: Unresolved reference: 'DoesNotExist'", error);
+        Assert.Contains("\"P::X\"", output);
+        Assert.Equal(1, exitCode);
+    }
+
+    /// <summary>
+    ///     Runs a query over the given model text and returns the captured standard output,
+    ///     standard error and exit code.
+    /// </summary>
+    private static async Task<(string Output, string Error, int ExitCode)> RunQueryModelAsync(
+        string model, params string[] queryArgs)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"query_unresolved_{Guid.NewGuid():N}.sysml");
+        await File.WriteAllTextAsync(tempFile, model, TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        try
+        {
+            using var outWriter = new StringWriter();
+            using var errWriter = new StringWriter();
+            Console.SetOut(outWriter);
+            Console.SetError(errWriter);
+
+            using var context = Context.Create(["query", .. queryArgs, tempFile]);
+            await Program.RunAsync(context);
+
+            return (outWriter.ToString(), errWriter.ToString(), context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+            File.Delete(tempFile);
+        }
+    }
 }

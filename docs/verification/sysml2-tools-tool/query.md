@@ -42,6 +42,12 @@ renderer behavior, and Core-side file-export helper behavior are verified separa
 - Error paths are covered: no input files, patterns supplied but none matching on disk, target
   element not found, invalid `--walk-depth`, invalid `--format`, and parse-error-containing
   input files that still complete best-effort.
+- An unresolved reference in a loaded model is reported as a Warning through `context.WriteLine`
+  by default and the exit code is 0. With `--strict-unresolved` (accepted by a Tool-side
+  pre-scan, leaving Core's `QueryArgumentParser` and `QueryOptions` unchanged, and documented
+  in the general help and every verb's help) the diagnostic is an Error written through
+  `context.WriteError`; the query still runs and prints its result (markdown or JSON), and the
+  exit code is 1.
 - Detailed verb semantics, deterministic rendering rules, and Core exporter behavior are owned
   by the Core Query subsystem verification; the Tool layer proves orchestration, parsing,
   dispatch, and CLI reporting only.
@@ -191,7 +197,34 @@ Verifies that running a query over a model with an unresolved supertype referenc
 :> DoesNotExist;`, written at line 2, column 19) prints the load diagnostic as the line
 `<file>(2,19): warning: Unresolved reference: 'DoesNotExist'` — the exact format `lint` uses,
 located at the reference text — and never as a raw `SysmlDiagnostic { ... }` record dump.
-Satisfies `SysML2Tools-Tool-Query-LoadDiagnosticFormat`.
+Satisfies `SysML2Tools-Tool-Query-LoadDiagnosticFormat` and
+`SysML2Tools-Tool-Query-StrictUnresolved`.
+
+#### QuerySubsystem_UnresolvedReference_ReportsWarningAndExitsZero (QuerySubsystemTests.cs)
+
+Verifies that `query hierarchy --element P::X` over the same model prints the diagnostic as a
+`warning:` line, still prints the result (containing `P::X`), writes nothing containing
+"error" to the error stream, and exits with code 0. Satisfies
+`SysML2Tools-Tool-Query-StrictUnresolved`.
+
+#### QuerySubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorPrintsResultAndExitsOne (QuerySubsystemTests.cs)
+
+Verifies that `query hierarchy --element P::X --strict-unresolved` writes the diagnostic as
+`<file>(2,19): error: Unresolved reference: 'DoesNotExist'` to the error stream, writes no
+warning to the output, still prints the markdown result, and exits with code 1. Satisfies
+`SysML2Tools-Tool-Query-StrictUnresolved`.
+
+#### QuerySubsystem_StrictUnresolved_JsonFormat_ReportsErrorPrintsResultAndExitsOne (QuerySubsystemTests.cs)
+
+Verifies that the same query with `--format json` still prints its JSON result and exits with
+code 1 after writing the `error:` diagnostic. Satisfies
+`SysML2Tools-Tool-Query-StrictUnresolved`.
+
+#### Context_Create_QueryCommand_WithStrictUnresolved_SetsQueryStrictUnresolved (ContextTests.cs)
+
+Verifies that `query list --strict-unresolved a.sysml` sets `Context.QueryStrictUnresolved`. The
+Tool-side pre-scan consumes the flag before Core's public `QueryArgumentParser`, which is
+unchanged. Satisfies `SysML2Tools-Tool-Query-StrictUnresolved`.
 
 #### ResxResourceTests.cs
 

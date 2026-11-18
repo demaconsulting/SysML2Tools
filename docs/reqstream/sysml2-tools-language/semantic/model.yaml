@@ -92,7 +92,8 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolution
         title: >-
           The ReferenceResolver shall resolve supertype references against the symbol table
-          and produce Warning diagnostics for any unresolved names.
+          and produce Warning diagnostics for any unresolved names (Error diagnostics when the
+          caller opts in to strict unresolved references).
         justification: |
           Reference resolution identifies incomplete models where supertype names do not
           correspond to any loaded declaration. Warnings allow callers to inspect model
@@ -123,6 +124,8 @@ sections:
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-InheritedTransitionSource
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-EdgeRawReference
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-UnresolvedPositions
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-UnresolvedSeverity
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ToolRenderSelectorPortability
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered

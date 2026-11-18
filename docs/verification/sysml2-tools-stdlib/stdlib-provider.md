@@ -33,3 +33,4 @@ beyond a standard .NET SDK installation.
 | `GetSymbolTable_DiagnosticsNotNull` | A non-null diagnostics list is returned |
 | `GetSymbolTable_RegeneratedStdlib_CarriesModifiers` | `Parts::Part` is abstract (stale resource fails) |
 | `GetSymbolTable_Diagnostics_ContainNoErrors` | No diagnostic has error severity |
+| `GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings` | Unresolved references are Warnings |

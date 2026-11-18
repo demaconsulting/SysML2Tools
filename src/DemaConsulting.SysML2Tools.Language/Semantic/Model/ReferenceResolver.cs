@@ -36,6 +36,30 @@ internal sealed class ReferenceResolver
     private readonly IReadOnlySet<string> _stdlibNames;
 
     /// <summary>
+    ///     The severity of every "Unresolved reference" diagnostic: Warning by default
+    ///     (<c>WorkspaceLoader.DefaultUserUnresolvedSeverity</c>), Error when the caller opts in to
+    ///     strict mode, and always Warning when the standard library itself is being compiled.
+    /// </summary>
+    private readonly DiagnosticSeverity _unresolvedSeverity;
+
+    /// <summary>
+    ///     The SysML2Tools extension <c>render</c> selectors (accepted by the diagram type router
+    ///     but declared by no standard library), each mapped to the standard view definition (in
+    ///     <c>StandardViewDefinitions</c>) a portable model should use instead. This is the single
+    ///     copy of the list; the router in the Core library, which this library cannot reference,
+    ///     recognizes the same five tokens.
+    /// </summary>
+    internal static readonly IReadOnlyDictionary<string, string> ToolRenderSelectors =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["asGeneralDiagram"] = "GeneralView",
+            ["asStateTransitionDiagram"] = "StateTransitionView",
+            ["asActionFlowDiagram"] = "ActionFlowView",
+            ["asSequenceDiagram"] = "SequenceView",
+            ["asGridDiagram"] = "GridView",
+        };
+
+    /// <summary>
     ///     The name resolver used by the current pass (replaced between pass 0 and pass 1 so the
     ///     filter-enabled instance starts with a fresh cache).
     /// </summary>
@@ -46,7 +70,10 @@ internal sealed class ReferenceResolver
     ///     table and diagnostics list.
     /// </summary>
     /// <param name="symbolTable">The symbol table to resolve references against.</param>
-    /// <param name="diagnostics">The shared diagnostics list to append Warning entries to.</param>
+    /// <param name="diagnostics">The shared diagnostics list to append diagnostics to.</param>
+    /// <param name="unresolvedSeverity">
+    ///     The severity of every "Unresolved reference" diagnostic.
+    /// </param>
     /// <param name="stdlibNames">
     ///     The qualified names of the standard library declarations (the seed symbol table's
     ///     keys), or <see langword="null"/> when there is no standard library.
@@ -54,10 +81,12 @@ internal sealed class ReferenceResolver
     public ReferenceResolver(
         SymbolTable symbolTable,
         List<SysmlDiagnostic> diagnostics,
+        DiagnosticSeverity unresolvedSeverity,
         IReadOnlySet<string>? stdlibNames = null)
     {
         _symbolTable = symbolTable;
         _diagnostics = diagnostics;
+        _unresolvedSeverity = unresolvedSeverity;
         _stdlibNames = stdlibNames ?? new HashSet<string>(StringComparer.Ordinal);
         _resolver = new NameResolver(symbolTable.Symbols, null, declaredReferencesOnly: true);
     }
@@ -396,7 +425,7 @@ internal sealed class ReferenceResolver
 
     /// <summary>
     ///     Resolves <paramref name="name"/> like <see cref="TryResolve"/>, emitting the
-    ///     "Unresolved reference" Warning diagnostic (once per name per file) when it does not
+    ///     "Unresolved reference" diagnostic (once per name per file) when it does not
     ///     resolve.
     /// </summary>
     /// <returns>The resolved qualified name, or null when the name did not resolve.</returns>
@@ -417,7 +446,7 @@ internal sealed class ReferenceResolver
     }
 
     /// <summary>
-    ///     Emits the "Unresolved reference" Warning diagnostic for <paramref name="name"/> unless
+    ///     Emits the "Unresolved reference" diagnostic (at the resolver's unresolved severity) for <paramref name="name"/> unless
     ///     it was already reported for this file. The diagnostic is located at the reference text
     ///     recorded on <paramref name="owner"/> (<see cref="SysmlNode.ReferencePositions"/>), or at
     ///     the owner's own declaration when the reference text was not located.
@@ -431,7 +460,7 @@ internal sealed class ReferenceResolver
                 filePath,
                 line,
                 column,
-                DiagnosticSeverity.Warning,
+                _unresolvedSeverity,
                 $"Unresolved reference: '{name}'"));
         }
     }
@@ -604,7 +633,7 @@ internal sealed class ReferenceResolver
 
         // Standalone dependency statements (SysmlDependencyNode) resolve every "from" name against
         // every "to" name independently (a cross product, per the grammar's list-of-lists shape).
-        // An unresolved name produces one Warning diagnostic per distinct unresolved name per
+        // An unresolved name produces one diagnostic per distinct unresolved name per
         // file; a pair is only emitted as an edge when both its from-name and to-name resolve.
         if (node is SysmlDependencyNode dependency)
         {
@@ -681,7 +710,8 @@ internal sealed class ReferenceResolver
     /// <summary>
     ///     Resolves each <see cref="SysmlNode.ReferenceOccurrences"/> entry of
     ///     <paramref name="node"/> and reports every one that does not resolve as an
-    ///     "Unresolved reference" Warning at its own token position.
+    ///     "Unresolved reference" diagnostic (at the resolver's unresolved severity) at its own
+    ///     token position.
     /// </summary>
     /// <remarks>
     ///     A <c>render</c> target is resolved in the view's own namespace (so an
@@ -692,6 +722,12 @@ internal sealed class ReferenceResolver
     ///     occurrences have no single edge kind yet (the reference is to a feature, a type, or a
     ///     rendering depending on the context), so the resolved/unresolved outcome is the only
     ///     result; the standard library is checked when it is compiled, not when it is loaded.
+    ///     <para>
+    ///     A view's render target that names a SysML2Tools extension selector
+    ///     (<see cref="ToolRenderSelectors"/>) and does not resolve to a declaration is not an
+    ///     unresolved reference: it is accepted (rendering is unchanged) but a portability Warning
+    ///     is reported at the token, because no other SysML v2 tool knows the selector.
+    ///     </para>
     /// </remarks>
     private void ResolveReferenceOccurrences(SysmlNode node, string? scope, LoadedFile file)
     {
@@ -703,15 +739,30 @@ internal sealed class ReferenceResolver
         var occurrenceScope = node is SysmlViewNode { QualifiedName: { Length: > 0 } viewName } ? viewName : scope;
         foreach (var occurrence in node.ReferenceOccurrences)
         {
-            if (!TryResolve(occurrence.Name, occurrenceScope, file.RootImports, out _))
+            if (TryResolve(occurrence.Name, occurrenceScope, file.RootImports, out _))
+            {
+                continue;
+            }
+
+            if (node is SysmlViewNode && ToolRenderSelectors.TryGetValue(occurrence.Name, out var definition))
             {
                 _diagnostics.Add(new SysmlDiagnostic(
                     file.FilePath,
                     occurrence.Position.Line,
                     occurrence.Position.Column,
                     DiagnosticSeverity.Warning,
-                    $"Unresolved reference: '{occurrence.Name}'"));
+                    $"'{occurrence.Name}' is a SysML2Tools extension, not a standard SysML v2 rendering; " +
+                    "the model will not validate in other tools. Use a standard view definition instead " +
+                    $"(e.g. 'view v : StandardViewDefinitions::{definition}')."));
+                continue;
             }
+
+            _diagnostics.Add(new SysmlDiagnostic(
+                file.FilePath,
+                occurrence.Position.Line,
+                occurrence.Position.Column,
+                _unresolvedSeverity,
+                $"Unresolved reference: '{occurrence.Name}'"));
         }
     }
 

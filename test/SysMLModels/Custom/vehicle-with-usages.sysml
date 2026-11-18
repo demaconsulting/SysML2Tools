@@ -1,5 +1,7 @@
 package VehicleModel {
 
+    import ScalarValues::*;
+
     part def Engine;
 
     part def Wheel;

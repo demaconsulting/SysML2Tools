@@ -27,9 +27,10 @@ namespace DemaConsulting.SysML2Tools.Lint;
 ///     <see cref="LintOptions"/> instance.
 /// </summary>
 /// <remarks>
-///     <c>lint</c> recognizes no flags of its own. Any <c>-</c>-prefixed token is rejected so that
-///     flags belonging to other commands (e.g., <c>--auto</c>, <c>--kind</c>) are never silently
-///     accepted; every other token is treated as a file glob pattern.
+///     <c>lint</c> recognizes only <c>--strict-unresolved</c> among flags of its own. Any other
+///     <c>-</c>-prefixed token is rejected so that flags belonging to other commands (e.g.,
+///     <c>--auto</c>, <c>--kind</c>) are never silently accepted; every other token is treated as
+///     a file glob pattern.
 /// </remarks>
 internal static class LintArgumentParser
 {
@@ -45,9 +46,16 @@ internal static class LintArgumentParser
     public static LintOptions Parse(IReadOnlyList<string> commandArgs)
     {
         var files = new List<string>();
+        var strictUnresolved = false;
 
         foreach (var arg in commandArgs)
         {
+            if (arg == "--strict-unresolved")
+            {
+                strictUnresolved = true;
+                continue;
+            }
+
             if (arg.StartsWith("-", StringComparison.Ordinal))
             {
                 throw new ArgumentException($"Unsupported argument '{arg}' for the 'lint' command.", nameof(commandArgs));
@@ -56,6 +64,6 @@ internal static class LintArgumentParser
             files.Add(arg);
         }
 
-        return new LintOptions { Files = files };
+        return new LintOptions { Files = files, StrictUnresolved = strictUnresolved };
     }
 }

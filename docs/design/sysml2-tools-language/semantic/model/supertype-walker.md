@@ -22,7 +22,9 @@ For each supertype name in the current node:
 
 ##### Warning Format
 
-Cyclic specialization warnings use `DiagnosticSeverity.Warning`. They are located at the supertype
+Cyclic specialization warnings use `DiagnosticSeverity.Warning`, independent of the
+unresolved-reference severity (a Warning by default; see the `ReferenceResolver` design): a
+specialization cycle remains a Warning. They are located at the supertype
 reference that closes the cycle: the `FilePath`, and the line and column, come from the declaring
 node (`SourceFilePath`, and `ReferencePositions` for the supertype text, falling back to
 `SourceLine`/`SourceColumn`). A node that was not built from a source file (for example a
@@ -32,7 +34,7 @@ stdlib-seeded node, whose positions are not serialized) reports an empty `FilePa
 
 Cyclic specialization is detected and reported as a `Warning`-severity `SysmlDiagnostic`.
 No exceptions are thrown. Supertype names not present in the symbol table are silently skipped
-(reference-resolution warnings are already emitted by `ReferenceResolver`).
+(reference-resolution diagnostics are already emitted by `ReferenceResolver`).
 
 ##### Dependencies
 

@@ -2866,30 +2866,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             }
         }
 
-        var occurrences = CollectReferenceOccurrences(null, roots.ToArray());
-
-        // The tool-defined selectors are accepted as written (see ToolDefinedRenderTargets).
-        return occurrences.Any(o => ToolDefinedRenderTargets.Contains(o.Name))
-            ? occurrences.Where(o => !ToolDefinedRenderTargets.Contains(o.Name)).ToList()
-            : occurrences;
+        // The SysML2Tools extension selectors stay in the occurrences: the resolver accepts them
+        // with a portability warning (see ReferenceResolver.ToolRenderSelectors).
+        return CollectReferenceOccurrences(null, roots.ToArray());
     }
-
-    /// <summary>
-    ///     The <c>render</c> selectors this tool defines beyond the Views library (which declares
-    ///     only <c>asTreeDiagram</c>, <c>asInterconnectionDiagram</c>, <c>asElementTable</c> and
-    ///     <c>asTextualNotation</c>): each names one of its layout strategies in
-    ///     <c>DiagramTypeRouter</c> (the Core library, which this library cannot reference, so the
-    ///     list is repeated here). They are documented user-facing selectors that no model can
-    ///     declare, so reporting them as unresolved would flag the tool's own documented usage.
-    /// </summary>
-    private static readonly HashSet<string> ToolDefinedRenderTargets = new(StringComparer.Ordinal)
-    {
-        "asGeneralDiagram",
-        "asStateTransitionDiagram",
-        "asActionFlowDiagram",
-        "asSequenceDiagram",
-        "asGridDiagram",
-    };
 
     /// <summary>
     ///     The names a feature expression may use without any declaration: the features every

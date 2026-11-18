@@ -32,8 +32,10 @@ and supertype/typing/metadata-type/import reference resolution over all loaded f
 - *Role*: Provider.
 - *Contract*: Accepts a list of `(FilePath, Root)` pairs; resolves every reference by KerML
   8.2.3.5 name resolution (member visibility, filtered imports, and import scoping honored);
-  emits Warning diagnostics for
-  unresolved supertype, typing, metadata-type, and import references and for circular import
+  emits diagnostics for
+  unresolved supertype, typing, metadata-type, and import references (and the other reference kinds)
+  — Warning severity by default, Error when the resolver is constructed with an Error severity for
+  strict user-file reporting (the standard library always uses Warning) — and Warnings for circular import
   chains; attaches resolved `SysmlEdge` entries to each node's `ResolvedEdges`; returns a
   `SemanticIndex` over all resolved edges.
 

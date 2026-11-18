@@ -76,7 +76,9 @@ seeded with a pre-populated `SymbolTable` (e.g., the pre-compiled stdlib).
 
 - *Type*: In-process .NET static async method.
 - *Role*: Provider.
-- *Contract*: Accepts `IEnumerable<string> filePaths` and an optional `SymbolTable? seedSymbolTable`;
+- *Contract*: Accepts `IEnumerable<string> filePaths` and an optional `SymbolTable? seedSymbolTable`
+  (an overload additionally accepts a `bool strictUnresolved`; the two-parameter overload is kept for
+  binary compatibility and reports unresolved references as Warnings);
   returns `Task<SysmlLoadResult>`. When `seedSymbolTable` is provided, the workspace is initialized
   with a copy of its symbols before parsing user files. User files are parsed in parallel on the
   thread pool. Reference resolution and supertype walking run on user file AST roots only.
@@ -151,8 +153,10 @@ N/A — not a safety-classified software item.
    by `AstBuilder.Build`; file I/O failures are caught and returned as Error-severity diagnostics.
 3. `SymbolTable.RegisterAll` is called for each user AST root, adding qualified-name entries.
 4. `ReferenceResolver.ResolveAll` iterates all user AST roots, resolving every reference by
-   KerML 8.2.3.5 name resolution (through `NameResolver`) and emitting Warning diagnostics for
-   unresolved names and circular imports. Metadata annotation types are resolved first (so
+   KerML 8.2.3.5 name resolution (through `NameResolver`) and emitting diagnostics for
+   unresolved names (Warning by default, Error when `LoadAsync` is called with `strictUnresolved`;
+   a view `render` target naming a SysML2Tools extension selector gets a portability Warning
+   instead) and Warning diagnostics for circular imports. Metadata annotation types are resolved first (so
    filtered imports can test them), then every other reference, then dotted feature chains. The
    import graph is built keyed on top-level namespace names (not file paths) to enable name-based
    cycle detection.

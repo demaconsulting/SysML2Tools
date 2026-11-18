@@ -656,8 +656,10 @@ public sealed class SysmlViewNode : SysmlNode
     ///     a content-scoping subject. Captured verbatim; the reference itself is resolved by
     ///     <see cref="ReferenceResolver"/> from <see cref="SysmlNode.ReferenceOccurrences"/> in the
     ///     view's own namespace (no edge is produced; an unresolved target, such as an
-    ///     unqualified <c>asTreeDiagram</c> without <c>import Views::*;</c>, emits a Warning
-    ///     diagnostic). This
+    ///     unqualified <c>asTreeDiagram</c> without <c>import Views::*;</c>, emits an
+    ///     unresolved-reference Warning diagnostic (an Error under strict mode); the
+    ///     SysML2Tools extension selectors such as <c>asGeneralDiagram</c> instead emit a
+    ///     portability Warning). This
     ///     value is used by <c>DiagramTypeRouter</c> to select a rendering strategy — an exact
     ///     match against <c>asTreeDiagram</c> or <c>asInterconnectionDiagram</c> takes precedence
     ///     over the name/supertype heuristic; any other value (including <c>asElementTable</c> and

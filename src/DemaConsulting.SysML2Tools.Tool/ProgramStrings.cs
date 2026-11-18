@@ -145,6 +145,9 @@ internal static class ProgramStrings
     /// <summary>Gets the --include-stdlib option line.</summary>
     public static string TopLevel_OptionIncludeStdlib => ResourceManager.GetString(nameof(TopLevel_OptionIncludeStdlib))!;
 
+    /// <summary>Gets the --strict-unresolved option line.</summary>
+    public static string TopLevel_OptionStrictUnresolved => ResourceManager.GetString(nameof(TopLevel_OptionStrictUnresolved))!;
+
     /// <summary>Gets the "No command specified" message.</summary>
     public static string NoCommand_Message => ResourceManager.GetString(nameof(NoCommand_Message))!;
 }

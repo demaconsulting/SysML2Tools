@@ -59,7 +59,7 @@ internal static class RenderCommand
 
         // Load the workspace from the resolved file paths
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-        var loadResult = await WorkspaceLoader.LoadAsync(files, stdlibTable).ConfigureAwait(false);
+        var loadResult = await WorkspaceLoader.LoadAsync(files, stdlibTable, options.StrictUnresolved).ConfigureAwait(false);
 
         // Report any diagnostics from the load phase
         foreach (var diagnostic in loadResult.Diagnostics)
@@ -343,6 +343,8 @@ internal static class RenderCommand
         context.WriteLine(RenderStrings.Render_OptionViewTarget);
         context.WriteLine(RenderStrings.Render_OptionFilter);
         context.WriteLine(RenderStrings.Render_OptionWalkDepth);
+        context.WriteLine(RenderStrings.Render_OptionStrictUnresolved1);
+        context.WriteLine(RenderStrings.Render_OptionStrictUnresolved2);
         context.WriteLine("");
     }
 }

@@ -22,6 +22,7 @@ sections:
             children:
               - SysML2Tools-Language-Semantic-WorkspaceLoader-Load
               - SysML2Tools-Language-Semantic-WorkspaceLoader-FileError
+              - SysML2Tools-Language-Semantic-WorkspaceLoader-BinaryCompatibleLoadAsync
             tests:
               - WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace
               - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
@@ -65,16 +66,22 @@ sections:
 
           - id: SysML2Tools-Language-Semantic-UnresolvedReference
             title: >-
-              WorkspaceLoader.LoadAsync shall produce a Warning diagnostic for each supertype
-              reference that cannot be resolved in the symbol table.
+              WorkspaceLoader.LoadAsync shall produce a Warning diagnostic for each reference
+              (supertype, typing, redefinition, import, and every other reference kind) in a user
+              file that cannot be resolved in the symbol table, or an Error diagnostic when the
+              caller opts in to strict unresolved references.
             justification: |
-              Unresolved supertype references indicate that a definition specializes a type that
-              has not been loaded. Reporting these as Warnings (not Errors) allows callers to
-              diagnose incomplete models while still returning a usable workspace.
+              Unresolved references indicate that a model refers to an element that has not been
+              loaded. Reporting these as Warnings by default allows callers to diagnose incomplete
+              models while still returning a usable workspace, and the strict opt-in lets callers
+              that gate on model validity treat them as Errors.
             children:
               - SysML2Tools-Language-Semantic-Model-ReferenceResolution
+              - SysML2Tools-Language-Semantic-WorkspaceLoader-StrictUnresolved
             tests:
               - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
+              - WorkspaceLoader_LoadAsync_UnresolvedExpressionReference_ProducesWarningAtToken
+              - WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors
 
           - id: SysML2Tools-Language-Semantic-CircularImport
             title: >-

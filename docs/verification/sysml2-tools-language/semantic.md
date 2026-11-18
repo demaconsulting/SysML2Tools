@@ -22,7 +22,9 @@ Temporary files are created in `Path.GetTempPath()` and cleaned up after each te
 - A single-package SysML file registers its package name in the workspace declarations.
 - Nested packages register both parent and child qualified names.
 - Part definitions register their qualified names.
-- Unresolved supertype references produce Warning diagnostics.
+- Unresolved references in user files (supertype, typing, redefinition, import, and every other
+  kind) produce Warning diagnostics, or Error diagnostics when `strictUnresolved` is set; the
+  standard library seed adds no diagnostics to a user load.
 - Circular imports produce Warning diagnostics without infinite loops.
 - Resolved `redefines`/`:>>` references — including a bare-name reference to a member inherited
   from an ancestor declared anywhere in the ancestor chain, regardless of declaration order — are

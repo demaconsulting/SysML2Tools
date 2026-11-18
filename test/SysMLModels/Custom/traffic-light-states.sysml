@@ -6,6 +6,8 @@ package TrafficControl {
         state go;
         state caution;
 
+        attribute timerExpired : ScalarValues::Boolean;
+
         transition first stop if timerExpired then go;
         transition first go if timerExpired then caution;
         transition first caution if timerExpired then stop;

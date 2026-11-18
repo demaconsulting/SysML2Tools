@@ -9,7 +9,7 @@ namespace DemaConsulting.SysML2Tools.Tests.Semantic;
 
 /// <summary>
 ///     Tests for <c>AstBuilder</c>'s metadata-annotation capture (<see cref="SysmlMetadataNode"/>),
-///     exercised indirectly through the public <see cref="WorkspaceLoader.LoadAsync"/> entry point
+///     exercised indirectly through the public <see cref="WorkspaceLoader.LoadAsync(IEnumerable{string}, SymbolTable?)"/> entry point
 ///     (mirroring the existing <c>WorkspaceLoaderTests</c> convention, since <c>AstBuilder</c> is
 ///     internal).
 /// </summary>

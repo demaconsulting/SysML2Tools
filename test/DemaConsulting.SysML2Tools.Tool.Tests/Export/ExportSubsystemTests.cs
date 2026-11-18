@@ -629,6 +629,44 @@ public class ExportSubsystemTests
     // ---- error paths ----
 
     /// <summary>
+    ///     By default an unresolved reference is exported as a diagnostic with Severity Warning (1);
+    ///     the export completes and the exit code is 0.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_UnresolvedReference_DiagnosticSeverityIsWarningExitCodeZero()
+    {
+        // Arrange / Act
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            "package P { part def X :> DoesNotExist; }", "--format", "json");
+
+        // Assert
+        Assert.Equal(0, exitCode);
+        using var document = ParseJsonOutput(output);
+        var diagnostic = document.RootElement.GetProperty("Diagnostics").EnumerateArray().Single(d =>
+            d.GetProperty("Message").GetString() == "Unresolved reference: 'DoesNotExist'");
+        Assert.Equal(1, diagnostic.GetProperty("Severity").GetInt32());
+    }
+
+    /// <summary>
+    ///     With <c>--strict-unresolved</c> the exported diagnostic has Severity Error (2); the
+    ///     export still completes with exit code 0 (export reports diagnostics only in its JSON).
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_StrictUnresolved_DiagnosticSeverityIsError()
+    {
+        // Arrange / Act
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            "package P { part def X :> DoesNotExist; }", "--format", "json", "--strict-unresolved");
+
+        // Assert
+        Assert.Equal(0, exitCode);
+        using var document = ParseJsonOutput(output);
+        var diagnostic = document.RootElement.GetProperty("Diagnostics").EnumerateArray().Single(d =>
+            d.GetProperty("Message").GetString() == "Unresolved reference: 'DoesNotExist'");
+        Assert.Equal(2, diagnostic.GetProperty("Severity").GetInt32());
+    }
+
+    /// <summary>
     ///     No input files reports a "no input files" error and exit code 1.
     /// </summary>
     [Fact]

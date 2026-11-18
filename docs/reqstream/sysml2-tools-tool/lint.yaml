@@ -26,6 +26,8 @@ sections:
           - SysML2Tools-Tool-Lint-Parse
           - SysML2Tools-Tool-Lint-Report
           - SysML2Tools-Tool-Lint-ExitCode
+          - SysML2Tools-Tool-Lint-StrictUnresolved
+          - SysML2Tools-Tool-Lint-PortabilityWarning
           - SysML2Tools-Tool-Lint-LocalizableHelpText
         tests:
           - LintSubsystem_Patterns_AcceptsGlobPatterns_ResolvesFiles
@@ -79,8 +81,47 @@ sections:
         justification: |
           A non-zero exit code enables CI/CD pipelines to detect and surface lint
           failures automatically, preventing silent acceptance of invalid SysML models.
+          Unresolved references are warnings by default and do not change the exit code
+          unless strict mode promotes them to errors.
         tests:
           - LintSubsystem_ExitCode_InvalidFile_ReturnsOne
+          - LintSubsystem_UnresolvedReference_ReportsWarningAndExitsZero
+          - LintSubsystem_Gallery_AllModels_NoDiagnosticsExitZero
+
+      - id: SysML2Tools-Tool-Lint-StrictUnresolved
+        title: >-
+          The LintCommand shall report each unresolved reference as a warning by default (exit
+          code 0 when nothing else is wrong), shall accept a `--strict-unresolved` option that
+          reports them as errors (exit code 1), shall leave other warnings such as circular
+          imports unchanged in strict mode, and its help text shall describe both behaviors.
+        justification: |
+          An unresolved reference means the model does not fully validate against the SysML v2
+          standard, but incomplete or work-in-progress models are common, so lint keeps them
+          visible without failing the build by default. Teams that use lint as a model-validity
+          gate opt in to failing on them explicitly, and only unresolved references are promoted.
+        tests:
+          - LintSubsystem_Report_UnresolvedReference_ReportsReferencePosition
+          - LintSubsystem_UnresolvedReference_ReportsWarningAndExitsZero
+          - LintSubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorAndExitsOne
+          - LintSubsystem_StrictUnresolved_CircularImport_RemainsWarning
+          - LintSubsystem_StrictUnresolved_StandardLibraryReference_NoDiagnostics
+          - LintSubsystem_Gallery_StrictUnresolved_AllModels_NoDiagnosticsExitZero
+          - LintSubsystem_Help_PrintsLintSpecificUsage
+
+      - id: SysML2Tools-Tool-Lint-PortabilityWarning
+        title: >-
+          The LintCommand shall report a warning, not an error, at the token of each SysML2Tools
+          extension render selector (such as `asGeneralDiagram`) that a view uses without
+          declaring it, saying the model will not validate in other tools, and shall report
+          nothing for the standard selectors.
+        justification: |
+          The extension selectors render in SysML2Tools but are not standard SysML v2, so authors
+          need to know the model is not portable; a warning leaves the lint exit code unchanged,
+          even in strict mode.
+        tests:
+          - LintSubsystem_Report_ToolRenderSelector_WritesPortabilityWarningAtToken
+          - LintSubsystem_StrictUnresolved_ToolRenderSelector_RemainsWarning
+          - LintSubsystem_Report_StandardRenderSelectors_NoDiagnostics
 
       - id: SysML2Tools-Tool-Lint-LocalizableHelpText
         title: >-

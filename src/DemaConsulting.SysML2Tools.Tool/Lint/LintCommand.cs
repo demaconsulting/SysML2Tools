@@ -60,7 +60,7 @@ internal static class LintCommand
         context.WriteLine($"Linting {files.Count} file(s)...");
 
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-        var result = await WorkspaceLoader.LoadAsync(files, stdlibTable).ConfigureAwait(false);
+        var result = await WorkspaceLoader.LoadAsync(files, stdlibTable, options.StrictUnresolved).ConfigureAwait(false);
 
         foreach (var diagnostic in result.Diagnostics)
         {
@@ -101,5 +101,10 @@ internal static class LintCommand
         context.WriteLine(LintStrings.Lint_Description1);
         context.WriteLine(LintStrings.Lint_Description2);
         context.WriteLine(LintStrings.Lint_Description3);
+        context.WriteLine(LintStrings.Lint_Description4);
+        context.WriteLine("");
+        context.WriteLine(LintStrings.Lint_OptionsHeader);
+        context.WriteLine(LintStrings.Lint_OptionStrictUnresolved1);
+        context.WriteLine(LintStrings.Lint_OptionStrictUnresolved2);
     }
 }

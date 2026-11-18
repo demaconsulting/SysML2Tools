@@ -108,7 +108,7 @@ internal static class QueryCommand
 
         // Load the workspace from the resolved file paths, exactly as 'lint'/'render' do
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-        var loadResult = await WorkspaceLoader.LoadAsync(files, stdlibTable).ConfigureAwait(false);
+        var loadResult = await WorkspaceLoader.LoadAsync(files, stdlibTable, context.QueryStrictUnresolved).ConfigureAwait(false);
 
         foreach (var diagnostic in loadResult.Diagnostics)
         {
@@ -240,6 +240,8 @@ internal static class QueryCommand
         context.WriteLine(QueryStrings.Query_GeneralOptionIncludeConnections);
         context.WriteLine(QueryStrings.Query_GeneralOptionOutput1);
         context.WriteLine(QueryStrings.Query_GeneralOptionOutput2);
+        context.WriteLine(QueryStrings.Query_GeneralOptionStrictUnresolved1);
+        context.WriteLine(QueryStrings.Query_GeneralOptionStrictUnresolved2);
         context.WriteLine("");
         context.WriteLine(QueryStrings.Query_WorkflowNote1);
         context.WriteLine(QueryStrings.Query_WorkflowNote2);
@@ -298,6 +300,8 @@ internal static class QueryCommand
         context.WriteLine(QueryStrings.Query_OptionHeadingVerb);
         context.WriteLine(QueryStrings.Query_OptionIncludeStdlibVerb);
         context.WriteLine(QueryStrings.Query_OptionOutputVerb);
+        context.WriteLine(QueryStrings.Query_GeneralOptionStrictUnresolved1);
+        context.WriteLine(QueryStrings.Query_GeneralOptionStrictUnresolved2);
         context.WriteLine("");
         context.WriteLine(QueryStrings.Query_ExampleHeader);
         context.WriteLine(QueryStrings.GetExample(verb));

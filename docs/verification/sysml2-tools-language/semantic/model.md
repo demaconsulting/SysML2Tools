@@ -25,8 +25,10 @@ external services, network access, or additional configuration are required beyo
   `expose <path>::**[<expr>]` members.
 - `SymbolTable` registers all named nodes from the provided AST roots; duplicate names are
   silently ignored without error.
-- `ReferenceResolver` emits exactly one Warning per unresolved supertype or metadata-type name per
-  file, resolves metadata annotation type references into `MetadataType` edges, and completes
+- `ReferenceResolver` emits exactly one diagnostic per unresolved supertype or metadata-type name
+  per file (a Warning by default, an Error when the caller selects strict unresolved references),
+  reports a SysML2Tools extension `render` selector that is not declared as one portability
+  Warning, resolves metadata annotation type references into `MetadataType` edges, and completes
   without infinite loops when circular imports are present.
 - `SupertypeWalker` emits Warning diagnostics for cyclic specialization chains and terminates
   in finite time for any reachable graph.
@@ -46,6 +48,8 @@ Traceability to `WorkspaceLoaderTests` test methods:
 | `SymbolTable` — registration | `WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration` |
 | `SymbolTable` — lookup | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
 | `ReferenceResolver` — unresolved ref | `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` |
+| `ReferenceResolver` — strict | `WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors` |
+| `ReferenceResolver` — selector | `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` |
 | `ReferenceResolver` — metadata type resolution | `AstBuilder_MetadataAnnotation_ResolvesTypeReference` |
 | `ReferenceResolver` — metadata warning | `AstBuilder_MetadataAnnotation_UnresolvedType_ProducesWarning` |
 | `ReferenceResolver` — circular import | `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` |

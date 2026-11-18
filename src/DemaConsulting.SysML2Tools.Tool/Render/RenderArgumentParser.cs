@@ -28,7 +28,8 @@ namespace DemaConsulting.SysML2Tools.Render;
 /// </summary>
 /// <remarks>
 ///     Recognizes only <c>--output</c>, <c>--format</c>, <c>--view</c>, <c>--auto</c>,
-///     <c>--view-type</c>, <c>--view-target</c>, <c>--filter</c>, and <c>--walk-depth</c>, plus
+///     <c>--view-type</c>, <c>--view-target</c>, <c>--filter</c>, <c>--walk-depth</c>, and
+///     <c>--strict-unresolved</c>, plus
 ///     positional file glob patterns. Any other <c>-</c>-prefixed token is rejected so that flags
 ///     belonging to other commands (e.g., <c>--kind</c>, <c>--element</c>) are never silently
 ///     accepted. <c>--format</c>'s value is captured raw and validated later by
@@ -63,6 +64,7 @@ internal static class RenderArgumentParser
         string? viewTarget = null;
         string? filterExpression = null;
         int? walkDepth = null;
+        var strictUnresolved = false;
         var files = new List<string>();
 
         var index = 0;
@@ -110,6 +112,10 @@ internal static class RenderArgumentParser
                         arg, commandArgs, ref index, "a diagram nesting depth argument", 1);
                     break;
 
+                case "--strict-unresolved":
+                    strictUnresolved = true;
+                    break;
+
                 default:
                     if (arg.StartsWith("-", StringComparison.Ordinal))
                     {
@@ -132,6 +138,7 @@ internal static class RenderArgumentParser
             ViewTarget = viewTarget,
             FilterExpression = filterExpression,
             WalkDepth = walkDepth,
+            StrictUnresolved = strictUnresolved,
             Files = files
         };
     }

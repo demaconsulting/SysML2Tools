@@ -28,7 +28,7 @@ namespace DemaConsulting.SysML2Tools.Export;
 /// </summary>
 /// <remarks>
 ///     Recognizes only <c>--format</c>, <c>--output</c>, <c>--include-stdlib</c>, <c>--target</c>,
-///     and <c>--filter</c>, plus positional file glob patterns. Any other <c>-</c>-prefixed token
+///     <c>--filter</c>, and <c>--strict-unresolved</c>, plus positional file glob patterns. Any other <c>-</c>-prefixed token
 ///     is rejected so that flags belonging to other commands (e.g., <c>--view</c>, <c>--kind</c>)
 ///     are never silently accepted. <c>--format</c>'s value is captured raw and validated later by
 ///     <see cref="ExportCommand.RunAsync"/>, matching the <c>query</c>/<c>render</c> commands'
@@ -56,6 +56,7 @@ internal static class ExportArgumentParser
         var includeStdlib = false;
         string? target = null;
         string? filterExpression = null;
+        var strictUnresolved = false;
         var files = new List<string>();
 
         var index = 0;
@@ -88,6 +89,10 @@ internal static class ExportArgumentParser
                         arg, commandArgs, ref index, "a filter expression argument");
                     break;
 
+                case "--strict-unresolved":
+                    strictUnresolved = true;
+                    break;
+
                 default:
                     if (arg.StartsWith("-", StringComparison.Ordinal))
                     {
@@ -107,6 +112,7 @@ internal static class ExportArgumentParser
             IncludeStdlib = includeStdlib,
             Target = target,
             FilterExpression = filterExpression,
+            StrictUnresolved = strictUnresolved,
             Files = files
         };
     }

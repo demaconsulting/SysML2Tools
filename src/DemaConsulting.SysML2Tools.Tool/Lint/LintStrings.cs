@@ -49,4 +49,16 @@ internal static class LintStrings
 
     /// <summary>Gets the third line of the 'lint' command description.</summary>
     public static string Lint_Description3 => ResourceManager.GetString(nameof(Lint_Description3))!;
+
+    /// <summary>Gets the fourth line of the 'lint' command description.</summary>
+    public static string Lint_Description4 => ResourceManager.GetString(nameof(Lint_Description4))!;
+
+    /// <summary>Gets the 'Options:' header line of the 'lint' command help.</summary>
+    public static string Lint_OptionsHeader => ResourceManager.GetString(nameof(Lint_OptionsHeader))!;
+
+    /// <summary>Gets the first line of the --strict-unresolved option description.</summary>
+    public static string Lint_OptionStrictUnresolved1 => ResourceManager.GetString(nameof(Lint_OptionStrictUnresolved1))!;
+
+    /// <summary>Gets the second line of the --strict-unresolved option description.</summary>
+    public static string Lint_OptionStrictUnresolved2 => ResourceManager.GetString(nameof(Lint_OptionStrictUnresolved2))!;
 }

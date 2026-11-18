@@ -15,9 +15,12 @@
    `SysmlSatisfyNode` subject/requirement, `SysmlConnectionNode`
    (`ConnectionKeyword == "allocation"`) endpoint, `SysmlDependencyNode` from/to name lists, and
    `SysmlViewNode` expose entries and view definition in all AST nodes by KerML 8.2.3.5 name
-   resolution (`NameResolver`), emitting a Warning for any name not found and recording a
+   resolution (`NameResolver`), emitting an unresolved-reference diagnostic for any name not found
+   (a Warning by default, an Error under `strictUnresolved`; see "Severity and Origin" below) and recording a
    `SysmlEdge` for any name (or pair of names) that resolves. The same pass resolves each node's
-   `ReferenceOccurrences` (see "Expression References" below), reporting without recording an edge.
+   `ReferenceOccurrences` (see "Expression References" below), reporting without recording an edge;
+   a view's `render` target that names a SysML2Tools extension selector gets a portability Warning
+   instead (see "Tool Render Selectors (Portability Warning)" below).
 4. **Feature-chain resolution (pass 2)** — after pass 1 has completed for every file root,
    resolves dotted feature chains (e.g. `engine.fuelPort`) referenced by `SysmlConnectionNode`
    (`ConnectionKeyword == "connection"`, `"message"`, or `"binding"`) endpoints and
@@ -30,7 +33,8 @@ values into a `HashSet<string>` per file. The result is a `Dictionary<string, Ha
 from file path to imported names.
 
 `DetectCircularImports` runs a DFS over the import graph keys. A cycle is detected when a
-node in the current DFS stack is encountered again. The Warning message names the namespace
+node in the current DFS stack is encountered again. This diagnostic is always a Warning,
+whatever the unresolved-reference severity. The Warning message names the namespace
 that imports and the imported namespace that completes the cycle. `BuildImportGraph` also records,
 for each `(importing namespace, imported namespace)` pair, the file and source position of the
 first import statement that writes it (the `ReferencePositions` entry of the import node, else
@@ -39,18 +43,19 @@ that contains it.
 
 ##### Unresolved-Reference Positions
 
-An unresolved-reference Warning is located at the position of the reference text as written, not
+An unresolved-reference diagnostic (Warning by default; see "Severity and Origin") is located at the
+position of the reference text as written, not
 at `(0,0)`. `ResolveOrWarn`/`ReportUnresolved` (and the feature-chain and transition-source
 helpers) take the *owning node* of the reference and look the reference text up in the owner's
 `SysmlNode.ReferencePositions` (see the `AstBuilder` design): the first token of the reference.
-When the owner has no entry for the text (a synthesized name that matches no token) the Warning
+When the owner has no entry for the text (a synthesized name that matches no token) the diagnostic
 falls back to the owner's declaration position (`SourceLine`/`SourceColumn`), and to `(0,0)` only
 for a node with no position at all (a hand-built node). The reference kinds that get an exact
 token position are supertype, subsetting, typing, redefinition, import, `expose`, view
 definition, connector (`connect`/`bind`/message) endpoints, transition source and target,
 `satisfy`, `verify`, allocation endpoints, `dependency`, and metadata-type references; the
 owner-position fallback applies only to texts with no token. Deduplication is unchanged: the
-Warning is emitted once per distinct name per file, at the first owner that references it, so the
+diagnostic is emitted once per distinct name per file, at the first owner that references it, so the
 count of diagnostics is identical to before positions were added. References inside expressions
 (`ReferenceOccurrences`, see "Expression References") carry their own exact token position and are
 reported per occurrence rather than once per name. `NameResolver` emits no
@@ -89,23 +94,24 @@ unresolved references, so a consumer pairs a raw reference with its edge by that
 by position or by name suffix. For an `Import` edge the text is `SysmlImportNode.RawReferenceText`
 (wildcard/recursive markers kept — `P`, `P::*`, `P::**` — and the bracket filter excluded), falling
 back to the `ImportedNames` entry when it is `null` (hand-built nodes, legacy serialized data);
-the name that is resolved, and reported in the unresolved-reference Warning, remains the stripped
+the name that is resolved, and reported in the unresolved-reference diagnostic, remains the stripped
 `ImportedNames` entry. The two-ended kinds (`Satisfy`, `Allocate`, `Dependency`, `Connect`,
 `Binding`, `Transition`) leave it `null`. Any non-empty per-node edge list is attached to `node.ResolvedEdges` and
 appended to the aggregate edge list returned by `ResolveAll`.
 
-For each name that does not resolve (and is not already reported in this file), a Warning
-diagnostic is emitted. The `resolvedInFile` set prevents duplicate warnings for the same name
-within a file; `ResolveOrWarn` may resolve an already-warned name again (a minor,
+For each name that does not resolve (and is not already reported in this file), an
+`Unresolved reference: '<name>'` diagnostic is emitted at the resolver's unresolved severity (see
+"Severity and Origin"). The `resolvedInFile` set prevents duplicate diagnostics for the same name
+within a file; `ResolveOrWarn` may resolve an already-reported name again (a minor,
 correctness-preserving redundancy — see Error Handling), but no duplicate diagnostic is
 produced. A reference that KerML name resolution rejects — a private member reached through a
 qualified name, a candidate a filtered import excludes, a name reachable only through another
 namespace's import — is reported exactly like any other unresolved reference (the same
-`Unresolved reference: '<name>'` Warning, with no edge), so the layouts and the `lint` command
+`Unresolved reference: '<name>'` diagnostic, with no edge), so the layouts and the `lint` command
 need no new diagnostic channel.
 
 A `SysmlViewNode`'s `ViewDefinitionName` (`view V : Def`) is resolved the same way into a
-`SysmlEdgeKind.Typing` edge, or reported with the same unresolved-reference Warning; callers use
+`SysmlEdgeKind.Typing` edge, or reported with the same unresolved-reference diagnostic; callers use
 the edge to find the view definition whose view conditions and rendering the usage inherits
 (SysML 2.1 Beta 2 7.26.2).
 
@@ -116,7 +122,7 @@ have been traversed.
 
 A qualified name's later segments are resolved by *visible* resolution, so a member whose
 `SysmlNode.Visibility` is `Private` (or `Protected`) is not reachable as `P::Hidden` from another
-package: no `Typing`/`Supertype`/... edge is recorded and the unresolved-reference Warning is
+package: no `Typing`/`Supertype`/... edge is recorded and the unresolved-reference diagnostic is
 emitted. The same rule applies on the short-name and alias paths (`P::<k>` of a private member,
 a private alias) and to `expose P::Hidden;`. A protected member is visible to a specialization of
 its owner (inheritance admits everything but private members), `import all P::*;` brings in the
@@ -270,8 +276,8 @@ children without restriction but its ancestors only for non-private members.
   not checked (matching by name is safe because SysML redefinitions preserve or narrow, never
   change, the feature's identity for chain-traversal purposes).
 - **Indexed/sequence access syntax (`#(n)`) is not supported** — a segment containing `#(...)`
-  simply fails to match any child `Name` and gracefully degrades to unresolved (Warning, no edge,
-  no crash).
+  simply fails to match any child `Name` and gracefully degrades to unresolved (diagnostic, no
+  edge, no crash).
 - **Imported/wildcard-imported feature members are not merged into type member lookup** — only
   `Children` and `Supertype`-chain `Children` are searched.
 - **An implied/omitted `SysmlTransitionNode.Source` produces no edge, except for the narrow
@@ -330,7 +336,7 @@ definition) is left to ordinary name resolution. The `Source` side keeps the ful
 This fallback is **intentionally narrow and not a general inherited-member resolver**: it is
 scoped to Transition `Source` and `Target` resolution only (step 4 additionally scoped to the two
 well-known pseudostate names), and a name that is neither declared, imported, inherited nor one
-of those two still produces the "Unresolved reference" warning. A future
+of those two still produces the "Unresolved reference" diagnostic. A future
 model using a different, custom state-machine base type that also needs `start`/`done`-like
 inherited pseudostate features would not resolve via step 4 (only via steps 1–3, if it declares
 an explicit supertype chain) — this is a known, accepted limitation, not a defect to fix here.
@@ -339,13 +345,13 @@ an explicit supertype chain) — this is a known, accepted limitation, not a def
 
 Three additional resolution blocks in `ResolveNode` produce the `Satisfy`/`Verify`/`Allocate`
 edge kinds, all following the same graceful-degradation contract as the uniform loops above
-(no exception is ever thrown for an unresolvable name; unresolved names produce a Warning and
-no edge):
+(no exception is ever thrown for an unresolvable name; unresolved names produce an
+unresolved-reference diagnostic and no edge):
 
 - **`VerifiedRequirementNames` (Verify)** — resolved via the same uniform loop pattern used for
   `SupertypeNames`/`ImportedNames`: each entry in `node.VerifiedRequirementNames` that resolves
   produces one `SysmlEdgeKind.Verify` edge sourced from `node.QualifiedName` (the verifying
-  case/requirement) to the resolved requirement; an unresolvable entry produces a Warning and no
+  case/requirement) to the resolved requirement; an unresolvable entry produces a diagnostic and no
   edge, independently per entry.
 - **`SysmlSatisfyNode` (Satisfy)** — resolves `SubjectName` and `RequirementName`
   independently (each optional/absent side is simply skipped). A `SysmlEdgeKind.Satisfy` edge
@@ -353,14 +359,14 @@ no edge):
   sides resolve** — unlike the uniform loops, this is a two-sided reference, so a single
   unresolvable side suppresses the edge entirely rather than emitting a partial/misleading edge.
   Dotted feature-chain subjects (e.g. `a.b`) are out of scope for this unit and simply fail to
-  resolve as a single symbol name, which degrades gracefully (Warning, no edge, no crash).
+  resolve as a single symbol name, which degrades gracefully (diagnostic, no edge, no crash).
 - **`SysmlConnectionNode` with `ConnectionKeyword == "allocation"` (Allocate)** — resolves
   `EndpointA` and `EndpointB` independently, emitting a `SysmlEdgeKind.Allocate` edge (`Source`
   = resolved first end, `Target` = resolved second end) only when both ends resolve, using the
   identical both-sides-must-resolve contract as `Satisfy`. Regular `"connection"`/`"message"`
   keyword variants remain intentionally unresolved (out of scope for this unit).
 - **`SysmlDependencyNode` (Dependency)** — resolves every entry in `FromNames` and every entry in
-  `ToNames` independently (each unresolvable name produces its own Warning, per the
+  `ToNames` independently (each unresolvable name produces its own diagnostic, per the
   `resolvedInFile` de-duplication rule), then emits one `SysmlEdgeKind.Dependency` edge per
   resolved (from, to) pair — a cross product, per the grammar's list-of-lists shape (e.g.
   `dependency a, b to c, d;` resolves to up to 4 edges). Unlike the two-sided
@@ -369,7 +375,7 @@ no edge):
   resolvable names.
 - **`SysmlViewNode` (Expose)** — resolves each `GetExposedNames()` entry (the `QualifiedName` of
   each `ExposeMember`) into its own `SysmlEdgeKind.Expose` edge, or the standard
-  unresolved-reference Warning diagnostic when it does not resolve. The edge's `RawReference` is the
+  unresolved-reference diagnostic when it does not resolve. The edge's `RawReference` is the
   member's `RawReferenceText` (the reference as written, wildcard/recursive markers kept, bracket
   filter excluded), falling back to `QualifiedName` when it is `null` (hand-built members,
   `DynamicViewSynthesizer`, legacy serialized data); resolution and diagnostics always use the
@@ -391,7 +397,7 @@ or requirement-constraint expression — are located by `AstBuilder` from the sy
 `SysmlNode.ReferenceOccurrences` (name plus token position; see the `AstBuilder` design).
 `ResolveReferenceOccurrences`, called from `ResolveNode` for every node, resolves each occurrence
 with `TryResolve` and, when it does not resolve, adds the standard `Unresolved reference: '<name>'`
-Warning at the occurrence's own `(line, column)`.
+diagnostic (at the resolver's unresolved severity) at the occurrence's own `(line, column)`.
 
 - **Local namespace.** A `render` target is resolved in the *view's own* namespace (its qualified
   name), so an `import Views::*;` written in the view's body applies (`AstBuilder` keeps a view's
@@ -399,17 +405,17 @@ Warning at the occurrence's own `(line, column)`.
   namespace that owns the node (`scope` of `ResolveNode`), exactly like the node's typing.
   `Views` is not implicitly imported: `render asTreeDiagram;` without `import Views::*;` or the
   qualified `Views::asTreeDiagram` is unresolved, as in the OMG Pilot Implementation. The five
-  tool-defined selectors (`asGeneralDiagram`, `asStateTransitionDiagram`, `asActionFlowDiagram`,
-  `asSequenceDiagram`, `asGridDiagram` — the `DiagramTypeRouter` tokens beyond the Views library)
-  are not collected (`AstBuilder.ToolDefinedRenderTargets`): they are documented selectors that no
-  model can declare, so reporting them would flag the tool's own documented usage.
+  SysML2Tools extension selectors are not filtered out of the occurrences; a view's occurrence that
+  names one and does not resolve gets the portability Warning instead of the unresolved-reference
+  diagnostic (see "Tool Render Selectors (Portability Warning)").
 - **Reported per occurrence.** Unlike the name-keyed deduplication of the other reference kinds,
   every unresolved occurrence is reported: the same undeclared guard name used in two transitions
   is two places to fix, and the Pilot reports both.
 - **No edge.** The occurrences have no single edge kind (a feature, a type, or a rendering,
   depending on the context), so only the resolved/unresolved outcome is produced. Edges are a
   follow-up.
-- **Severity.** Warning, like every other unresolved reference. The standard library has no
+- **Severity.** The resolver's unresolved severity (Warning by default; see "Severity and Origin").
+  The standard library has no
   `ReferenceOccurrences` after deserialization (`[JsonIgnore]`); it is checked when it is
   compiled by `StdlibGen`, which adds two justified warnings to the standard library's own
   diagnostics: `Anything` (`Base::Anything` is a KerML declaration the SysML grammar does not
@@ -421,6 +427,71 @@ Warning at the occurrence's own `(line, column)`.
   library features such as `TrigFunctions::pi`, `::` access into variants); the guard of the
   `first … if … then …` succession form (no AST node is built for it); `if`/`while`/`for` action
   nodes; invocation function names; members selected through `.`; redefinitions; edge creation.
+
+##### Severity and Origin
+
+Every "Unresolved reference" diagnostic — all the kinds listed under "Unresolved-Reference
+Positions" and every `ReferenceOccurrences` entry — is emitted at one severity, the required
+`unresolvedSeverity` constructor parameter (the third, before the optional `stdlibNames`). The
+severity is decided by *which resolver invocation produced the diagnostic*, not by a per-node flag:
+
+- **User files — Warning by default.** `WorkspaceLoader.LoadAsync` passes
+  `WorkspaceLoader.DefaultUserUnresolvedSeverity` (`DiagnosticSeverity.Warning`), so a model with an
+  unresolved reference still lints with exit code 0. Message, position, and de-duplication rules
+  are unchanged, and no edge is recorded.
+- **User files — Error when strict.** `LoadAsync(..., strictUnresolved: true)` (the
+  `--strict-unresolved` CLI option) passes `DiagnosticSeverity.Error`, so the model fails `lint` and
+  is reported as an error by the other commands.
+- **Standard library — always Warning.** `StdlibGen` constructs the resolver with
+  `DiagnosticSeverity.Warning` explicitly, so the diagnostics produced while compiling the standard
+  library stay Warnings (the compile reports 0 errors and 1964 warnings). The compiled library is a
+  pre-resolved seed symbol table that is never re-resolved at load time, so a user load produces no
+  standard-library-origin diagnostics and the model, serialization, and `SysmlDiagnostic` carry no
+  origin marker.
+- **Unaffected diagnostics.** The circular-import Warning of this unit and the cyclic-specialization
+  Warning of `SupertypeWalker` do not use the severity parameter and are always Warnings.
+  The portability Warning below is likewise always a Warning.
+
+**Unresolved-reference severity policy.** The default is Warning, not Error, because name
+resolution still has known gaps (dotted feature chains and kernel/library features), tracked by
+issue #93 and #129; promoting those to errors by default would reject
+valid models. `WorkspaceLoader.DefaultUserUnresolvedSeverity` is the single place to change the
+default. Once the OMG corpus produces close to zero strict-mode errors, the constant is flipped to
+`Error` and the `--strict-unresolved` flag is replaced (for example with an opt-out). See the
+`WorkspaceLoader` design for the full policy.
+
+##### Tool Render Selectors (Portability Warning)
+
+The diagram type router accepts five SysML2Tools extension `render` selectors — `asGeneralDiagram`,
+`asStateTransitionDiagram`, `asActionFlowDiagram`, `asSequenceDiagram`, and `asGridDiagram` — that
+no standard library declares, so a standard SysML v2 tool cannot resolve them. The internal table
+`ReferenceResolver.ToolRenderSelectors` is the single copy of the list in this library and maps each
+token to the standard view definition a portable model should use (`GeneralView`,
+`StateTransitionView`, `ActionFlowView`, `SequenceView`, `GridView`, declared in the
+`StandardViewDefinitions` standard-library package, not in `Views`). The `DiagramTypeRouter` in the
+Core library, which this library cannot reference, recognizes the same five tokens; that is the
+second copy.
+
+In `ResolveReferenceOccurrences`, a view's occurrence is first resolved normally (so a user-declared
+`rendering asGridDiagram`, or one reached through an import, resolves with no diagnostic). Only when
+it does not resolve and its name is in `ToolRenderSelectors` is **one Warning** added at the token,
+per occurrence, instead of the unresolved-reference diagnostic:
+
+```text
+'asGeneralDiagram' is a SysML2Tools extension, not a standard SysML v2 rendering; the model will
+not validate in other tools. Use a standard view definition instead (e.g. 'view v :
+StandardViewDefinitions::GeneralView').
+```
+
+- **Never an Error.** The severity is a Warning whatever `unresolvedSeverity` is, so
+  `--strict-unresolved` does not change it, and the documented tool selectors keep working in `lint`.
+- **Rendering is unchanged.** The router is untouched; a dynamic `--view-type` view is synthesized
+  without reference occurrences and so gets no warning.
+- **Standard selectors are unaffected.** `Views::asTreeDiagram`, `Views::asInterconnectionDiagram`,
+  the bare forms imported through `import Views::*;`, `asElementTable`, and `asTextualNotation`
+  resolve and produce no diagnostic.
+- **Qualified extension names are not accepted.** `Views::asGeneralDiagram` is not a member of
+  `Views`, so it is an ordinary unresolved-reference diagnostic (a Warning by default).
 
 ##### Local Namespace of a Reference
 
@@ -445,9 +516,10 @@ are followed, not supertype-only, because `1c-PartsTreeRedefinition.sysml`'s nes
 
 ##### Error Handling
 
-All issues are reported as `Warning`-severity `SysmlDiagnostic` entries added to the shared
-`_diagnostics` list. No exceptions are thrown; the resolver completes even when cycles or
-unresolved names are present.
+Issues are reported as `SysmlDiagnostic` entries added to the shared `_diagnostics` list:
+unresolved references at the configured `unresolvedSeverity` (Warning by default for user files),
+and circular imports and the tool-selector portability notice always as `Warning`. No exceptions
+are thrown; the resolver completes even when cycles or unresolved names are present.
 
 ##### Dependencies
 
@@ -473,13 +545,16 @@ unresolved names are present.
   **and** `Redefinition` kinds during `FindMemberInAncestorChain`'s ancestor walk).
 - `SysmlEdge`, `SemanticIndex` — resolved references are recorded as `SysmlEdge` instances and
   aggregated into the returned `SemanticIndex`.
-- `SysmlDiagnostic`, `DiagnosticSeverity` — used to construct and emit Warning diagnostics.
+- `SysmlDiagnostic`, `DiagnosticSeverity` — used to construct and emit diagnostics at the configured
+  severity (and the always-Warning import-cycle and portability diagnostics).
 
 ##### Callers
 
 `WorkspaceLoader.LoadAsync` constructs a `ReferenceResolver` with the shared `SymbolTable`,
-diagnostics list, and the seed symbol table's names (the stdlib names), then calls `ResolveAll`
+diagnostics list, the unresolved severity (`Error` when `strictUnresolved` is set, otherwise
+`DefaultUserUnresolvedSeverity`, `Warning`), and
+the seed symbol table's names (the stdlib names), then calls `ResolveAll`
 with all user file AST roots (stdlib roots are
 registered into the `SymbolTable` directly and are never passed through `ResolveAll`), capturing
-the returned `SemanticIndex` into `SysmlWorkspace.Index`. `StdlibGen` constructs one with no
-stdlib names and passes every stdlib file root.
+the returned `SemanticIndex` into `SysmlWorkspace.Index`. `StdlibGen` constructs one with
+`DiagnosticSeverity.Warning`, no stdlib names, and passes every stdlib file root.

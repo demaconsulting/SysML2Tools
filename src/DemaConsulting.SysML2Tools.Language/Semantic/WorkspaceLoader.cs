@@ -10,7 +10,7 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 ///     Loads SysML/KerML files into a semantic workspace with symbol registration and reference resolution.
 /// </summary>
 /// <remarks>
-///     <see cref="LoadAsync"/> is the primary entry point for consuming this library: it parses
+///     <see cref="LoadAsync(IEnumerable{string}, SymbolTable?)"/> is the primary entry point for consuming this library: it parses
 ///     all supplied files in parallel, registers every declaration in a symbol table, resolves
 ///     supertype/typing/import references, and walks specialization chains — returning a fully
 ///     resolved <see cref="SysmlWorkspace"/> plus the aggregated diagnostics from every phase.
@@ -25,8 +25,24 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 public static class WorkspaceLoader
 {
     /// <summary>
-    ///     Loads the given SysML/KerML source files into a semantic workspace.
+    ///     The severity of an unresolved reference in a user file when the caller does not opt in
+    ///     to strict mode. This is the single place the default is chosen: flipping the default
+    ///     to Error means changing this constant (and replacing the command-line opt-in).
+    ///     The default is Warning while resolver gaps remain (#93, #129).
+    ///     The standard library compiler (StdlibGen) never reads it and always passes Warning.
     /// </summary>
+    internal const DiagnosticSeverity DefaultUserUnresolvedSeverity = DiagnosticSeverity.Warning;
+
+    /// <summary>
+    ///     Loads the given SysML/KerML source files into a semantic workspace, reporting every
+    ///     unresolved reference in the user files as a Warning.
+    /// </summary>
+    /// <remarks>
+    ///     This is the original public signature, kept so that consumers compiled against earlier
+    ///     releases remain binary compatible. It is equivalent to calling
+    ///     <see cref="LoadAsync(IEnumerable{string}, SymbolTable?, bool)"/> with
+    ///     <c>strictUnresolved: false</c>.
+    /// </remarks>
     /// <param name="filePaths">
     ///     Paths to the SysML/KerML source files to load. May be empty, in which case only
     ///     seed declarations are available.
@@ -39,10 +55,38 @@ public static class WorkspaceLoader
     /// <returns>
     ///     A <see cref="SysmlLoadResult"/> containing the workspace and all diagnostics.
     /// </returns>
+    public static Task<SysmlLoadResult> LoadAsync(
+        IEnumerable<string> filePaths,
+        SymbolTable? seedSymbolTable = null) =>
+        LoadAsync(filePaths, seedSymbolTable, strictUnresolved: false);
+
+    /// <summary>
+    ///     Loads the given SysML/KerML source files into a semantic workspace, choosing whether
+    ///     unresolved references in the user files are reported as Warnings or Errors.
+    /// </summary>
+    /// <param name="filePaths">
+    ///     Paths to the SysML/KerML source files to load. May be empty, in which case only
+    ///     seed declarations are available.
+    /// </param>
+    /// <param name="seedSymbolTable">
+    ///     An optional pre-populated symbol table (e.g., from a pre-compiled stdlib).
+    ///     When provided, the workspace is initialized with these symbols before parsing user files.
+    ///     When null, the workspace starts empty.
+    /// </param>
+    /// <param name="strictUnresolved">
+    ///     When <see langword="false"/> every unresolved reference in the user files is reported
+    ///     as a Warning diagnostic; when <see langword="true"/> it is reported as an Error instead
+    ///     (strict mode). Circular-import and cyclic-specialization diagnostics are always
+    ///     Warnings. This parameter has no default so the overload never overlaps the
+    ///     two-parameter overload.
+    /// </param>
+    /// <returns>
+    ///     A <see cref="SysmlLoadResult"/> containing the workspace and all diagnostics.
+    /// </returns>
     /// <example>
     /// <code>
     /// var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-    /// var result = await WorkspaceLoader.LoadAsync(["model.sysml"], stdlibTable);
+    /// var result = await WorkspaceLoader.LoadAsync(["model.sysml"], stdlibTable, strictUnresolved: true);
     /// if (result.HasErrors)
     /// {
     ///     return; // inspect result.Diagnostics for details
@@ -53,7 +97,8 @@ public static class WorkspaceLoader
     /// </example>
     public static async Task<SysmlLoadResult> LoadAsync(
         IEnumerable<string> filePaths,
-        SymbolTable? seedSymbolTable = null)
+        SymbolTable? seedSymbolTable,
+        bool strictUnresolved)
     {
         var allDiagnostics = new List<SysmlDiagnostic>();
         var symbolTable = seedSymbolTable is not null
@@ -80,7 +125,11 @@ public static class WorkspaceLoader
         var stdlibNames = seedSymbolTable is not null
             ? new HashSet<string>(seedSymbolTable.Symbols.Keys, StringComparer.Ordinal)
             : new HashSet<string>(StringComparer.Ordinal);
-        var resolver = new ReferenceResolver(symbolTable, allDiagnostics, stdlibNames);
+        var resolver = new ReferenceResolver(
+            symbolTable,
+            allDiagnostics,
+            strictUnresolved ? DiagnosticSeverity.Error : DefaultUserUnresolvedSeverity,
+            stdlibNames);
         var index = resolver.ResolveAll(userAstRoots);
 
         var supertypeWalker = new SupertypeWalker(symbolTable, allDiagnostics);

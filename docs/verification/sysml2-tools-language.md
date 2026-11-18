@@ -19,16 +19,22 @@ SDK installation.
 - `WorkspaceParser` correctly propagates the caller-supplied file path in all diagnostics.
 - Invalid SysML syntax produces at least one `Error`-severity diagnostic.
 - `WorkspaceLoader` correctly registers qualified names from SysML packages and definitions.
-- Unresolved supertype references produce `Warning`-severity diagnostics.
+- Unresolved references (supertype, typing, redefinition, import, and every other kind) in user
+  files produce `Warning`-severity diagnostics by default, or `Error`-severity diagnostics when
+  `WorkspaceLoader.LoadAsync` is called with `strictUnresolved: true`.
 - An undeclared name in a transition guard, trigger, effect, an action-flow `accept`/`send`
   node, a state action, a constraint expression, or a view's `render` target produces an
-  `Unresolved reference` `Warning` at the name's token (see the ReferenceResolver verification);
-  operators, literals, and library functions in those expressions are not reported.
+  `Unresolved reference` diagnostic (`Warning` by default, `Error` when strict) at the name's
+  token (see the ReferenceResolver verification); operators, literals, and library functions in
+  those expressions are not reported.
+- A view's `render` target that names a SysML2Tools extension selector (such as
+  `asGeneralDiagram`) without declaring it produces one portability `Warning` at the token,
+  never an `Error`, regardless of `strictUnresolved`; standard selectors produce no diagnostic.
 - References follow KerML 8.2.3.5 name resolution: a private (or protected) member is not
   reachable through a qualified name from another package, a filtered import
   (`import P::*[@X];`) admits only the elements its filter accepts, and an import applies only
   to the namespace that declares it (and the namespaces nested in it) — a rejected reference
-  produces an `Unresolved reference` `Warning`-severity diagnostic and no edge.
+  produces an `Unresolved reference` diagnostic (`Warning` by default) and no edge.
 - Circular imports between two files produce at least one `Warning`-severity diagnostic.
 - Resolved supertype, feature-typing, redefinition, and import references are recorded as
   `SysmlEdge` entries queryable via `SysmlWorkspace.Index.GetOutgoingEdges`/`GetIncomingEdges`
@@ -65,6 +71,13 @@ Primary acceptance evidence is provided by:
 - `WorkspaceLoader_LoadAsync_ParseError_ReturnsError` — malformed SysML produces Error diagnostic.
 - `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` — two files with
   circular imports; asserts cycle detection terminates and emits Warning.
+- `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` /
+  `WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors` /
+  `WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings` — an unresolved
+  reference is a Warning by default and an Error with `strictUnresolved: true`, while
+  circular-import and cyclic-specialization diagnostics stay Warnings.
+- `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` — an undeclared
+  `asGeneralDiagram` render selector produces exactly one portability Warning at the token.
 - `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` — resolved specialization
   is queryable from both directions via `SysmlWorkspace.Index`.
 - `WorkspaceLoader_LoadAsync_ResolvedFeatureTyping_RecordsTypingEdge` — resolved feature typing

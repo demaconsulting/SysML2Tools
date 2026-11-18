@@ -71,11 +71,13 @@ when `help` is the first recognized command token; `SysmlCommand.None` otherwise
 its own file, `Cli/SysmlCommand.cs`.
 
 **Lint**: `LintOptions?` — populated only when `Command` is `SysmlCommand.Lint`. Carries the
-`Files` glob-pattern list; `lint` recognizes no flags of its own.
+`Files` glob-pattern list and `StrictUnresolved` (from the boolean `--strict-unresolved` flag, the
+only flag `lint` recognizes).
 
 **Render**: `RenderCommandOptions?` — populated only when `Command` is `SysmlCommand.Render`.
 Carries `OutputDirectory`, `Format` (`"svg"`/`"png"`, validated by `RenderCommand.RunAsync` — not
 at parse time), `ViewName`, `AutoView`, `WalkDepth` (diagram nesting depth limit, command-scoped),
+`StrictUnresolved` (from `--strict-unresolved`),
 and `Files`. Named `RenderCommandOptions` rather than
 `RenderOptions` to avoid colliding with `DemaConsulting.Rendering.Abstractions.RenderOptions`,
 the off-the-shelf rendering-library type already used inside `RenderCommand`.
@@ -95,6 +97,13 @@ supplied (output goes to stdout). Parsed by `QueryCliArgumentParser` alongside `
 query's `--output` names a single output **file**, whereas render's `--output` names an output
 *directory* for per-view files; read directly by `QueryCommand.RunAsync` to decide whether to
 write to stdout or to the named file via `QueryResultExporter`.
+
+**QueryStrictUnresolved**: `bool` — `true` when `query` was given the Tool-only `--strict-unresolved`
+flag (default `false`). Parsed by `QueryCliArgumentParser` alongside `Query`, `QueryFiles`, and
+`QueryOutput` (the parser returns the 4-tuple `(Options, Files, Output, StrictUnresolved)`). It is a
+`Context` property rather than a `QueryOptions` member because Core's public `QueryArgumentParser`
+and `QueryOptions` do not know about workspace-loading options; read by `QueryCommand.RunAsync`
+and passed to `WorkspaceLoader.LoadAsync`.
 
 **HelpCommand**: `HelpOptions?` — populated only when `Command` is `SysmlCommand.Help`. Named
 `HelpCommand` (not `Help`) to avoid colliding with the existing `Help` flag property, which
@@ -120,14 +129,15 @@ switches on `GlobalArguments.Command` to dispatch to exactly one per-command par
 - `SysmlCommand.Lint` → `LintArgumentParser.Parse(global.CommandArgs)` → `Lint`.
 - `SysmlCommand.Render` → `RenderArgumentParser.Parse(global.CommandArgs)` → `Render`.
 - `SysmlCommand.Query` → `QueryCliArgumentParser.Parse(global.CommandArgs, global.Help)`
-  → `Query`, `QueryFiles`, and `QueryOutput`. The `query` grammar is **structural**: the first
+  → `Query`, `QueryFiles`, `QueryOutput`, and `QueryStrictUnresolved`. The `query` grammar is
+  **structural**: the first
   token after the `query` command token must be a recognized verb (validated eagerly via
   `QueryVerbParsing.Parse`, which lists all valid tokens on failure); when no verb token is
   present, parsing returns `null` if `--help` was requested, otherwise throws a clear
   `ArgumentException` ("query: a verb is required...") rather than silently leaving `Query`
-  null. `QueryCliArgumentParser` also pre-scans for the Tool-only `--output <file>` flag,
-  populating `QueryOutput` before delegating the remaining grammar to Core's public
-  `QueryArgumentParser`.
+  null. `QueryCliArgumentParser` also pre-scans for the Tool-only `--output <file>` and
+  `--strict-unresolved` flags, populating `QueryOutput` and `QueryStrictUnresolved` before delegating
+  the remaining grammar to Core's public `QueryArgumentParser`.
 - `SysmlCommand.None` → no per-command parser runs; any leftover `-`-prefixed token in
   `global.CommandArgs` throws `ArgumentException("Unsupported argument '{arg}'")`, preserving the
   historical bare-invocation error behavior.
@@ -192,7 +202,8 @@ available.
 - **`LintOptions`/`LintArgumentParser`**, **`RenderCommandOptions`/`RenderArgumentParser`**,
   **`QueryOptions`/`QueryCliArgumentParser`**, **`HelpOptions`/`HelpArgumentParser`** — the
   per-command option records and parsers dispatched to by `Create`. `QueryCliArgumentParser`
-  additionally owns parsing `QueryOutput`, which has no equivalent Core `QueryOptions` property.
+  additionally owns parsing `QueryOutput` and `QueryStrictUnresolved`, which have no equivalent Core
+  `QueryOptions` property.
 
 #### Callers
 

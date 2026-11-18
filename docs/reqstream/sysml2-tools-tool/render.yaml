@@ -35,6 +35,7 @@ sections:
           - SysML2Tools-Tool-Render-EmptyViewWarning
           - SysML2Tools-Tool-Render-UnresolvedReferenceDiagnostic
           - SysML2Tools-Tool-Render-LoadDiagnosticFormat
+          - SysML2Tools-Tool-Render-UnresolvedReferenceSeverity
         tests:
           - RenderSubsystem_NoFiles_ReportsError
           - RenderSubsystem_GlobPattern_ResolvesMultipleFiles
@@ -251,6 +252,7 @@ sections:
         title: >-
           The render command shall report a reference that does not resolve by SysML v2 name
           resolution exactly once, through the load-time `Unresolved reference` diagnostic
+          (a warning unless `--strict-unresolved` is given)
           printed before rendering, and shall not report it a second time as a layout warning
           (the layouts draw no relationship for it and match no element by bare simple name).
         justification: |
@@ -261,3 +263,24 @@ sections:
           model.
         tests:
           - RenderSubsystem_PrivateMemberReference_ReportsOneUnresolvedDiagnosticAndNoLayoutWarning
+
+      - id: SysML2Tools-Tool-Render-UnresolvedReferenceSeverity
+        title: >-
+          The render command shall report each unresolved reference as a warning by default
+          (exit code 0), and shall accept a `--strict-unresolved` option that reports them as
+          errors — still rendering and writing the output files, but returning exit code 1; it
+          shall also report a warning at the token of each SysML2Tools extension render selector
+          (such as `asGeneralDiagram`) that a view uses without declaring it, rendering the view
+          unchanged, including in strict mode.
+        justification: |
+          Incomplete models are common while a model is being written, so a documentation build
+          that renders one keeps working by default and the diagnostic stays visible. Teams that
+          want the build to fail on an unresolved reference opt in explicitly; the diagram is
+          still written so the author can see the effect. The extension selectors keep rendering
+          as before; the warning only tells the author the model is not portable to other tools.
+        tests:
+          - RenderSubsystem_UnresolvedReference_ReportsWarningWritesOutputAndExitsZero
+          - RenderSubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorWritesOutputAndExitsOne
+          - RenderSubsystem_ToolRenderSelector_RendersUnchangedWithPortabilityWarning
+          - RenderSubsystem_StrictUnresolved_ToolRenderSelector_RendersWithPortabilityWarning
+          - RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic

@@ -56,7 +56,11 @@ single-source-of-truth methods that `Help.HelpCommand.Run` itself calls, so `<co
 
 **PrintTopLevelHelp**: Writes the top-level usage synopsis (command list) and global options
 table to `context`. Internal (not private), so `Help.HelpCommand` can call it directly for
-bare `help`/`--help` invocations — the single source of truth for top-level help text.
+bare `help`/`--help` invocations — the single source of truth for top-level help text. The `lint`
+command line reads "Parse files and report syntax errors and unresolved references", and the
+options list ends with `--strict-unresolved` (reports unresolved references as errors, not
+warnings; for `lint`, `render`, `query`, and `export`), sourced from the
+`TopLevel_CommandLint` and `TopLevel_OptionStrictUnresolved` resource strings.
 
 - *Parameters*: `Context context` — output target.
 - *Returns*: `void`.
