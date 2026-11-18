@@ -52,7 +52,8 @@ system, subsystem, and unit levels:
       - **SysmlMetadataNode** (Unit) — applied metadata annotation node with raw type reference and
         captured scalar attribute values
       - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names, metadata
-        annotations, and raw view filter text
+        annotations, raw view filter text, and the source position of each declaration and
+        reference
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
       - **ReferenceResolver** (Unit) — resolves supertype, typing, metadata-type,
         redefinition, import, satisfy, verify, allocate, expose, and (in a final pass) dotted
@@ -173,6 +174,8 @@ system, subsystem, and unit levels:
     - **Validation** (Unit) — self-validation test runner
   - **Utilities** (Subsystem) — shared utilities
     - **PathHelpers** (Unit) — safe path combination utilities
+    - **DiagnosticFormatter** (Unit) — shared `path(line,col): severity: message` console-line
+      formatter used by the lint, render, and query commands
 
 **OTS Dependencies:**
 

@@ -70,6 +70,212 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         };
     }
 
+    /// <summary>
+    ///     Visits <paramref name="tree"/> and records, on the node it builds, the source position of
+    ///     the declaration and of each reference text it declares (see <see cref="Stamp"/>). Every
+    ///     body element, nested member, and the root is built through this single entry point, so
+    ///     positions are captured for every node without touching each individual visitor.
+    /// </summary>
+    public override SysmlNode? Visit(Antlr4.Runtime.Tree.IParseTree tree)
+    {
+        var node = base.Visit(tree);
+        if (node is not null && tree is Antlr4.Runtime.ParserRuleContext context)
+        {
+            switch (node)
+            {
+                case AnnotationCapture:
+                    break;
+                case MultiNodeCapture multiple:
+                    foreach (var inner in multiple.Nodes)
+                    {
+                        Stamp(inner, context);
+                    }
+
+                    break;
+                default:
+                    Stamp(node, context);
+                    break;
+            }
+        }
+
+        return node;
+    }
+
+    /// <summary>
+    ///     Records the declaration position of <paramref name="node"/> (the first token of
+    ///     <paramref name="context"/>) the first time the node is seen, and locates each reference
+    ///     text the node declares among the context's tokens (see <see cref="LocateReferences"/>).
+    /// </summary>
+    private void Stamp(SysmlNode node, Antlr4.Runtime.ParserRuleContext context)
+    {
+        if (node.SourceLine == 0 && context.Start is { } start)
+        {
+            node.SourceFilePath ??= _filePath;
+            node.SourceLine = start.Line;
+            node.SourceColumn = start.Column;
+        }
+
+        LocateReferences(node, context);
+    }
+
+    /// <summary>
+    ///     Records in <see cref="SysmlNode.ReferencePositions"/> the position of the first token of
+    ///     each reference text <paramref name="node"/> declares that is not yet located.
+    /// </summary>
+    /// <remarks>
+    ///     A reference's text is built by concatenating the grammar's tokens (e.g. <c>A::B</c> or
+    ///     <c>a.b</c>), so it is found by matching a run of consecutive tokens whose texts
+    ///     concatenate to it. The declaration's header (up to its first <c>{</c> or <c>;</c>) is
+    ///     searched first, because that is where specialization, typing, redefinition, and
+    ///     import references are written; the whole context is searched only when the header does
+    ///     not contain the text (references written in the body such as <c>expose</c> and
+    ///     <c>verify</c> members). A text with no match (a synthesized name) is left unlocated.
+    /// </remarks>
+    private static void LocateReferences(SysmlNode node, Antlr4.Runtime.ParserRuleContext context)
+    {
+        Dictionary<string, SourcePosition>? positions = null;
+        List<Antlr4.Runtime.IToken>? header = null;
+        List<Antlr4.Runtime.IToken>? all = null;
+
+        foreach (var text in ReferenceTexts(node))
+        {
+            if (string.IsNullOrEmpty(text) || node.ReferencePositions.ContainsKey(text) ||
+                positions?.ContainsKey(text) == true)
+            {
+                continue;
+            }
+
+            header ??= CollectTokens(context, headerOnly: true);
+            var position = FindReference(header, text);
+            if (position is null)
+            {
+                all ??= CollectTokens(context, headerOnly: false);
+                position = FindReference(all, text);
+            }
+
+            if (position is { } found)
+            {
+                positions ??= new Dictionary<string, SourcePosition>(node.ReferencePositions, StringComparer.Ordinal);
+                positions[text] = found;
+            }
+        }
+
+        if (positions is not null)
+        {
+            node.ReferencePositions = positions;
+        }
+    }
+
+    /// <summary>
+    ///     Enumerates the reference texts <see cref="ReferenceResolver"/> resolves for
+    ///     <paramref name="node"/>, exactly as the resolver passes them to name resolution.
+    /// </summary>
+    private static IEnumerable<string?> ReferenceTexts(SysmlNode node)
+    {
+        var texts = node.SupertypeNames
+            .Concat(node.ImportedNames)
+            .Concat(node.VerifiedRequirementNames)
+            .Cast<string?>();
+
+        return node switch
+        {
+            SysmlFeatureNode feature => texts.Append(feature.FeatureTyping).Append(feature.RedefinedFeatureName),
+            SysmlMetadataNode metadata => texts.Append(metadata.TypeReference),
+            SysmlViewNode view => texts.Concat(view.ExposeMembers.Select(m => m.QualifiedName)).Append(view.ViewDefinitionName),
+            SysmlConnectionNode connection => texts.Append(connection.EndpointA).Append(connection.EndpointB),
+            SysmlTransitionNode transition => texts.Append(transition.Source).Append(transition.Target),
+            SysmlSatisfyNode satisfy => texts.Append(satisfy.RequirementName).Append(satisfy.SubjectName),
+            SysmlDependencyNode dependency => texts.Concat(dependency.FromNames).Concat(dependency.ToNames),
+            _ => texts,
+        };
+    }
+
+    /// <summary>
+    ///     Collects the terminal tokens of <paramref name="root"/> in source order, optionally
+    ///     stopping after the declaration header's first <c>{</c> or <c>;</c>.
+    /// </summary>
+    private static List<Antlr4.Runtime.IToken> CollectTokens(Antlr4.Runtime.Tree.IParseTree root, bool headerOnly)
+    {
+        var tokens = new List<Antlr4.Runtime.IToken>();
+        var pending = new Stack<Antlr4.Runtime.Tree.IParseTree>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            if (current is Antlr4.Runtime.Tree.ITerminalNode terminal)
+            {
+                var token = terminal.Symbol;
+                if (token.Type == Antlr4.Runtime.TokenConstants.EOF)
+                {
+                    continue;
+                }
+
+                tokens.Add(token);
+                if (headerOnly && token.Text is "{" or ";")
+                {
+                    break;
+                }
+
+                continue;
+            }
+
+            for (var i = current.ChildCount - 1; i >= 0; i--)
+            {
+                pending.Push(current.GetChild(i));
+            }
+        }
+
+        return tokens;
+    }
+
+    /// <summary>
+    ///     Finds the first run of consecutive <paramref name="tokens"/> whose texts concatenate to
+    ///     <paramref name="reference"/> and returns the position of its first token. A run that is
+    ///     a whole reference (not preceded or followed by a <c>::</c> or <c>.</c> qualifier token)
+    ///     is preferred over one embedded in a longer qualified name.
+    /// </summary>
+    private static SourcePosition? FindReference(List<Antlr4.Runtime.IToken> tokens, string reference)
+    {
+        SourcePosition? embedded = null;
+        for (var start = 0; start < tokens.Count; start++)
+        {
+            var consumed = 0;
+            var end = start;
+            while (end < tokens.Count && consumed < reference.Length)
+            {
+                var text = tokens[end].Text;
+                if (text.Length == 0 || consumed + text.Length > reference.Length ||
+                    string.CompareOrdinal(reference, consumed, text, 0, text.Length) != 0)
+                {
+                    break;
+                }
+
+                consumed += text.Length;
+                end++;
+            }
+
+            if (consumed != reference.Length)
+            {
+                continue;
+            }
+
+            var position = new SourcePosition(tokens[start].Line, tokens[start].Column);
+            var whole = (start == 0 || !IsQualifier(tokens[start - 1])) &&
+                        (end == tokens.Count || !IsQualifier(tokens[end]));
+            if (whole)
+            {
+                return position;
+            }
+
+            embedded ??= position;
+        }
+
+        return embedded;
+    }
+
+    /// <summary>Returns whether <paramref name="token"/> joins the parts of a qualified name or feature chain.</summary>
+    private static bool IsQualifier(Antlr4.Runtime.IToken token) => token.Text is "::" or ".";
+
     /// <inheritdoc/>
     public override SysmlNode? VisitPackage(SysMLv2Parser.PackageContext context)
     {

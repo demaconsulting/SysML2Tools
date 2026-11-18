@@ -501,6 +501,45 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
+    ///     Source positions (declaration file/line/column and per-reference positions) are only
+    ///     needed while a workspace's own files are resolved, so they are not written to the
+    ///     serialized format and deserialize to their defaults.
+    /// </summary>
+    [Fact]
+    public void Serialize_SourcePositions_AreNotPersisted()
+    {
+        // Arrange
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlDefinitionNode
+        {
+            Name = "def",
+            QualifiedName = "def",
+            DefinitionKeyword = "part def",
+            SourceFilePath = "model.sysml",
+            SourceLine = 7,
+            SourceColumn = 4,
+            ReferencePositions = new Dictionary<string, SourcePosition> { ["Base"] = new(7, 18) },
+        });
+
+        // Act
+        var bytes = AstSerializer.Serialize(table, []);
+        var json = System.Text.Encoding.UTF8.GetString(bytes);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        // Assert: nothing about positions is written, and the round trip restores the defaults
+        foreach (var name in new[] { "SourceFilePath", "SourceLine", "SourceColumn", "ReferencePositions", "model.sysml" })
+        {
+            Assert.DoesNotContain(name, json);
+        }
+
+        var roundTripped = result.Symbols["def"];
+        Assert.Null(roundTripped.SourceFilePath);
+        Assert.Equal(0, roundTripped.SourceLine);
+        Assert.Equal(0, roundTripped.SourceColumn);
+        Assert.Empty(roundTripped.ReferencePositions);
+    }
+
+    /// <summary>
     ///     <see cref="SysmlFeatureDirection"/> is written as a readable string, and only when set.
     /// </summary>
     [Fact]

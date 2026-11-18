@@ -84,6 +84,7 @@ input-files:
   - docs/design/sysml2-tools-tool/self-test/validation.md
   - docs/design/sysml2-tools-tool/utilities.md
   - docs/design/sysml2-tools-tool/utilities/path-helpers.md
+  - docs/design/sysml2-tools-tool/utilities/diagnostic-formatter.md
   - docs/design/ots.md
   - docs/design/ots/antlr4.md
   - docs/design/ots/buildmark.md

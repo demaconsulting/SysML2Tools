@@ -69,6 +69,11 @@ internal sealed class ReferenceResolver
     private sealed record LoadedFile(string FilePath, SysmlNode Root, IReadOnlyList<SysmlImportNode> RootImports);
 
     /// <summary>
+    ///     Where an import statement is written: its file and the position of the imported name.
+    /// </summary>
+    private sealed record ImportSite(string FilePath, int Line, int Column);
+
+    /// <summary>
     ///     Runs import-graph cycle detection and supertype/typing/import reference resolution
     ///     over all file roots, building a reverse-lookup index over the resolved edges.
     /// </summary>
@@ -110,10 +115,10 @@ internal sealed class ReferenceResolver
     {
         // Build import graph first
         var fileRootsList = fileRoots.ToList();
-        var importGraph = BuildImportGraph(fileRootsList);
+        var importGraph = BuildImportGraph(fileRootsList, out var importSites);
 
         // Detect circular imports
-        DetectCircularImports(importGraph);
+        DetectCircularImports(importGraph, importSites);
 
         var files = fileRootsList
             .Where(r => r.Root is not null)
@@ -229,10 +234,12 @@ internal sealed class ReferenceResolver
     ///     import edges by namespace name.
     /// </summary>
     private static Dictionary<string, HashSet<string>> BuildImportGraph(
-        IEnumerable<(string FilePath, SysmlNode? Root)> fileRoots)
+        IEnumerable<(string FilePath, SysmlNode? Root)> fileRoots,
+        out Dictionary<(string From, string To), ImportSite> importSites)
     {
         var graph = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (var (_, root) in fileRoots.Where(r => r.Root is not null))
+        importSites = new Dictionary<(string From, string To), ImportSite>();
+        foreach (var (filePath, root) in fileRoots.Where(r => r.Root is not null))
         {
             // The root is a nameless file-level container; top-level namespaces are its children.
             foreach (var topLevel in root!.Children
@@ -241,8 +248,18 @@ internal sealed class ReferenceResolver
             {
                 var key = topLevel.QualifiedName ?? topLevel.Name!;
                 var imports = new HashSet<string>(StringComparer.Ordinal);
-                CollectImports(topLevel, imports);
+                var importNodes = new Dictionary<string, SysmlImportNode>(StringComparer.Ordinal);
+                CollectImports(topLevel, imports, importNodes);
                 imports.Remove(key); // avoid self-loops
+
+                // Remember where each import is written so a cycle can be reported at its import.
+                foreach (var (imported, importNode) in importNodes.Where(entry => imports.Contains(entry.Key)))
+                {
+                    var position = importNode.ReferencePositions.TryGetValue(imported, out var located)
+                        ? located
+                        : new SourcePosition(importNode.SourceLine, importNode.SourceColumn);
+                    importSites.TryAdd((key, imported), new ImportSite(filePath, position.Line, position.Column));
+                }
 
                 if (!graph.TryGetValue(key, out var existing))
                 {
@@ -264,30 +281,36 @@ internal sealed class ReferenceResolver
     /// <summary>
     ///     Recursively collects all imported namespace names from an AST node and its descendants.
     /// </summary>
-    private static void CollectImports(SysmlNode node, HashSet<string> imports)
+    private static void CollectImports(
+        SysmlNode node,
+        HashSet<string> imports,
+        Dictionary<string, SysmlImportNode> importNodes)
     {
         if (node is SysmlImportNode importNode)
         {
             imports.Add(importNode.ImportedNamespace);
+            importNodes.TryAdd(importNode.ImportedNamespace, importNode);
         }
 
         foreach (var child in node.Children)
         {
-            CollectImports(child, imports);
+            CollectImports(child, imports, importNodes);
         }
     }
 
     /// <summary>
     ///     Performs a DFS over the import graph to detect and report circular import chains.
     /// </summary>
-    private void DetectCircularImports(Dictionary<string, HashSet<string>> importGraph)
+    private void DetectCircularImports(
+        Dictionary<string, HashSet<string>> importGraph,
+        Dictionary<(string From, string To), ImportSite> importSites)
     {
         var visited = new HashSet<string>(StringComparer.Ordinal);
         var inStack = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var node in importGraph.Keys.Where(n => !visited.Contains(n)))
         {
-            DetectCycles(node, importGraph, visited, inStack);
+            DetectCycles(node, importGraph, importSites, visited, inStack);
         }
     }
 
@@ -298,6 +321,7 @@ internal sealed class ReferenceResolver
     private void DetectCycles(
         string current,
         Dictionary<string, HashSet<string>> graph,
+        Dictionary<(string From, string To), ImportSite> importSites,
         HashSet<string> visited,
         HashSet<string> inStack)
     {
@@ -310,13 +334,16 @@ internal sealed class ReferenceResolver
             {
                 if (!visited.Contains(neighbor))
                 {
-                    DetectCycles(neighbor, graph, visited, inStack);
+                    DetectCycles(neighbor, graph, importSites, visited, inStack);
                 }
                 else if (inStack.Contains(neighbor))
                 {
+                    // Located at the import statement that closes the cycle, in its own file.
+                    var site = importSites.GetValueOrDefault((current, neighbor), new ImportSite(current, 0, 0));
                     _diagnostics.Add(new SysmlDiagnostic(
-                        current,
-                        0, 0,
+                        site.FilePath,
+                        site.Line,
+                        site.Column,
                         DiagnosticSeverity.Warning,
                         $"Circular import detected: '{current}' imports '{neighbor}'"));
                 }
@@ -377,32 +404,47 @@ internal sealed class ReferenceResolver
         string name,
         string? scope,
         LoadedFile file,
-        HashSet<string> resolvedInFile)
+        HashSet<string> resolvedInFile,
+        SysmlNode owner)
     {
         if (TryResolve(name, scope, file.RootImports, out var resolved))
         {
             return resolved;
         }
 
-        ReportUnresolved(name, file.FilePath, resolvedInFile);
+        ReportUnresolved(name, file.FilePath, resolvedInFile, owner);
         return null;
     }
 
     /// <summary>
     ///     Emits the "Unresolved reference" Warning diagnostic for <paramref name="name"/> unless
-    ///     it was already reported for this file.
+    ///     it was already reported for this file. The diagnostic is located at the reference text
+    ///     recorded on <paramref name="owner"/> (<see cref="SysmlNode.ReferencePositions"/>), or at
+    ///     the owner's own declaration when the reference text was not located.
     /// </summary>
-    private void ReportUnresolved(string name, string filePath, HashSet<string> resolvedInFile)
+    private void ReportUnresolved(string name, string filePath, HashSet<string> resolvedInFile, SysmlNode owner)
     {
         if (resolvedInFile.Add(name))
         {
+            var (line, column) = LocateReference(owner, name);
             _diagnostics.Add(new SysmlDiagnostic(
                 filePath,
-                0, 0,
+                line,
+                column,
                 DiagnosticSeverity.Warning,
                 $"Unresolved reference: '{name}'"));
         }
     }
+
+    /// <summary>
+    ///     Returns the source position of the reference text <paramref name="name"/> declared by
+    ///     <paramref name="owner"/>: the located token position when known, otherwise the owner's
+    ///     declaration position, otherwise <c>(0, 0)</c>.
+    /// </summary>
+    private static (int Line, int Column) LocateReference(SysmlNode owner, string name) =>
+        owner.ReferencePositions.TryGetValue(name, out var position)
+            ? (position.Line, position.Column)
+            : (owner.SourceLine, owner.SourceColumn);
 
     /// <summary>
     ///     Pass 0 traversal: resolves each metadata annotation's type reference (e.g.
@@ -421,7 +463,7 @@ internal sealed class ReferenceResolver
         List<SysmlEdge> edges)
     {
         if (node is SysmlMetadataNode { TypeReference.Length: > 0 } metadata &&
-            ResolveOrWarn(metadata.TypeReference, scope, file, resolvedInFile) is { } resolvedType)
+            ResolveOrWarn(metadata.TypeReference, scope, file, resolvedInFile, node) is { } resolvedType)
         {
             var edge = new SysmlEdge(node.QualifiedName, resolvedType, SysmlEdgeKind.MetadataType)
             {
@@ -472,7 +514,7 @@ internal sealed class ReferenceResolver
         // which for a usage includes the memberships the owner inherits.
         foreach (var supertypeName in node.SupertypeNames)
         {
-            if (ResolveOrWarn(supertypeName, scope, file, resolvedInFile) is { } resolvedSupertype)
+            if (ResolveOrWarn(supertypeName, scope, file, resolvedInFile, node) is { } resolvedSupertype)
             {
                 nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedSupertype, SysmlEdgeKind.Supertype) { RawReference = supertypeName });
             }
@@ -480,7 +522,7 @@ internal sealed class ReferenceResolver
 
         // Feature typing — the type referenced after ':' on a usage/feature element
         if (node is SysmlFeatureNode { FeatureTyping: { } typing } &&
-            ResolveOrWarn(typing, scope, file, resolvedInFile) is { } resolvedTyping)
+            ResolveOrWarn(typing, scope, file, resolvedInFile, node) is { } resolvedTyping)
         {
             nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedTyping, SysmlEdgeKind.Typing) { RawReference = typing });
         }
@@ -497,7 +539,7 @@ internal sealed class ReferenceResolver
             }
             else
             {
-                ReportUnresolved(redefined, file.FilePath, resolvedInFile);
+                ReportUnresolved(redefined, file.FilePath, resolvedInFile, node);
             }
         }
 
@@ -507,7 +549,7 @@ internal sealed class ReferenceResolver
             // The edge's raw reference is the reference text as written (wildcard/recursive
             // markers kept, bracket filter excluded); resolution still uses the stripped name.
             var rawReference = (node as SysmlImportNode)?.RawReferenceText ?? importedName;
-            if (ResolveOrWarn(importedName, scope, file, resolvedInFile) is { } resolvedImport)
+            if (ResolveOrWarn(importedName, scope, file, resolvedInFile, node) is { } resolvedImport)
             {
                 nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedImport, SysmlEdgeKind.Import) { RawReference = rawReference });
             }
@@ -517,7 +559,7 @@ internal sealed class ReferenceResolver
         // name (the verifying case/requirement).
         foreach (var verifiedName in node.VerifiedRequirementNames)
         {
-            if (ResolveOrWarn(verifiedName, scope, file, resolvedInFile) is { } resolvedVerified)
+            if (ResolveOrWarn(verifiedName, scope, file, resolvedInFile, node) is { } resolvedVerified)
             {
                 nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedVerified, SysmlEdgeKind.Verify) { RawReference = verifiedName });
             }
@@ -530,10 +572,10 @@ internal sealed class ReferenceResolver
         if (node is SysmlSatisfyNode satisfy)
         {
             var resolvedSubject = satisfy.SubjectName is { Length: > 0 } subjectName
-                ? ResolveOrWarn(subjectName, scope, file, resolvedInFile)
+                ? ResolveOrWarn(subjectName, scope, file, resolvedInFile, node)
                 : null;
             var resolvedRequirement = satisfy.RequirementName is { Length: > 0 } requirementName
-                ? ResolveOrWarn(requirementName, scope, file, resolvedInFile)
+                ? ResolveOrWarn(requirementName, scope, file, resolvedInFile, node)
                 : null;
 
             if (resolvedSubject is not null && resolvedRequirement is not null)
@@ -548,10 +590,10 @@ internal sealed class ReferenceResolver
         if (node is SysmlConnectionNode { ConnectionKeyword: "allocation" } allocation)
         {
             var resolvedA = allocation.EndpointA is { Length: > 0 } endpointA
-                ? ResolveOrWarn(endpointA, scope, file, resolvedInFile)
+                ? ResolveOrWarn(endpointA, scope, file, resolvedInFile, node)
                 : null;
             var resolvedB = allocation.EndpointB is { Length: > 0 } endpointB
-                ? ResolveOrWarn(endpointB, scope, file, resolvedInFile)
+                ? ResolveOrWarn(endpointB, scope, file, resolvedInFile, node)
                 : null;
 
             if (resolvedA is not null && resolvedB is not null)
@@ -567,11 +609,11 @@ internal sealed class ReferenceResolver
         if (node is SysmlDependencyNode dependency)
         {
             var resolvedFrom = dependency.FromNames
-                .Select(name => ResolveOrWarn(name, scope, file, resolvedInFile))
+                .Select(name => ResolveOrWarn(name, scope, file, resolvedInFile, node))
                 .OfType<string>()
                 .ToList();
             var resolvedTo = dependency.ToNames
-                .Select(name => ResolveOrWarn(name, scope, file, resolvedInFile))
+                .Select(name => ResolveOrWarn(name, scope, file, resolvedInFile, node))
                 .OfType<string>()
                 .ToList();
 
@@ -598,7 +640,7 @@ internal sealed class ReferenceResolver
             var resolvedExposeMembers = new List<(ExposeMember Member, string ResolvedQualifiedName)>();
             foreach (var member in view.ExposeMembers)
             {
-                if (ResolveOrWarn(member.QualifiedName, scope, file, resolvedInFile) is { } resolvedExposed)
+                if (ResolveOrWarn(member.QualifiedName, scope, file, resolvedInFile, node) is { } resolvedExposed)
                 {
                     // Raw reference is the written text (markers kept, bracket filter excluded);
                     // resolution above used the stripped name.
@@ -612,7 +654,7 @@ internal sealed class ReferenceResolver
             // A view usage's view definition (`view v : Def;`) resolves like feature typing; the
             // usage inherits the definition's view conditions and rendering (SysML 7.26.2).
             if (view.ViewDefinitionName is { Length: > 0 } viewDefinitionName &&
-                ResolveOrWarn(viewDefinitionName, scope, file, resolvedInFile) is { } resolvedDefinition)
+                ResolveOrWarn(viewDefinitionName, scope, file, resolvedInFile, node) is { } resolvedDefinition)
             {
                 nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedDefinition, SysmlEdgeKind.Typing) { RawReference = viewDefinitionName });
             }
@@ -668,8 +710,8 @@ internal sealed class ReferenceResolver
         // remain single-segment-only per unit-3's existing, locked-in Allocate behavior).
         if (node is SysmlConnectionNode { ConnectionKeyword: "connection" or "message" } connection)
         {
-            var resolvedA = ResolveFeatureChainSide(connection.EndpointA, file, resolvedInFile, scope);
-            var resolvedB = ResolveFeatureChainSide(connection.EndpointB, file, resolvedInFile, scope);
+            var resolvedA = ResolveFeatureChainSide(connection.EndpointA, file, resolvedInFile, scope, node);
+            var resolvedB = ResolveFeatureChainSide(connection.EndpointB, file, resolvedInFile, scope, node);
 
             if (resolvedA is not null && resolvedB is not null)
             {
@@ -682,8 +724,8 @@ internal sealed class ReferenceResolver
         // the corpus's frequent dotted-chain bind sides (e.g. "bind engine.fuelCmdPort=fuelCmdPort;").
         if (node is SysmlConnectionNode { ConnectionKeyword: "binding" } binding)
         {
-            var resolvedA = ResolveFeatureChainSide(binding.EndpointA, file, resolvedInFile, scope);
-            var resolvedB = ResolveFeatureChainSide(binding.EndpointB, file, resolvedInFile, scope);
+            var resolvedA = ResolveFeatureChainSide(binding.EndpointA, file, resolvedInFile, scope, node);
+            var resolvedB = ResolveFeatureChainSide(binding.EndpointB, file, resolvedInFile, scope, node);
 
             if (resolvedA is not null && resolvedB is not null)
             {
@@ -699,8 +741,8 @@ internal sealed class ReferenceResolver
         // used as a transition's implicit initial source (e.g. `first start then off;`).
         if (node is SysmlTransitionNode transition)
         {
-            var resolvedSource = ResolveTransitionSource(transition.Source, file, resolvedInFile, scope);
-            var resolvedTarget = ResolveFeatureChainSide(transition.Target, file, resolvedInFile, scope);
+            var resolvedSource = ResolveTransitionSource(transition.Source, file, resolvedInFile, scope, node);
+            var resolvedTarget = ResolveFeatureChainSide(transition.Target, file, resolvedInFile, scope, node);
 
             if (resolvedSource is not null && resolvedTarget is not null)
             {
@@ -733,7 +775,8 @@ internal sealed class ReferenceResolver
         string? side,
         LoadedFile file,
         HashSet<string> resolvedInFile,
-        string? scope)
+        string? scope,
+        SysmlNode owner)
     {
         if (side is not { Length: > 0 })
         {
@@ -745,7 +788,7 @@ internal sealed class ReferenceResolver
             return resolved;
         }
 
-        ReportUnresolved(side, file.FilePath, resolvedInFile);
+        ReportUnresolved(side, file.FilePath, resolvedInFile, owner);
         return null;
     }
 
@@ -765,7 +808,8 @@ internal sealed class ReferenceResolver
         string? source,
         LoadedFile file,
         HashSet<string> resolvedInFile,
-        string? scope)
+        string? scope,
+        SysmlNode owner)
     {
         if (source is not { Length: > 0 })
         {
@@ -782,7 +826,7 @@ internal sealed class ReferenceResolver
             return inherited;
         }
 
-        ReportUnresolved(source, file.FilePath, resolvedInFile);
+        ReportUnresolved(source, file.FilePath, resolvedInFile, owner);
         return null;
     }
 

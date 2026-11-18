@@ -40,6 +40,13 @@ results in an error message written to the context containing "no files matched"
 failing exit code — distinguishing this case from "no patterns supplied at all". Satisfies
 `SysML2Tools-Tool-Lint-NoFilesMatched`.
 
+#### LintSubsystem_Report_UnresolvedReference_ReportsReferencePosition (LintSubsystemTests.cs)
+
+Verifies that linting a model with an unresolved supertype reference (`part def X :>
+DoesNotExist;`, written at line 2, column 18) writes `<file>(2,18): warning: Unresolved
+reference: 'DoesNotExist'` — located at the reference text rather than at `(0,0)`. Satisfies
+`SysML2Tools-Tool-Lint-Report`.
+
 #### LintSubsystem_Help_PrintsLintSpecificUsage (LintSubsystemTests.cs)
 
 Verifies that `lint --help` prints the lint-specific usage line and does not print the

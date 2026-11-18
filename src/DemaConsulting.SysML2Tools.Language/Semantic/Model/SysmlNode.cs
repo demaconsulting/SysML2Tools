@@ -121,7 +121,69 @@ public abstract class SysmlNode
     ///     not captured, since no <see cref="AstBuilder"/> visitor collects relationship bodies.
     /// </remarks>
     public IReadOnlyList<SysmlAnnotation> Annotations { get; init; } = Array.Empty<SysmlAnnotation>();
+
+    /// <summary>
+    ///     Gets or sets the path of the source file that declares this element, or
+    ///     <see langword="null"/> when the element was not built from a source file (e.g. a
+    ///     synthesized <c>--auto</c> or dynamic view, or an element loaded from the pre-compiled
+    ///     standard library).
+    /// </summary>
+    /// <remarks>
+    ///     Populated by <see cref="AstBuilder"/>. Not part of the serialized standard-library
+    ///     format (see <see cref="SourceLine"/>).
+    /// </remarks>
+    [JsonIgnore]
+    public string? SourceFilePath { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the one-based line number at which this element's declaration starts
+    ///     within <see cref="SourceFilePath"/>, or 0 when unknown.
+    /// </summary>
+    /// <remarks>
+    ///     Populated by <see cref="AstBuilder"/>. The declaration position is the fallback location
+    ///     of a diagnostic about a reference that has no more precise
+    ///     <see cref="ReferencePositions"/> entry. Positions are used only while a workspace's own
+    ///     source files are being resolved, so they are deliberately not part of the serialized
+    ///     standard-library format (<c>[JsonIgnore]</c>), which keeps <c>stdlib.json.gz</c> small.
+    /// </remarks>
+    [JsonIgnore]
+    public int SourceLine { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the zero-based column offset of this element's declaration within its
+    ///     line, matching the <c>SysmlDiagnostic.Column</c> convention, or 0 when unknown.
+    /// </summary>
+    [JsonIgnore]
+    public int SourceColumn { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the source position of each reference text this element declares (its
+    ///     supertypes, feature typing, redefinition, imports, <c>expose</c> members, connector
+    ///     endpoints, transition source/target, and so on), keyed by the reference text exactly as
+    ///     <see cref="ReferenceResolver"/> resolves it. The position is that of the first token of
+    ///     the first occurrence of that text in the declaration.
+    /// </summary>
+    /// <remarks>
+    ///     Populated by <see cref="AstBuilder"/>; a reference whose text cannot be located among
+    ///     the declaration's tokens (e.g. a synthesized name) has no entry, and a diagnostic about
+    ///     it falls back to the declaration position (<see cref="SourceLine"/>). Not part of the
+    ///     serialized standard-library format (<c>[JsonIgnore]</c>).
+    /// </remarks>
+    [JsonIgnore]
+    public IReadOnlyDictionary<string, SourcePosition> ReferencePositions { get; set; } =
+        EmptyReferencePositions;
+
+    /// <summary>The shared empty <see cref="ReferencePositions"/> value.</summary>
+    private static readonly IReadOnlyDictionary<string, SourcePosition> EmptyReferencePositions =
+        new Dictionary<string, SourcePosition>(0);
 }
+
+/// <summary>
+///     A position within a source file.
+/// </summary>
+/// <param name="Line">One-based line number.</param>
+/// <param name="Column">Zero-based column offset within the line, matching <c>SysmlDiagnostic.Column</c>.</param>
+public readonly record struct SourcePosition(int Line, int Column);
 
 /// <summary>
 ///     AST node representing a SysML/KerML package or namespace.
@@ -617,25 +679,6 @@ public sealed class SysmlViewNode : SysmlNode
     ///     a warning only for a condition that cannot be parsed or evaluated.
     /// </summary>
     public string? FilterExpressionText { get; init; }
-
-    /// <summary>
-    ///     Gets the path of the source file declaring this view, or <see langword="null"/> when
-    ///     the view was not built from a user source file (e.g. a synthesized <c>--auto</c> or
-    ///     dynamic view).
-    /// </summary>
-    public string? SourceFilePath { get; init; }
-
-    /// <summary>
-    ///     Gets the one-based line number of this view's declaration within
-    ///     <see cref="SourceFilePath"/>, or 0 when unknown.
-    /// </summary>
-    public int SourceLine { get; init; }
-
-    /// <summary>
-    ///     Gets the zero-based column offset of this view's declaration within its line,
-    ///     matching the <c>SysmlDiagnostic.Column</c> convention, or 0 when unknown.
-    /// </summary>
-    public int SourceColumn { get; init; }
 
     /// <summary>
     ///     Gets the raw source text of every <c>filter [&lt;expression&gt;];</c> member of this view,

@@ -63,8 +63,13 @@ sections:
         justification: |
           A standard diagnostic format is recognized by IDEs, CI tools, and problem
           matchers, enabling automated parsing of lint results without custom tooling.
+          The line is produced by the shared DiagnosticFormatter so that render and query
+          print identical diagnostics.
+        children:
+          - SysML2Tools-Tool-Utilities-DiagnosticFormat
         tests:
           - LintSubsystem_Report_InvalidFile_WritesDiagnosticInExpectedFormat
+          - LintSubsystem_Report_UnresolvedReference_ReportsReferencePosition
 
       - id: SysML2Tools-Tool-Lint-ExitCode
         title: >-

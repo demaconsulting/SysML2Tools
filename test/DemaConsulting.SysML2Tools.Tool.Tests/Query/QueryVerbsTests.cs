@@ -862,7 +862,7 @@ public class QueryVerbsTests
         Assert.Equal(0, exitCode);
 
         // The unresolved-reference diagnostic for the built-in "Boolean" type is written as a
-        // single-line "SysmlDiagnostic { ... }" record before the JSON result, so locate the
+        // single "file(line,col): warning: ..." line before the JSON result, so locate the
         // JSON document's opening brace via the unambiguous "Verb" property rather than the
         // first '{' in the captured output.
         var verbIndex = json.IndexOf("\"Verb\":", StringComparison.Ordinal);

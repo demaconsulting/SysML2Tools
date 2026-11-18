@@ -3,7 +3,8 @@
 #
 # PURPOSE:
 # - Define requirements for the SysML2Tools Utilities subsystem
-# - The Utilities subsystem provides PathHelpers.cs (safe path-combination utilities)
+# - The Utilities subsystem provides PathHelpers.cs (safe path-combination utilities) and
+#   DiagnosticFormatter.cs (the shared diagnostic console-line formatter)
 # - Subsystem requirements describe the shared utility behavior available to all other subsystems
 
 sections:
@@ -26,3 +27,18 @@ sections:
           - UtilitiesSubsystem_DirectoryCreationWorkflow_ValidPaths_CreatesDirectories
           - UtilitiesSubsystem_PathTraversalValidation_DangerousPaths_ThrowsException
           - UtilitiesSubsystem_AbsolutePathRejection_ThrowsException
+
+      - id: SysML2Tools-Tool-Utilities-DiagnosticFormat
+        title: >-
+          The Utilities subsystem shall provide one shared formatter that renders a diagnostic as
+          a single `path(line,col): severity: message` console line, so every command that prints
+          diagnostics reports them identically.
+        justification: |
+          The lint, render, and query commands all print the diagnostics produced while loading a
+          workspace. Sharing one formatter keeps their output byte-identical, so CI problem
+          matchers, editors, and AI-assisted model-fix loops can parse the output of any command
+          with the same pattern.
+        children:
+          - SysML2Tools-Tool-Utilities-DiagnosticFormatter-Format
+        tests:
+          - UtilitiesSubsystem_DiagnosticFormatting_MixedDiagnostics_FormatsEachAsOneLine

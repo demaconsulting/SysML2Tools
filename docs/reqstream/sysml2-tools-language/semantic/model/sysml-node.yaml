@@ -85,14 +85,31 @@ sections:
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewSourceLocation
         title: >-
-          SysmlViewNode shall expose SourceFilePath, SourceLine, and SourceColumn: the declaring
-          file path (null when not built from a source file) and the one-based line and
-          zero-based column of the view's declaration (0 when unknown).
+          SysmlViewNode (like every SysmlNode) shall expose SourceFilePath, SourceLine, and
+          SourceColumn: the declaring file path (null when not built from a source file) and the
+          one-based line and zero-based column of the view's declaration (0 when unknown).
         justification: |
           View-level diagnostics produced after loading (such as the empty-view render warning)
           must name the file and line of the offending view so users can find and fix it.
         tests:
           - WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-SourcePositions
+        title: >-
+          SysmlNode shall expose SourceFilePath, SourceLine, and SourceColumn (the declaring file
+          and the declaration's position) and ReferencePositions (the position of each reference
+          text the node declares, keyed by that text); none of them shall be part of the
+          serialized standard-library format.
+        justification: |
+          Reference resolution must be able to report where an unresolved reference is written.
+          Positions are only needed while a workspace's own source files are resolved (the
+          standard library's diagnostics are produced, with their positions, when it is
+          pre-compiled), so leaving them out of the serialized format keeps the embedded
+          stdlib.json.gz resource small.
+        tests:
+          - WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation
+          - WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition
+          - Serialize_SourcePositions_AreNotPersisted
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewConditionsAndDefinition
         title: >-

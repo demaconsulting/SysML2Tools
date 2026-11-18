@@ -18,12 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Utilities;
 
 namespace DemaConsulting.SysML2Tools.Tests;
 
 /// <summary>
-///     Subsystem tests for the Utilities subsystem covering PathHelpers integration workflows.
+///     Subsystem tests for the Utilities subsystem covering PathHelpers and DiagnosticFormatter
+///     integration workflows.
 /// </summary>
 [Collection("Sequential")]
 public class UtilitiesSubsystemTests
@@ -145,6 +147,37 @@ public class UtilitiesSubsystemTests
                 }
             }
         }
+    }
+
+    /// <summary>
+    ///     Test that utilities subsystem formats diagnostics of every severity, whether located
+    ///     or not, as single console lines in the shared compiler-style shape.
+    /// </summary>
+    [Fact]
+    public void UtilitiesSubsystem_DiagnosticFormatting_MixedDiagnostics_FormatsEachAsOneLine()
+    {
+        // Arrange: located diagnostics of each severity plus one that is not tied to a file
+        var diagnostics = new[]
+        {
+            new SysmlDiagnostic("a.sysml", 1, 0, DiagnosticSeverity.Info, "hint"),
+            new SysmlDiagnostic("dir/b.sysml", 12, 7, DiagnosticSeverity.Warning, "Unresolved reference: 'X'"),
+            new SysmlDiagnostic("c.sysml", 3, 4, DiagnosticSeverity.Error, "mismatched input"),
+            new SysmlDiagnostic(string.Empty, 0, 0, DiagnosticSeverity.Warning, "no file"),
+        };
+
+        // Act: format each diagnostic
+        var lines = diagnostics.Select(DiagnosticFormatter.Format).ToList();
+
+        // Assert: one line each, located ones in path(line,col): severity: message shape
+        Assert.Equal(
+            [
+                "a.sysml(1,0): info: hint",
+                "dir/b.sysml(12,7): warning: Unresolved reference: 'X'",
+                "c.sysml(3,4): error: mismatched input",
+                "warning: no file",
+            ],
+            lines);
+        Assert.All(lines, line => Assert.DoesNotContain('\n', line));
     }
 }
 

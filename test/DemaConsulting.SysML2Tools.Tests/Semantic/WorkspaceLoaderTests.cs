@@ -7056,5 +7056,123 @@ public sealed class WorkspaceLoaderTests
             Assert.False(feature.IsParallel);
         }
     }
+
+    /// <summary>
+    ///     Every kind of unresolved reference reports the one-based line and zero-based column of
+    ///     the reference text as written, not <c>(0,0)</c>. Each source contains the unresolved
+    ///     <paramref name="reference"/> exactly once, so its position in the source is the
+    ///     expected position of the diagnostic.
+    /// </summary>
+    [Theory]
+    [InlineData("package P {\n    part def A :> GhostSupertype;\n}\n", "GhostSupertype")]
+    [InlineData("package P {\n    part def A {\n        part p : GhostTyping;\n    }\n}\n", "GhostTyping")]
+    [InlineData("package P {\n    part def A {\n        part q;\n        part p :> GhostSubset;\n    }\n}\n", "GhostSubset")]
+    [InlineData("package P {\n    part def A {\n        part p :>> GhostRedefine;\n    }\n}\n", "GhostRedefine")]
+    [InlineData("package P {\n    import GhostImport::*;\n}\n", "GhostImport")]
+    [InlineData("package P {\n    view V {\n        expose GhostExpose::*;\n    }\n}\n", "GhostExpose")]
+    [InlineData("package P {\n    view v : GhostViewDef;\n}\n", "GhostViewDef")]
+    [InlineData("package P {\n    part def A {\n        part a;\n        connect a to ghostConnect.feat;\n    }\n}\n", "ghostConnect.feat")]
+    [InlineData("package P {\n    part def A {\n        part a;\n        bind a = ghostBind.feat;\n    }\n}\n", "ghostBind.feat")]
+    [InlineData("package P {\n    state def S {\n        state s1;\n        transition first s1 then GhostTransition;\n    }\n}\n", "GhostTransition")]
+    [InlineData("package P {\n    part def A {\n        @GhostMetadata;\n    }\n}\n", "GhostMetadata")]
+    [InlineData("package P {\n    part def A;\n    dependency from A to GhostDependency;\n}\n", "GhostDependency")]
+    [InlineData("package P {\n    part def A;\n    allocate A to GhostAllocate;\n}\n", "GhostAllocate")]
+    [InlineData("package P {\n    requirement def R;\n    satisfy R by GhostSatisfy;\n}\n", "GhostSatisfy")]
+    [InlineData("package P {\n    verification def VC {\n        objective {\n            verify GhostVerify;\n        }\n    }\n}\n", "GhostVerify")]
+    public async Task WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition(string source, string reference)
+    {
+        // Arrange: the expected position is that of the single occurrence of the reference text
+        var expectedLine = 1 + source[..source.IndexOf(reference, StringComparison.Ordinal)].Count(c => c == '\n');
+        var expectedColumn = source.IndexOf(reference, StringComparison.Ordinal) - (source.LastIndexOf('\n', source.IndexOf(reference, StringComparison.Ordinal)) + 1);
+
+        // Act
+        var result = await LoadModelsAsync(source);
+
+        // Assert: exactly one warning for the unresolved text, located at the text
+        var diagnostic = Assert.Single(
+            result.Diagnostics, d => d.Message == $"Unresolved reference: '{reference}'");
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Equal(expectedLine, diagnostic.Line);
+        Assert.Equal(expectedColumn, diagnostic.Column);
+    }
+
+    /// <summary>
+    ///     A reference that is written on a later line than its owner's declaration is located at
+    ///     the reference text, and a second unresolved reference of a different kind in the same
+    ///     file is located at its own text.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnresolvedReferences_ReportDistinctPositions()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def A
+                    :> Missing1;
+                part def B { part p : Missing2; }
+            }
+            """);
+
+        // Assert: Missing1 is on line 3 (column 11); Missing2 is on line 4 (column 26)
+        var first = Assert.Single(result.Diagnostics, d => d.Message == "Unresolved reference: 'Missing1'");
+        Assert.Equal(3, first.Line);
+        Assert.Equal(11, first.Column);
+        var second = Assert.Single(result.Diagnostics, d => d.Message == "Unresolved reference: 'Missing2'");
+        Assert.Equal(4, second.Line);
+        Assert.Equal(26, second.Column);
+    }
+
+    /// <summary>
+    ///     An unresolved-reference diagnostic names the file that contains the reference, so
+    ///     references in different files of one load are each located in their own file.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnresolvedReferencesInTwoFiles_ReportEachFilePath()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package A {\n    part def X :> MissingInFirst;\n}\n",
+            "package B {\n\n    part def Y :> MissingInSecond;\n}\n");
+
+        // Assert
+        var first = Assert.Single(result.Diagnostics, d => d.Message.Contains("MissingInFirst"));
+        var second = Assert.Single(result.Diagnostics, d => d.Message.Contains("MissingInSecond"));
+        Assert.NotEqual(first.FilePath, second.FilePath);
+        Assert.Equal(2, first.Line);
+        Assert.Equal(3, second.Line);
+    }
+
+    /// <summary>
+    ///     A cyclic specialization diagnostic is located at the supertype reference that closes the
+    ///     cycle and names the file that declares it, instead of an empty path and <c>(0,0)</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_CyclicSpecialization_ReportsFileAndPosition()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("part def CycA :> CycB;\npart def CycB :> CycA;\n");
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Message.StartsWith("Cyclic specialization", StringComparison.Ordinal));
+        Assert.EndsWith(".sysml", diagnostic.FilePath, StringComparison.Ordinal);
+        Assert.True(diagnostic.Line is 1 or 2, $"Unexpected line {diagnostic.Line}");
+        Assert.Equal(17, diagnostic.Column);
+    }
+
+    /// <summary>
+    ///     A circular import diagnostic is located at the import statement that closes the cycle
+    ///     and names the file that contains it, instead of a namespace name and <c>(0,0)</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_CircularImport_ReportsFileAndPosition()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("package CircA {\n    import CircB::*;\n}\npackage CircB {\n    import CircA::*;\n}\n");
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Message.StartsWith("Circular import", StringComparison.Ordinal));
+        Assert.EndsWith(".sysml", diagnostic.FilePath, StringComparison.Ordinal);
+        Assert.True(diagnostic.Line is 2 or 5, $"Unexpected line {diagnostic.Line}");
+    }
 }
 

@@ -29,6 +29,24 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation
 
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceSourcePositions
+        title: >-
+          AstBuilder shall record, on every node it builds, the source file and the position of
+          the node's declaration, and in ReferencePositions the position of the first token of
+          each reference text the node declares (supertype, subsetting, typing, redefinition,
+          import, expose, view-definition, connector endpoint, transition source/target, satisfy,
+          verify, dependency, and metadata-type references), leaving a reference with no
+          matching token (a synthesized name) unlocated.
+        justification: |
+          Recording positions during AST construction, where the parse tree's token positions are
+          available, lets the reference resolver report an unresolved reference at the place it is
+          written instead of at (0,0). The reference texts are built by concatenating grammar
+          tokens, so each is located by matching a run of consecutive tokens; doing this centrally
+          where every node is built avoids touching each of the many per-construct visitors.
+        tests:
+          - WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition
+          - WorkspaceLoader_LoadAsync_UnresolvedReferences_ReportDistinctPositions
+
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-MembershipVisibilityAndAliases
         title: >-
           AstBuilder shall record each package or definition body member's declared visibility

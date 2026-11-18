@@ -1354,5 +1354,45 @@ public class RenderSubsystemTests
             Console.SetOut(originalOut);
         }
     }
+
+    /// <summary>
+    ///     Load diagnostics are printed in the same <c>file(line,col): severity: message</c> form
+    ///     <c>lint</c> uses — located at the unresolved reference text — instead of a raw
+    ///     <c>SysmlDiagnostic { ... }</c> record dump.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_LoadDiagnostic_PrintsFileLineColumnSeverityMessage()
+    {
+        // Arrange: a model whose supertype reference (line 2, column 18) does not resolve
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_diag_format_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "c.sysml");
+        await File.WriteAllTextAsync(
+            tempFile, "package P {\n    part def X :> DoesNotExist;\n}\n", TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render a dynamic general view of X
+            using var context = Context.Create(
+                ["render", "--view-type", "general", "--view-target", "P::X", "--output", Path.Combine(tempDir, "out"), tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: the diagnostic uses the lint format, on a line of its own, with no record dump
+            var output = outWriter.ToString();
+            var expected = $"{tempFile}(2,18): warning: Unresolved reference: 'DoesNotExist'";
+            Assert.Contains(expected, output.Split('\n').Select(line => line.TrimEnd('\r')));
+            Assert.DoesNotContain("SysmlDiagnostic", output);
+            Assert.DoesNotContain("FilePath =", output);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }
 

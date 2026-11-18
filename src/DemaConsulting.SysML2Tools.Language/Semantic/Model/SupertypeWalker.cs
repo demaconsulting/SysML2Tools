@@ -64,9 +64,15 @@ internal sealed class SupertypeWalker
         {
             if (chainVisited.Contains(supertypeName))
             {
+                // Located at the supertype reference that closes the cycle, in the file that
+                // declares it (empty / (0,0) for a node that was not built from a source file).
+                var (line, column) = node.ReferencePositions.TryGetValue(supertypeName, out var position)
+                    ? (position.Line, position.Column)
+                    : (node.SourceLine, node.SourceColumn);
                 _diagnostics.Add(new SysmlDiagnostic(
-                    string.Empty,
-                    0, 0,
+                    node.SourceFilePath ?? string.Empty,
+                    line,
+                    column,
                     DiagnosticSeverity.Warning,
                     $"Cyclic specialization detected: '{qualifiedName}' specializes '{supertypeName}'"));
                 continue;

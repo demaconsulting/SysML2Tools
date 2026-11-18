@@ -29,8 +29,29 @@ values into a `HashSet<string>` per file. The result is a `Dictionary<string, Ha
 from file path to imported names.
 
 `DetectCircularImports` runs a DFS over the import graph keys. A cycle is detected when a
-node in the current DFS stack is encountered again. The Warning message names the file and
-the imported namespace that completes the cycle.
+node in the current DFS stack is encountered again. The Warning message names the namespace
+that imports and the imported namespace that completes the cycle. `BuildImportGraph` also records,
+for each `(importing namespace, imported namespace)` pair, the file and source position of the
+first import statement that writes it (the `ReferencePositions` entry of the import node, else
+its declaration position), so the Warning is located at that import statement and names the file
+that contains it.
+
+##### Unresolved-Reference Positions
+
+An unresolved-reference Warning is located at the position of the reference text as written, not
+at `(0,0)`. `ResolveOrWarn`/`ReportUnresolved` (and the feature-chain and transition-source
+helpers) take the *owning node* of the reference and look the reference text up in the owner's
+`SysmlNode.ReferencePositions` (see the `AstBuilder` design): the first token of the reference.
+When the owner has no entry for the text (a synthesized name that matches no token) the Warning
+falls back to the owner's declaration position (`SourceLine`/`SourceColumn`), and to `(0,0)` only
+for a node with no position at all (a hand-built node). The reference kinds that get an exact
+token position are supertype, subsetting, typing, redefinition, import, `expose`, view
+definition, connector (`connect`/`bind`/message) endpoints, transition source and target,
+`satisfy`, `verify`, allocation endpoints, `dependency`, and metadata-type references; the
+owner-position fallback applies only to texts with no token. Deduplication is unchanged: the
+Warning is emitted once per distinct name per file, at the first owner that references it, so the
+count of diagnostics is identical to before positions were added. `NameResolver` emits no
+diagnostics and is unchanged.
 
 ##### Reference Resolution
 

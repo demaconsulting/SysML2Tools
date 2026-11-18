@@ -17,3 +17,16 @@ sections:
           looping infinitely.
         tests:
           - WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning
+
+      - id: SysML2Tools-Language-Semantic-Model-SupertypeWalker-CyclePosition
+        title: >-
+          SupertypeWalker.WalkAll shall locate each cyclic-specialization Warning at the supertype
+          reference that closes the cycle (its token position, or the declaration position when
+          the reference text was not located) and name the file that declares it, rather than
+          reporting an empty path and position (0,0).
+        justification: |
+          A diagnostic that carries no position cannot be used by CI annotations, editor
+          navigation, or model-fix loops. The declaring node carries its file and the position of
+          each reference it declares, so the walker can report where the cycle is written.
+        tests:
+          - WorkspaceLoader_LoadAsync_CyclicSpecialization_ReportsFileAndPosition
