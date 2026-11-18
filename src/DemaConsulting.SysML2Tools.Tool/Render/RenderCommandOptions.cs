@@ -115,4 +115,10 @@ internal sealed record RenderCommandOptions
     ///     <c>query</c> command's own <c>--walk-depth</c> flag (impact-walk depth).
     /// </remarks>
     public int? WalkDepth { get; init; }
+
+    /// <summary>
+    ///     Gets a value indicating whether <c>--strict-unresolved</c> was specified, which reports
+    ///     unresolved references as errors instead of warnings.
+    /// </summary>
+    public bool StrictUnresolved { get; init; }
 }

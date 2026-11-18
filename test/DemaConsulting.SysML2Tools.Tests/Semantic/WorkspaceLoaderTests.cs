@@ -5447,9 +5447,352 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     By default (no strict mode) every kind of unresolved reference written inside an
+    ///     expression (guard, trigger, accept payload, constraint, render target) is a Warning at the
+    ///     reference token's own position.
+    /// </summary>
+    /// <param name="source">The model source, containing the reference once.</param>
+    /// <param name="reference">The unresolved reference text.</param>
+    [Theory]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a if ghostGuard then b;\n    }\n}\n", "ghostGuard")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a accept GhostTrigger then b;\n    }\n}\n", "GhostTrigger")]
+    [InlineData("package P {\n    action def A {\n        action a accept GhostPayload;\n    }\n}\n", "GhostPayload")]
+    [InlineData("package P {\n    part def A {\n        attribute x;\n        constraint { x <= ghostConstraint }\n    }\n}\n", "ghostConstraint")]
+    [InlineData("package P {\n    view v {\n        render ghostRender;\n    }\n}\n", "ghostRender")]
+    public async Task WorkspaceLoader_LoadAsync_UnresolvedExpressionReference_ProducesWarningAtToken(string source, string reference)
+    {
+        // Arrange
+        var index = source.IndexOf(reference, StringComparison.Ordinal);
+        var expectedLine = 1 + source[..index].Count(c => c == '\n');
+        var expectedColumn = index - (source.LastIndexOf('\n', index) + 1) + 1;
+
+        // Act
+        var result = await LoadModelsAsync(source);
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Message == $"Unresolved reference: '{reference}'");
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Equal((expectedLine, expectedColumn), (diagnostic.Line, diagnostic.Column));
+        Assert.False(result.HasErrors);
+    }
+
+    /// <summary>
+    ///     In strict mode an unresolved reference written inside an expression (guard, trigger,
+    ///     accept payload, constraint, render target) is an Error at the reference token's own
+    ///     position.
+    /// </summary>
+    /// <param name="source">The model source, containing the reference once.</param>
+    /// <param name="reference">The unresolved reference text.</param>
+    [Theory]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a if ghostGuard then b;\n    }\n}\n", "ghostGuard")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a accept GhostTrigger then b;\n    }\n}\n", "GhostTrigger")]
+    [InlineData("package P {\n    action def A {\n        action a accept GhostPayload;\n    }\n}\n", "GhostPayload")]
+    [InlineData("package P {\n    part def A {\n        attribute x;\n        constraint { x <= ghostConstraint }\n    }\n}\n", "ghostConstraint")]
+    [InlineData("package P {\n    view v {\n        render ghostRender;\n    }\n}\n", "ghostRender")]
+    public async Task WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedExpressionReference_ProducesErrorAtToken(string source, string reference)
+    {
+        // Arrange
+        var index = source.IndexOf(reference, StringComparison.Ordinal);
+        var expectedLine = 1 + source[..index].Count(c => c == '\n');
+        var expectedColumn = index - (source.LastIndexOf('\n', index) + 1) + 1;
+
+        // Act
+        var result = await LoadModelsWithOptionsAsync(true, [source]);
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Message == $"Unresolved reference: '{reference}'");
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal((expectedLine, expectedColumn), (diagnostic.Line, diagnostic.Column));
+        Assert.True(result.HasErrors);
+    }
+
+    /// <summary>
+    ///     In strict mode every kind of unresolved reference is an Error with the unchanged
+    ///     "Unresolved reference:" message, and still records no edge.
+    /// </summary>
+    /// <param name="source">The model source, containing one unresolved reference.</param>
+    /// <param name="reference">The unresolved reference text.</param>
+    [Theory]
+    [InlineData("package P {\n    part def A :> GhostSupertype;\n}\n", "GhostSupertype")]
+    [InlineData("package P {\n    part def A {\n        part p : GhostTyping;\n    }\n}\n", "GhostTyping")]
+    [InlineData("package P {\n    part def A {\n        part p :>> GhostRedefine;\n    }\n}\n", "GhostRedefine")]
+    [InlineData("package P {\n    import GhostImport::*;\n}\n", "GhostImport")]
+    [InlineData("package P {\n    view V {\n        expose GhostExpose::*;\n    }\n}\n", "GhostExpose")]
+    [InlineData("package P {\n    requirement def R;\n    satisfy R by GhostSatisfy;\n}\n", "GhostSatisfy")]
+    [InlineData("package P {\n    verification def VC {\n        objective {\n            verify GhostVerify;\n        }\n    }\n}\n", "GhostVerify")]
+    [InlineData("package P {\n    part def A;\n    allocate A to GhostAllocate;\n}\n", "GhostAllocate")]
+    [InlineData("package P {\n    part def A;\n    dependency from A to GhostDependency;\n}\n", "GhostDependency")]
+    [InlineData("package P {\n    part def A {\n        part a;\n        bind a = ghostBind.feat;\n    }\n}\n", "ghostBind.feat")]
+    [InlineData("package P {\n    part def A {\n        part a;\n        connect a to ghostConnect.feat;\n    }\n}\n", "ghostConnect.feat")]
+    [InlineData("package P {\n    part def A {\n        @GhostMetadata;\n    }\n}\n", "GhostMetadata")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a if ghostGuard then b;\n    }\n}\n", "ghostGuard")]
+    [InlineData("package P {\n    state def S {\n        state a;\n        state b;\n        transition first a accept GhostTrigger then b;\n    }\n}\n", "GhostTrigger")]
+    [InlineData("package P {\n    action def A {\n        action a accept GhostPayload;\n    }\n}\n", "GhostPayload")]
+    [InlineData("package P {\n    part def A {\n        attribute x;\n        constraint { x <= ghostConstraint }\n    }\n}\n", "ghostConstraint")]
+    [InlineData("package P {\n    view v {\n        render ghostRender;\n    }\n}\n", "ghostRender")]
+    public async Task WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors(string source, string reference)
+    {
+        // Arrange / Act
+        var result = await LoadModelsWithOptionsAsync(true, [source]);
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Message == $"Unresolved reference: '{reference}'");
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.StartsWith("Unresolved reference:", diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(result.HasErrors);
+    }
+
+    /// <summary>
+    ///     A circular import and a cyclic specialization stay Warnings whether or not strict
+    ///     unresolved-reference mode is on.
+    /// </summary>
+    /// <param name="strict">Whether strict unresolved-reference mode is enabled.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings(bool strict)
+    {
+        // Arrange / Act
+        var result = await LoadModelsWithOptionsAsync(
+            strict,
+            ["package A { import B::*; }\npackage B { import A::*; }\npackage C { part def X :> C::Y; part def Y :> C::X; }\n"]);
+
+        // Assert
+        Assert.Contains(result.Diagnostics, d => d.Message.StartsWith("Circular import detected", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d => d.Message.StartsWith("Cyclic specialization detected", StringComparison.Ordinal));
+        Assert.All(result.Diagnostics, d => Assert.Equal(DiagnosticSeverity.Warning, d.Severity));
+        Assert.False(result.HasErrors);
+    }
+
+    /// <summary>
+    ///     Valid standard-library references (types, imports, views) produce no diagnostics at all,
+    ///     whether or not strict unresolved-reference mode is on.
+    /// </summary>
+    /// <param name="strict">Whether strict unresolved-reference mode is enabled.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics(bool strict)
+    {
+        // Arrange / Act
+        var result = await LoadModelsWithOptionsAsync(
+            strict,
+            ["package P {\n    private import ScalarValues::*;\n    part def V { attribute mass : Real; attribute n : ScalarValues::Integer; }\n}\n"]);
+
+        // Assert
+        Assert.Empty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     The default severity of an unresolved reference in a user file is Warning.
+    /// </summary>
+    [Fact]
+    public void WorkspaceLoader_DefaultUnresolvedSeverity_IsWarning()
+    {
+        // Arrange / Act / Assert
+        Assert.Equal(DiagnosticSeverity.Warning, WorkspaceLoader.DefaultUserUnresolvedSeverity);
+    }
+
+    /// <summary>
+    ///     The resolver constructed with Warning severity (as the standard-library generator does,
+    ///     because standard-library-origin diagnostics stay Warnings) reports unresolved references
+    ///     as Warnings.
+    /// </summary>
+    [Fact]
+    public void ReferenceResolver_ResolveAll_WarningSeverity_UnresolvedReferenceIsWarning()
+    {
+        // Arrange
+        var diagnostics = new List<SysmlDiagnostic>();
+        var cst = DemaConsulting.SysML2Tools.Parser.WorkspaceParser.ParseSourceToCst(
+            "lib.sysml", "package P { part def X :> Missing; }", diagnostics);
+        var root = new AstBuilder("lib.sysml").Build(cst);
+        var table = new SymbolTable();
+        table.RegisterAll(root);
+        var resolver = new ReferenceResolver(table, diagnostics, DiagnosticSeverity.Warning);
+
+        // Act
+        resolver.ResolveAll([("lib.sysml", root)]);
+
+        // Assert
+        var diagnostic = Assert.Single(diagnostics, d => d.Message == "Unresolved reference: 'Missing'");
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+    }
+
+    /// <summary>
+    ///     A SysML2Tools extension render selector produces one portability Warning at the token,
+    ///     naming the standard view definition to use instead, and no unresolved-reference
+    ///     diagnostic.
+    /// </summary>
+    /// <param name="token">The extension selector.</param>
+    /// <param name="definition">The standard view definition suggested instead.</param>
+    [Theory]
+    [InlineData("asGeneralDiagram", "GeneralView")]
+    [InlineData("asStateTransitionDiagram", "StateTransitionView")]
+    [InlineData("asActionFlowDiagram", "ActionFlowView")]
+    [InlineData("asSequenceDiagram", "SequenceView")]
+    [InlineData("asGridDiagram", "GridView")]
+    public async Task WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken(string token, string definition)
+    {
+        // Arrange
+        var source = $"package P {{\n    view v {{\n        render {token};\n    }}\n}}\n";
+        var index = source.IndexOf(token, StringComparison.Ordinal);
+        var expectedColumn = index - (source.LastIndexOf('\n', index) + 1) + 1;
+
+        // Act
+        var result = await LoadModelsAsync(source);
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Equal((3, expectedColumn), (diagnostic.Line, diagnostic.Column));
+        Assert.Equal(
+            $"'{token}' is a SysML2Tools extension, not a standard SysML v2 rendering; the model will not validate in other tools. " +
+            $"Use a standard view definition instead (e.g. 'view v : StandardViewDefinitions::{definition}').",
+            diagnostic.Message);
+        Assert.False(result.HasErrors);
+    }
+
+    /// <summary>
+    ///     The standard render selectors (qualified, imported, and the element-table and textual
+    ///     notations) produce no diagnostics.
+    /// </summary>
+    /// <param name="source">The model source.</param>
+    [Theory]
+    [InlineData("package P { view v { render Views::asTreeDiagram; } }")]
+    [InlineData("package P { view v { render Views::asInterconnectionDiagram; } }")]
+    [InlineData("package P { private import Views::*; view v { render asTreeDiagram; } }")]
+    [InlineData("package P { view v { private import Views::*; render asElementTable; } }")]
+    [InlineData("package P { view v { render Views::asTextualNotation; } }")]
+    public async Task WorkspaceLoader_LoadAsync_StandardRenderSelectors_ProduceNoDiagnostics(string source)
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(source);
+
+        // Assert
+        Assert.Empty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     Strict mode does not change the portability diagnostic: still exactly one Warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ToolRenderSelectorWithStrictUnresolved_StillOnlyPortabilityWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsWithOptionsAsync(true, ["package P { view v { render asGridDiagram; } }"]);
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Contains("StandardViewDefinitions::GridView", diagnostic.Message, StringComparison.Ordinal);
+        Assert.False(result.HasErrors);
+    }
+
+    /// <summary>
+    ///     Each occurrence of an extension selector is reported at its own position.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ToolRenderSelectorTwice_ReportsEachOccurrence()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package P {\n    view a { render asGridDiagram; }\n    view b { render asGridDiagram; }\n}\n");
+
+        // Assert
+        Assert.Equal([2, 3], result.Diagnostics.Select(d => d.Line).ToList());
+        Assert.All(result.Diagnostics, d => Assert.Equal(DiagnosticSeverity.Warning, d.Severity));
+    }
+
+    /// <summary>
+    ///     A model that declares its own rendering with the selector's name resolves it normally:
+    ///     no portability warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ToolRenderSelectorUserDeclaredRendering_NoPortabilityWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package P {\n    rendering asGridDiagram : Views::GraphicalRendering;\n    view v { render asGridDiagram; }\n}\n");
+
+        // Assert
+        Assert.Empty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     A qualified extension selector (<c>Views::asGeneralDiagram</c>, which is not a
+    ///     <c>Views</c> member) is an ordinary unresolved-reference Warning with no portability
+    ///     warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ToolRenderSelectorQualified_ReportsUnresolvedNotPortability()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("package P { view v { render Views::asGeneralDiagram; } }");
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Equal("Unresolved reference: 'Views::asGeneralDiagram'", diagnostic.Message);
+    }
+
+    /// <summary>
+    ///     In strict mode a qualified extension selector is an ordinary unresolved-reference Error
+    ///     with no portability warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ToolRenderSelectorQualifiedWithStrictUnresolved_ReportsUnresolvedErrorNotPortability()
+    {
+        // Arrange / Act
+        var result = await LoadModelsWithOptionsAsync(true, ["package P { view v { render Views::asGeneralDiagram; } }"]);
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("Unresolved reference: 'Views::asGeneralDiagram'", diagnostic.Message);
+    }
+
+    /// <summary>
+    ///     The five SysML2Tools extension render selectors resolve (no "Unresolved reference"
+    ///     diagnostic) and each produces only its one portability Warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ToolRenderSelectorsDeclared_NoUnresolvedWarningOnlyPortabilityWarnings()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                view def V { render asGridDiagram; }
+                view v1 { render asGeneralDiagram; }
+                view v2 { render asStateTransitionDiagram; }
+                view v3 { render asActionFlowDiagram; }
+                view v4 { render asSequenceDiagram; }
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(
+            result.Diagnostics,
+            d => d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal));
+        Assert.Equal(5, result.Diagnostics.Count);
+        Assert.All(result.Diagnostics, d =>
+        {
+            Assert.Equal(DiagnosticSeverity.Warning, d.Severity);
+            Assert.Contains("SysML2Tools extension", d.Message, StringComparison.Ordinal);
+        });
+        Assert.False(result.HasErrors);
+    }
+
+    /// <summary>
     ///     Loads each of <paramref name="sources"/> as its own file (with the standard library), in order.
     /// </summary>
-    private static async Task<SysmlLoadResult> LoadModelsAsync(params string[] sources)
+    private static Task<SysmlLoadResult> LoadModelsAsync(params string[] sources) =>
+        LoadModelsWithOptionsAsync(false, sources);
+
+    /// <summary>
+    ///     Loads each of <paramref name="sources"/> as its own file (with the standard library), in
+    ///     order, using the given <paramref name="strictUnresolved"/> option.
+    /// </summary>
+    private static async Task<SysmlLoadResult> LoadModelsWithOptionsAsync(bool strictUnresolved, string[] sources)
     {
         var files = new List<string>();
         try
@@ -5462,7 +5805,7 @@ public sealed class WorkspaceLoaderTests
             }
 
             var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-            var result = await WorkspaceLoader.LoadAsync(files, stdlibTable);
+            var result = await WorkspaceLoader.LoadAsync(files, stdlibTable, strictUnresolved);
             Assert.NotNull(result.Workspace);
             return result;
         }
@@ -5658,7 +6001,7 @@ public sealed class WorkspaceLoaderTests
         var diagnostics = new List<SysmlDiagnostic>();
 
         // Act
-        new ReferenceResolver(table, diagnostics).ResolveAll([("mem.sysml", package), ("target.sysml", target)]);
+        new ReferenceResolver(table, diagnostics, DiagnosticSeverity.Warning).ResolveAll([("mem.sysml", package), ("target.sysml", target)]);
 
         // Assert
         Assert.Empty(diagnostics);
@@ -7641,15 +7984,6 @@ public sealed class WorkspaceLoaderTests
         private import Views::*;
         package P {
             view def V { render asTreeDiagram; }
-        }
-        """)]
-    [InlineData("""
-        package P {
-            view def V { render asGridDiagram; }
-            view v1 { render asGeneralDiagram; }
-            view v2 { render asStateTransitionDiagram; }
-            view v3 { render asActionFlowDiagram; }
-            view v4 { render asSequenceDiagram; }
         }
         """)]
     public async Task WorkspaceLoader_LoadAsync_ExpressionReferencesDeclared_NoUnresolvedWarning(string source)

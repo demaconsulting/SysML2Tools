@@ -13,10 +13,10 @@ sections:
           redefinition, import, requirement-trace, and expose names) by KerML 8.2.3.5 name
           resolution from the referencing element's local namespace — including the memberships
           the owner inherits for a usage-level `subsets`/`:>` clause — and produce a Warning for
-          any unresolved name.
+          any unresolved name (an Error when the caller opts in to strict unresolved references).
         justification: |
-          Unresolved references indicate model incompleteness. Reporting as Warnings allows
-          the caller to continue analysis and provide partial results. A usage-level
+          Unresolved references indicate model incompleteness. Reporting as Warnings by default
+          allows the caller to continue analysis and provide partial results. A usage-level
           `subsets`/`:>` clause (e.g. `part frontWheel_1 subsets frontWheel = ...;`) is, per the
           SysML v2 spec, commonly a bare reference to a member the owner inherits rather than
           declares itself — the same dominant shape as a bare `redefines` reference — which
@@ -186,16 +186,18 @@ sections:
           references are kept by the AST only as raw text, so AstBuilder locates them from the
           syntax tree, where a feature reference can be told apart from an operator, a literal,
           or a library function; the resolver then applies the same name resolution as every other
-          reference. The standard library is checked when it is compiled; the severity stays
-          Warning, like every other unresolved reference. The tool-defined `render` selectors
-          (`asGeneralDiagram` and the other `DiagramTypeRouter` tokens beyond the Views library)
-          are documented selectors that no model can declare, so they are not reported. Value
+          reference. The standard library is checked when it is compiled, where the severity stays
+          Warning. The SysML2Tools extension `render` selectors (`asGeneralDiagram` and the other
+          `DiagramTypeRouter` tokens beyond the Views library) are not reported as unresolved
+          references; the ToolRenderSelectorPortability requirement covers them. Value
           expressions (`= expr`) are not yet
           covered because several modeling gaps (quoted short names, prefix-metadata-declared
           usages, KerML-declared library features, member access through variants) would make them
           report valid models.
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition
+          - WorkspaceLoader_LoadAsync_UnresolvedExpressionReference_ProducesWarningAtToken
+          - WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedExpressionReference_ProducesErrorAtToken
           - WorkspaceLoader_LoadAsync_ExpressionReferencesDeclared_NoUnresolvedWarning
           - WorkspaceLoader_LoadAsync_LibraryFunctionsAndOperatorsInExpressions_NoUnresolvedWarning
           - WorkspaceLoader_LoadAsync_UnresolvedExpressionReferenceTwice_ReportsEachOccurrence
@@ -361,3 +363,61 @@ sections:
           - WorkspaceLoader_LoadAsync_UnresolvedReferences_ReportDistinctPositions
           - WorkspaceLoader_LoadAsync_UnresolvedReferencesInTwoFiles_ReportEachFilePath
           - WorkspaceLoader_LoadAsync_CircularImport_ReportsFileAndPosition
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-UnresolvedSeverity
+        title: >-
+          ReferenceResolver shall report every unresolved reference at the severity its caller
+          selects: Warning by default, and Error when the caller selects Error for user files
+          (strict unresolved references), leaving the circular-import and cyclic-specialization
+          diagnostics at Warning in both cases and the standard library's own unresolved
+          references at Warning.
+        justification: |
+          An unresolved reference means the model does not validate against the SysML v2
+          standard, so callers that gate on model validity need to be able to receive it as an
+          Error. Incomplete models stay usable by default, so the default severity is Warning and
+          is defined in a single place so that it can be changed later. The standard library has
+          a known set of unresolved references that no user can fix, so compiling it reports them
+          as Warnings and the library is shipped as a pre-resolved seed that is never resolved
+          again at load time, so user models do not inherit those diagnostics. A circular import
+          or cyclic specialization is a structural warning rather than a missing reference, so its
+          severity does not change.
+        tests:
+          - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
+          - WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors
+          - WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings
+          - WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics
+          - WorkspaceLoader_DefaultUnresolvedSeverity_IsWarning
+          - ReferenceResolver_ResolveAll_WarningSeverity_UnresolvedReferenceIsWarning
+          - GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings
+          - CustomAndTestCaseModels_AllModels_LoadWithZeroDiagnostics
+          - SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ToolRenderSelectorPortability
+        title: >-
+          ReferenceResolver.ResolveAll shall report exactly one Warning, located at the token, for
+          each view `render` target that names a SysML2Tools extension selector
+          (`asGeneralDiagram`, `asStateTransitionDiagram`, `asActionFlowDiagram`,
+          `asSequenceDiagram`, `asGridDiagram`) and does not resolve to a declaration, stating
+          that it is a SysML2Tools extension and that the model will not validate in other tools
+          and suggesting a standard view definition; the Warning shall never become an Error,
+          shall not depend on the strict option for unresolved references, and shall not be
+          reported for a standard selector (such as `Views::asTreeDiagram`) or for a selector the
+          model declares itself, while a qualified `Views::asGeneralDiagram` is an ordinary
+          unresolved reference.
+        justification: |
+          The extension selectors render correctly in SysML2Tools but are not part of the SysML v2
+          standard, so a model that uses them fails validation in other tools. A Warning tells
+          the author the model is not portable without breaking the build or changing how the
+          view renders; an Error would reject models that SysML2Tools renders correctly. A
+          user-declared rendering of the same name is an ordinary declaration, and the qualified
+          form claims a Views library member that does not exist, so both follow the normal
+          reference rules.
+        tests:
+          - WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken
+          - WorkspaceLoader_LoadAsync_StandardRenderSelectors_ProduceNoDiagnostics
+          - WorkspaceLoader_LoadAsync_ToolRenderSelectorWithStrictUnresolved_StillOnlyPortabilityWarning
+          - WorkspaceLoader_LoadAsync_ToolRenderSelectorTwice_ReportsEachOccurrence
+          - WorkspaceLoader_LoadAsync_ToolRenderSelectorUserDeclaredRendering_NoPortabilityWarning
+          - WorkspaceLoader_LoadAsync_ToolRenderSelectorQualified_ReportsUnresolvedNotPortability
+          - WorkspaceLoader_LoadAsync_ToolRenderSelectorQualifiedWithStrictUnresolved_ReportsUnresolvedErrorNotPortability
+          - WorkspaceLoader_LoadAsync_ToolRenderSelectorsDeclared_NoUnresolvedWarningOnlyPortabilityWarnings

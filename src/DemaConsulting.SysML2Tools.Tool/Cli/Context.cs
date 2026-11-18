@@ -128,6 +128,17 @@ internal sealed class Context : IDisposable
     public string? QueryOutput { get; private init; }
 
     /// <summary>
+    ///     Gets a value indicating whether the <c>query</c> command's <c>--strict-unresolved</c>
+    ///     flag was supplied, which reports unresolved references as errors instead of warnings.
+    /// </summary>
+    /// <remarks>
+    ///     Kept separate from <see cref="Query"/> for the same reason as <see cref="QueryOutput"/>:
+    ///     Core's public <c>QueryOptions</c> does not know about workspace-loading options — see
+    ///     <see cref="Query.QueryCliArgumentParser"/>.
+    /// </remarks>
+    public bool QueryStrictUnresolved { get; private init; }
+
+    /// <summary>
     ///     Gets the parsed options for the <c>export</c> command; <see langword="null"/> unless
     ///     <see cref="Command"/> is <see cref="SysmlCommand.Export"/>.
     /// </summary>
@@ -178,6 +189,7 @@ internal sealed class Context : IDisposable
         QueryOptions? queryOptions = null;
         IReadOnlyList<string> queryFiles = [];
         string? queryOutput = null;
+        var queryStrictUnresolved = false;
         ExportOptions? exportOptions = null;
         HelpOptions? helpOptions = null;
 
@@ -192,7 +204,8 @@ internal sealed class Context : IDisposable
                 break;
 
             case SysmlCommand.Query:
-                (queryOptions, queryFiles, queryOutput) = QueryCliArgumentParser.Parse(global.CommandArgs, global.Help);
+                (queryOptions, queryFiles, queryOutput, queryStrictUnresolved) =
+                    QueryCliArgumentParser.Parse(global.CommandArgs, global.Help);
                 break;
 
             case SysmlCommand.Export:
@@ -230,6 +243,7 @@ internal sealed class Context : IDisposable
             Query = queryOptions,
             QueryFiles = queryFiles,
             QueryOutput = queryOutput,
+            QueryStrictUnresolved = queryStrictUnresolved,
             Export = exportOptions,
             HelpCommand = helpOptions
         };

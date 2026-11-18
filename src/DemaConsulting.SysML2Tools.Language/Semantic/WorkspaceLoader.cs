@@ -25,6 +25,14 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 public static class WorkspaceLoader
 {
     /// <summary>
+    ///     The severity of an unresolved reference in a user file when the caller does not opt in
+    ///     to strict mode. This is the single place the default is chosen: flipping the default
+    ///     to Error means changing this constant (and replacing the command-line opt-in).
+    ///     The standard library compiler (StdlibGen) never reads it and always passes Warning.
+    /// </summary>
+    internal const DiagnosticSeverity DefaultUserUnresolvedSeverity = DiagnosticSeverity.Warning;
+
+    /// <summary>
     ///     Loads the given SysML/KerML source files into a semantic workspace.
     /// </summary>
     /// <param name="filePaths">
@@ -35,6 +43,12 @@ public static class WorkspaceLoader
     ///     An optional pre-populated symbol table (e.g., from a pre-compiled stdlib).
     ///     When provided, the workspace is initialized with these symbols before parsing user files.
     ///     When null, the workspace starts empty.
+    /// </param>
+    /// <param name="strictUnresolved">
+    ///     When <see langword="false"/> (the default) every unresolved reference in the user files
+    ///     is reported as a Warning diagnostic; when <see langword="true"/> it is reported as an
+    ///     Error instead (strict mode). Circular-import and cyclic-specialization diagnostics are
+    ///     always Warnings.
     /// </param>
     /// <returns>
     ///     A <see cref="SysmlLoadResult"/> containing the workspace and all diagnostics.
@@ -53,7 +67,8 @@ public static class WorkspaceLoader
     /// </example>
     public static async Task<SysmlLoadResult> LoadAsync(
         IEnumerable<string> filePaths,
-        SymbolTable? seedSymbolTable = null)
+        SymbolTable? seedSymbolTable = null,
+        bool strictUnresolved = false)
     {
         var allDiagnostics = new List<SysmlDiagnostic>();
         var symbolTable = seedSymbolTable is not null
@@ -80,7 +95,11 @@ public static class WorkspaceLoader
         var stdlibNames = seedSymbolTable is not null
             ? new HashSet<string>(seedSymbolTable.Symbols.Keys, StringComparer.Ordinal)
             : new HashSet<string>(StringComparer.Ordinal);
-        var resolver = new ReferenceResolver(symbolTable, allDiagnostics, stdlibNames);
+        var resolver = new ReferenceResolver(
+            symbolTable,
+            allDiagnostics,
+            strictUnresolved ? DiagnosticSeverity.Error : DefaultUserUnresolvedSeverity,
+            stdlibNames);
         var index = resolver.ResolveAll(userAstRoots);
 
         var supertypeWalker = new SupertypeWalker(symbolTable, allDiagnostics);

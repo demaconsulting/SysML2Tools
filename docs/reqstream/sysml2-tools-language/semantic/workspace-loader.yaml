@@ -30,6 +30,26 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_UnreadableFile_ProducesErrorDiagnostic
 
+      - id: SysML2Tools-Language-Semantic-WorkspaceLoader-StrictUnresolved
+        title: >-
+          WorkspaceLoader.LoadAsync shall accept an optional strictUnresolved argument, defaulting
+          to false, that makes the unresolved-reference diagnostics of the user files Errors
+          instead of Warnings, without changing their message or position, without affecting
+          circular-import or cyclic-specialization diagnostics, and without producing diagnostics
+          from the standard library seed; the default severity shall be a single internal
+          constant so that it can be changed in one place.
+        justification: |
+          Callers that gate on model validity need an unresolved reference to fail the load,
+          while the default keeps incomplete or work-in-progress models usable and reports the
+          reference as a Warning. The standard library seed is pre-resolved, so user models do
+          not inherit its known unresolved references. A single constant for the default
+          severity lets the default move to Error later without touching the callers.
+        tests:
+          - WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors
+          - WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings
+          - WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics
+          - WorkspaceLoader_DefaultUnresolvedSeverity_IsWarning
+
       - id: SysML2Tools-Language-Semantic-WorkspaceLoader-StdlibOrigin
         title: >-
           WorkspaceLoader.LoadAsync shall record the standard-library origin of an element by its

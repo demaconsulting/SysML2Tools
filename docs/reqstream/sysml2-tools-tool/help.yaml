@@ -101,6 +101,20 @@ sections:
           - HelpSubsystem_SilentHelpQuery_SuppressesOutputConsistentlyWithOtherCommands
           - HelpSubsystem_HelpLintSilent_SuppressesOutput
 
+      - id: SysML2Tools-Tool-Help-StrictUnresolvedDocumented
+        title: >-
+          The top-level help and the help of the lint, render, export, and query commands
+          (query's general help and every verb's help) shall list the `--strict-unresolved`
+          option, and the lint help shall state that unresolved references are warnings by
+          default and describe the strict option that makes them errors.
+        justification: |
+          Unresolved references only fail the command when the user opts in, so a user who wants
+          that behavior must be able to find the option, and a user reading the lint help must
+          learn how severities and the exit code work, from whichever help entry point they use.
+        tests:
+          - HelpSubsystem_StrictUnresolved_IsDocumentedInEveryAffectedHelp
+          - HelpSubsystem_HelpLint_DescribesWarningsAndStrictUnresolved
+
       - id: SysML2Tools-Tool-Help-Grammar
         title: >-
           The help command shall accept at most two positional tokens (a target command, and,
@@ -116,6 +130,7 @@ sections:
           - SysML2Tools-Tool-Help-QueryVerbHelp
           - SysML2Tools-Tool-Help-UnknownTarget
           - SysML2Tools-Tool-Help-SilentConsistency
+          - SysML2Tools-Tool-Help-StrictUnresolvedDocumented
         tests:
           - HelpArgumentParser_Parse_NoArguments_ReturnsBothFieldsNull
           - HelpArgumentParser_Parse_Lint_SetsTargetCommandLint

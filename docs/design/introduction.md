@@ -61,7 +61,10 @@ system, subsystem, and unit levels:
         to `NameResolver`: member visibility, filtered imports, import scoping); detects circular
         imports; returns a `SemanticIndex` of resolved edges; also resolves the references written
         inside expressions (guards, triggers, effects, `accept`/`send` payloads, constraints, `render`
-        targets) and reports each unresolved one at its token position
+        targets) and reports each unresolved one at its token position; chooses the unresolved-reference
+        severity by origin (Warning by default, Error for user files under `strictUnresolved`;
+        Warning always for the standard library) and warns when a `render` target names a
+        SysML2Tools extension selector
       - **NameResolver** (Unit) — public KerML 8.2.3.5 name resolver (owned, imported, inherited,
         aliased, and short-named memberships; full and visible resolution) used by
         `ReferenceResolver` (in an internal resolving mode) and by layout strategies for
@@ -157,7 +160,7 @@ system, subsystem, and unit levels:
     - **Context** (Unit) — argument parser and I/O owner
   - **Lint** (Subsystem) — lint command implementation
     - **LintCommand** (Unit) — delegates glob pattern resolution to `GlobFileCollector`,
-      invokes WorkspaceLoader with stdlib seed, reports diagnostics
+      invokes WorkspaceLoader with stdlib seed (honoring `--strict-unresolved`), reports diagnostics
   - **Render** (Subsystem) — render command implementation
     - **RenderCommand** (Unit) — delegates glob pattern resolution to `GlobFileCollector`,
       loads workspace with stdlib seed, selects renderer, writes diagram output files

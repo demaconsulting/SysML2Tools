@@ -34,8 +34,11 @@ analysis][workflow]
 - **Semantic Model**: Full symbol table, reference resolution, import chain walking, and
   supertype chain resolution
 - **Structured Diagnostics**: File, line, and column information on all errors and warnings
-- **`lint` Command**: Load a workspace and report all diagnostics; exit non-zero if errors
-  are present — suitable for CI/CD and AI-assisted model-fix loops
+- **`lint` Command**: Load a workspace and report all diagnostics — syntax errors make the command
+  exit non-zero; unresolved references are warnings by default, and `--strict-unresolved` makes
+  them errors (non-zero exit); suitable for CI/CD and AI-assisted model-fix loops. Also
+  warns when a view uses a SysML2Tools-specific `render` selector that other SysML v2 tools
+  do not know
 - **`render` Command**: Load a workspace, resolve a view, and render to SVG or PNG
 - **`query` Command**: 12 model-analysis verbs (`uses`, `used-by`, `dependencies`, `impact`,
   `describe`, `hierarchy`, `requirements`, `interface`, `connections`, `states`, `list`,
@@ -95,9 +98,18 @@ sysml2tools lint model.sysml
 
 # Lint all .sysml files in a directory
 sysml2tools lint "src/**/*.sysml"
+
+# Report unresolved references as errors (non-zero exit code) instead of warnings
+sysml2tools lint --strict-unresolved "src/**/*.sysml"
 ```
 
-Exit code is non-zero if any errors are present, making it suitable for CI/CD pipelines.
+Exit code is non-zero if any errors are present, making it suitable for CI/CD pipelines. Syntax
+errors always are errors. Unresolved references (a name that cannot be resolved) are warnings by default,
+so they do not change the exit code; with `--strict-unresolved` they are errors and the exit code is
+
+1. Circular imports and SysML2Tools-specific `render` selectors (`asGeneralDiagram`,
+`asStateTransitionDiagram`, `asActionFlowDiagram`, `asSequenceDiagram`, `asGridDiagram`) are always
+warnings. Diagnostics from the embedded standard library are never reported.
 
 ### Rendering
 
@@ -235,7 +247,8 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 ```
 
 `<verb>` is `lint`, `render`, `export`, or `query <query-verb>` (12 query verbs — see the
-*Querying* section above).
+*Querying* section above). `--strict-unresolved` is accepted by `lint`, `render`, `query`, and
+`export`.
 
 ### Global Options
 
@@ -254,6 +267,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | Option | Description |
 | --- | --- |
 | `<globs>` | One or more glob patterns for `.sysml` input files |
+| `--strict-unresolved` | Report unresolved references as errors, not warnings (exit code 1 if any) |
 
 ### `render` Options
 
@@ -268,6 +282,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--view-target <name>` | Qualified name of the dynamic view's target element; requires `--view-type` |
 | `--filter <expr>` | Bracket-filter expression narrowing a dynamic view's rendered scope (requires `--view-type`) |
 | `--walk-depth <#>` | Limit rendered nesting depth; truncated parts show `…` |
+| `--strict-unresolved` | Report unresolved references as errors, not warnings (exit code 1 if any) |
 
 `--view-type` and `--view-target` must be specified together, and are mutually exclusive with
 `--view`/`--auto`; `--filter` is only valid alongside `--view-type`/`--view-target`.
@@ -289,6 +304,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--include-stdlib` | Include OMG standard library elements in results |
 | `--depth <#>` | Markdown heading depth (1-6, default: 1); Markdown output only, no effect on `--format json` |
 | `--heading <text>` | Replaces default `# query <verb>[: <element>]`; Markdown only, no effect on JSON |
+| `--strict-unresolved` | Report unresolved references as errors, not warnings (exit code 1 if any) |
 
 ### `export` Options
 
@@ -300,6 +316,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--include-stdlib` | Include OMG standard library declarations/edges (diagnostics are never stdlib-filtered) |
 | `--target <qualified-name>` | Restrict output to the containment subtree rooted at this element (before `--filter`) |
 | `--filter <expr>` | Narrow output using a Phase 1 filter expression (see `render`'s `--filter`); after `--target` |
+| `--strict-unresolved` | Export unresolved references as errors (`Severity` 2), not warnings (1); exit code is 0 |
 
 ### `help` Options
 
@@ -328,7 +345,11 @@ statement continues to render
 the full workspace. `render Views::asTreeDiagram;` and `render Views::asInterconnectionDiagram;` now select
 the Browser View and Interconnection View layout strategies respectively, taking precedence over
 the name/supertype heuristic; other `render` targets (`asElementTable`, `asTextualNotation`, an
-unrecognized name, or none) leave strategy selection unchanged. `render` never affects content
+unrecognized name, or none) leave strategy selection unchanged. SysML2Tools additionally accepts the
+extension selectors `render asGeneralDiagram;`, `asStateTransitionDiagram`, `asActionFlowDiagram`,
+`asSequenceDiagram`, and `asGridDiagram` to pick a strategy, but they are not part of standard
+SysML v2: `lint` warns at the token, and a portable model should use the standard view definition
+instead (for example `view v : StandardViewDefinitions::GeneralView;`). `render` never affects content
 scope — `expose` remains the sole scoping mechanism regardless of which strategy is selected —
 see the *Introduction* user guide for details.
 

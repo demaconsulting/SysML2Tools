@@ -97,4 +97,24 @@ public sealed class StdlibProviderTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
+
+    /// <summary>
+    ///     The stdlib's unresolved-reference diagnostics stay Warnings: the standard library carries
+    ///     known resolver gaps that must not fail a load, even when user models opt in to strict
+    ///     (Error) unresolved-reference severity.
+    /// </summary>
+    [Fact]
+    public void GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings()
+    {
+        // Arrange / Act
+        var (_, diagnostics) = StdlibProvider.GetSymbolTable();
+
+        // Assert
+        var unresolved = diagnostics
+            .Where(d => d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal))
+            .ToList();
+        Assert.NotEmpty(unresolved);
+        Assert.All(unresolved, d => Assert.Equal(DiagnosticSeverity.Warning, d.Severity));
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+    }
 }

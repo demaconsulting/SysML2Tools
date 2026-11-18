@@ -1394,5 +1394,118 @@ public class RenderSubsystemTests
             Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    /// <summary>
+    ///     By default a model with an unresolved reference renders with a warning: the diagnostic is
+    ///     reported, the output is written and the exit code is 0.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_UnresolvedReference_ReportsWarningWritesOutputAndExitsZero()
+    {
+        // Arrange / Act
+        var (output, error, exitCode, svgCount) = await RunRenderModelAsync(
+            "package P {\n    part def X :> DoesNotExist;\n}\n",
+            "--view-type", "general", "--view-target", "P::X");
+
+        // Assert
+        Assert.Contains("(2,19): warning: Unresolved reference: 'DoesNotExist'", output);
+        Assert.DoesNotContain("error", error);
+        Assert.True(svgCount > 0);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     With <c>--strict-unresolved</c> the same model reports the unresolved reference as an
+    ///     error, still writes the output, and exits 1.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorWritesOutputAndExitsOne()
+    {
+        // Arrange / Act
+        var (output, error, exitCode, svgCount) = await RunRenderModelAsync(
+            "package P {\n    part def X :> DoesNotExist;\n}\n",
+            "--strict-unresolved", "--view-type", "general", "--view-target", "P::X");
+
+        // Assert
+        Assert.Contains("(2,19): error: Unresolved reference: 'DoesNotExist'", error);
+        Assert.DoesNotContain("warning", output);
+        Assert.True(svgCount > 0);
+        Assert.Equal(1, exitCode);
+    }
+
+    /// <summary>
+    ///     A view using a SysML2Tools extension render selector still renders exactly as before
+    ///     (the selector picks the strategy) and additionally reports the portability warning;
+    ///     exit code 0.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_ToolRenderSelector_RendersUnchangedWithPortabilityWarning()
+    {
+        // Arrange / Act
+        var (output, _, exitCode, svgCount) = await RunRenderModelAsync(ToolSelectorModel);
+
+        // Assert: the portability warning is reported at the token, the view renders, exit 0
+        Assert.Contains("(6,16): warning: 'asGeneralDiagram' is a SysML2Tools extension", output);
+        Assert.Contains("StandardViewDefinitions::GeneralView", output);
+        Assert.Equal(1, svgCount);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     The portability warning stays a warning under <c>--strict-unresolved</c>: the view
+    ///     renders and the exit code is 0.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_StrictUnresolved_ToolRenderSelector_RendersWithPortabilityWarning()
+    {
+        // Arrange / Act
+        var (output, error, exitCode, svgCount) = await RunRenderModelAsync(
+            ToolSelectorModel, "--strict-unresolved");
+
+        // Assert
+        Assert.Contains("(6,16): warning: 'asGeneralDiagram' is a SysML2Tools extension", output);
+        Assert.DoesNotContain("error", error);
+        Assert.Equal(1, svgCount);
+        Assert.Equal(0, exitCode);
+    }
+
+    private const string ToolSelectorModel =
+        "package P {\n    part def A { part b : B; }\n    part def B;\n    view v {\n        expose P::A;\n        render asGeneralDiagram;\n    }\n}\n";
+
+    /// <summary>
+    ///     Renders the given model text with the given extra arguments and returns the captured
+    ///     standard output, standard error, exit code and number of SVG files written.
+    /// </summary>
+    private static async Task<(string Output, string Error, int ExitCode, int SvgCount)> RunRenderModelAsync(
+        string model, params string[] extraArgs)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_unresolved_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "m.sysml");
+        await File.WriteAllTextAsync(tempFile, model, TestContext.Current.CancellationToken);
+        var outputDir = Path.Combine(tempDir, "out");
+
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        try
+        {
+            using var outWriter = new StringWriter();
+            using var errWriter = new StringWriter();
+            Console.SetOut(outWriter);
+            Console.SetError(errWriter);
+
+            using var context = Context.Create(["render", .. extraArgs, "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            var svgCount = Directory.Exists(outputDir) ? Directory.GetFiles(outputDir, "*.svg").Length : 0;
+            return (outWriter.ToString(), errWriter.ToString(), context.ExitCode, svgCount);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }
 

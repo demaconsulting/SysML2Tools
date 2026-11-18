@@ -355,8 +355,9 @@ draws one edge. The helper is shared with `GridViewLayoutStrategy`.
 **Decision: no simple-name fallback (issue #91).** A reference that the KerML rules reject — a private
 member, a candidate a filtered import excludes, a name reachable only through another namespace's
 import — is not matched to any same-simple-name element: an unresolved reference renders as
-unresolved. The diagnostic channel is the load-time `Unresolved reference` warning from
-`ReferenceResolver`, the single report; the layouts emit no additional warning because it would
+unresolved. The diagnostic channel is the load-time `Unresolved reference` diagnostic (a Warning
+by default) from `ReferenceResolver`, the single report; the layouts emit no additional warning
+because it would
 duplicate that message. Relationship endpoints from `workspace.Index` are already qualified, so they are
 mapped only to the box with that exact qualified name or through `ResolveOwningBox` — never by simple
 name.

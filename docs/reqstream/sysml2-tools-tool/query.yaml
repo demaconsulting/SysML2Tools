@@ -32,9 +32,26 @@ sections:
           - SysML2Tools-Tool-Query-ReportHeading
           - SysML2Tools-Tool-Query-IncludeConnections
           - SysML2Tools-Tool-Query-LoadDiagnosticFormat
+          - SysML2Tools-Tool-Query-StrictUnresolved
         tests:
           - Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb
           - QuerySubsystem_AnyVerb_WithValidInput_DispatchesToRealLogic
+
+      - id: SysML2Tools-Tool-Query-StrictUnresolved
+        title: >-
+          The query command shall report each unresolved reference as a warning by default
+          (exit code 0), and shall accept a `--strict-unresolved` option that reports them as
+          errors — still printing the query result, but returning exit code 1.
+        justification: |
+          Analysis of the resolved part of an incomplete model is still useful, so queries keep
+          working by default and the diagnostic stays visible. A script that needs to know the
+          model is fully resolved opts in explicitly, and the result stays available even then.
+        tests:
+          - Context_Create_QueryCommand_WithStrictUnresolved_SetsQueryStrictUnresolved
+          - QuerySubsystem_LoadDiagnostic_PrintsFileLineColumnSeverityMessage
+          - QuerySubsystem_UnresolvedReference_ReportsWarningAndExitsZero
+          - QuerySubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorPrintsResultAndExitsOne
+          - QuerySubsystem_StrictUnresolved_JsonFormat_ReportsErrorPrintsResultAndExitsOne
 
       - id: SysML2Tools-Tool-Query-LoadDiagnosticFormat
         title: >-

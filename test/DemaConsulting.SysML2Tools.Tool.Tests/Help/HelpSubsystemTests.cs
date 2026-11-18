@@ -127,7 +127,7 @@ public class HelpSubsystemTests
         var (helpOutput, _) = await RunAsync("help", "lint");
         var (flagOutput, _) = await RunAsync("lint", "--help");
 
-        Assert.Contains("sysml2tools lint <files...>", helpOutput);
+        Assert.Contains("sysml2tools lint [--strict-unresolved] <files...>", helpOutput);
         Assert.Equal(flagOutput, helpOutput);
     }
 
@@ -275,5 +275,47 @@ public class HelpSubsystemTests
 
         Assert.Equal(string.Empty, output);
         Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     The help of lint, render, export, the top level, and query (general and every verb)
+    ///     documents the <c>--strict-unresolved</c> flag, and the removed <c>--warn-unresolved</c>
+    ///     flag appears in none of them.
+    /// </summary>
+    [Fact]
+    public async Task HelpSubsystem_StrictUnresolved_IsDocumentedInEveryAffectedHelp()
+    {
+        foreach (var args in new[]
+                 {
+                     new[] { "help" },
+                     new[] { "help", "lint" },
+                     new[] { "help", "render" },
+                     new[] { "export", "--help" },
+                     new[] { "help", "query" },
+                 }.Concat(AllQueryVerbTokens.Select(verb => new[] { "help", "query", verb })))
+        {
+            var (output, exitCode) = await RunAsync(args);
+
+            Assert.Contains("--strict-unresolved", output);
+            Assert.DoesNotContain("--warn-unresolved", output);
+            Assert.Equal(0, exitCode);
+        }
+    }
+
+    /// <summary>
+    ///     The lint help states that syntax errors are errors with a non-zero exit code, that
+    ///     unresolved references are warnings, and documents the strict flag.
+    /// </summary>
+    [Fact]
+    public async Task HelpSubsystem_HelpLint_DescribesWarningsAndStrictUnresolved()
+    {
+        var (output, _) = await RunAsync("help", "lint");
+
+        Assert.Contains("Usage: sysml2tools lint [--strict-unresolved] <files...>", output);
+        Assert.Contains("unresolved references, circular imports and tool-specific render", output);
+        Assert.Contains("are warnings", output);
+        Assert.Contains("non-zero", output);
+        Assert.Contains("Report unresolved references as errors instead of warnings", output);
+        Assert.DoesNotContain("accepts no flags of its own", output);
     }
 }

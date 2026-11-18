@@ -34,7 +34,9 @@ external services or additional configuration are required beyond a standard .NE
   located from the syntax tree and recorded with token positions on `ReferenceOccurrences`,
   excluding operators, literals, `self`, library functions, selected members, named-argument names
   and the names the construct declares for itself (a payload name, a body's parameters, bare `in`
-  parameters); a `rendering` usage is registered as a declaration, and a view's own `import`
+  parameters), but keeping the SysML2Tools extension `render` selectors (`asGeneralDiagram` and the
+  other four) so the resolver can report their portability Warning; a `rendering` usage is
+  registered as a declaration, and a view's own `import`
   statements are kept as its children.
 - `VisitViewUsage` (a named `view` usage, not a `view def` definition) captures the same
   render/filter members plus `expose <name>;` members, producing a `SysmlViewNode` with
@@ -151,6 +153,7 @@ external services or additional configuration are required beyond a standard .NE
 | `VisitViewDefinition` render | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawResolvedWithoutEdge` |
 | Transition reference occurrences | `WorkspaceLoader_LoadAsync_TransitionExpressions_CaptureReferenceOccurrences` |
 | `rendering` usage declared | `WorkspaceLoader_LoadAsync_RenderingUsage_IsDeclared` |
+| Extension selector kept | `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` |
 | `VisitViewDefinition` filter capture | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | View declaration source location (`view def` and `view`) | `WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation` |
 | Declaration and reference positions | `WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition` |

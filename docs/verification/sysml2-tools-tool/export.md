@@ -29,6 +29,9 @@ shape. Tests run against the tool's target framework.
 - `--include-stdlib` toggles whether stdlib-seeded declarations/edges appear in the export;
   omitting it excludes them by default, matching `query`'s convention.
 - Diagnostics are always present in the export output regardless of `--include-stdlib`.
+- An unresolved reference is exported in `Diagnostics` with `Severity` Warning (1) by default,
+  or Error (2) with `--strict-unresolved`; the exit code stays 0 and no load diagnostics are
+  printed to the console.
 - Unrecognized `-`-prefixed flags are rejected with an `ArgumentException`.
 - No input files produces the "no input files" error and exit code 1; one or more patterns
   matching zero files produces the "no files matched" error and exit code 1.
@@ -174,6 +177,15 @@ unsupported Phase 1 `--filter` construct does not abort the export — it falls 
 unfiltered result, appends a synthetic warning `SysmlDiagnostic` (`FilePath = "<--filter>"`,
 `Severity = Warning`) to the output, and prints a matching console warning.
 
+**`ExportSubsystem_UnresolvedReference_DiagnosticSeverityIsWarningExitCodeZero`**: Verifies that
+exporting a model with an unresolved supertype reference (`part def X :> DoesNotExist;`) as JSON
+exits with code 0 and carries the `Unresolved reference: 'DoesNotExist'` diagnostic in
+`Diagnostics` with `Severity` Warning (1). Satisfies `SysML2Tools-Tool-Export-StrictUnresolved`.
+
+**`ExportSubsystem_StrictUnresolved_DiagnosticSeverityIsError`**: Verifies that the same export
+with `--strict-unresolved` carries the diagnostic with `Severity` Error (2) and still exits with
+code 0. Satisfies `SysML2Tools-Tool-Export-StrictUnresolved`.
+
 #### ExportRenderingTests.cs
 
 **`ExportResultSerializerContext_DefinitionNode_RoundTripsTypeDiscriminator`** /
@@ -248,6 +260,11 @@ that `--include-stdlib` sets `Export.IncludeStdlib` to `true`.
 
 **`Context_Create_ExportCommand_WithFilter_SetsFilterExpression`**: Verifies that
 `--filter @Critical` populates `Export.FilterExpression`.
+
+**`Context_Create_ExportCommand_WithStrictUnresolved_SetsStrictUnresolved`** /
+**`Context_Create_ExportCommand_WithoutStrictUnresolved_DefaultsFalse`**: Verifies that
+`--strict-unresolved` sets `Export.StrictUnresolved` to `true`, and that it is `false` when the
+flag is absent. Satisfies `SysML2Tools-Tool-Export-StrictUnresolved`.
 
 **`Context_Create_ExportCommand_WithFiles_SetsFiles`**: Verifies that a file pattern
 supplied after the `export` token populates `Export.Files` with the matching glob.

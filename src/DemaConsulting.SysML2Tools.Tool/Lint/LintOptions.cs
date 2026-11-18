@@ -24,8 +24,8 @@ namespace DemaConsulting.SysML2Tools.Lint;
 ///     Immutable set of options parsed for one <c>lint</c> command invocation.
 /// </summary>
 /// <remarks>
-///     The <c>lint</c> command recognizes no flags of its own; its entire option surface is the
-///     list of file glob patterns supplied as positional arguments.
+///     The <c>lint</c> command's option surface is the list of file glob patterns supplied as
+///     positional arguments plus the <c>--strict-unresolved</c> flag.
 /// </remarks>
 internal sealed record LintOptions
 {
@@ -33,4 +33,10 @@ internal sealed record LintOptions
     ///     Gets the file glob patterns supplied as positional arguments.
     /// </summary>
     public IReadOnlyList<string> Files { get; init; } = [];
+
+    /// <summary>
+    ///     Gets a value indicating whether <c>--strict-unresolved</c> was specified, which reports
+    ///     unresolved references as errors instead of warnings.
+    /// </summary>
+    public bool StrictUnresolved { get; init; }
 }

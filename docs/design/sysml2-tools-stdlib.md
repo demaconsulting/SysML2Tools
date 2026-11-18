@@ -90,7 +90,12 @@ API reference documentation and the embedded `stdlib.json.gz` resource. Consumer
 2. `StdlibGen` enumerates all `.sysml` and `.kerml` files, parses each via
    `WorkspaceParser.ParseSourceToCst`, builds ASTs via `AstBuilder.Build`, and registers all
    symbols in a `SymbolTable`. KerML parse errors are downgraded to Warnings.
-3. `ReferenceResolver.ResolveAll` and `SupertypeWalker.WalkAll` run on all AST roots.
+3. `ReferenceResolver.ResolveAll` and `SupertypeWalker.WalkAll` run on all AST roots. `StdlibGen`
+   constructs the resolver with `DiagnosticSeverity.Warning` explicitly, so unresolved references
+   inside the standard library stay Warnings (the compile yields 0 errors and 1964 warnings)
+   regardless of the user-file default. The compiled library is a
+   pre-resolved seed that `WorkspaceLoader` never re-resolves, so these diagnostics never appear in a
+   user load.
 4. `AstSerializer.Serialize` serializes the `SymbolTable` and diagnostics to UTF-8 JSON bytes.
 5. `StdlibGen` gzip-compresses the JSON bytes to a uniquely-named temp file, binary-compares
    it against the existing `Resources/stdlib.json.gz` (if any), and either atomically renames
@@ -112,7 +117,7 @@ API reference documentation and the embedded `stdlib.json.gz` resource. Consumer
    reconstructs the `SymbolTable` via the copy constructor, and returns diagnostics.
 4. The `(SymbolTable, IReadOnlyList<SysmlDiagnostic>)` tuple is cached by the `Lazy<T>`; all
    subsequent calls return the same cached instances without re-reading the resource stream.
-5. Callers pass the `SymbolTable` to `WorkspaceLoader.LoadAsync(filePaths, seedSymbolTable)`
+5. Callers pass the `SymbolTable` to `WorkspaceLoader.LoadAsync(filePaths, seedSymbolTable, strictUnresolved)`
    which clones it via the copy constructor before adding user symbols.
 
 ## Design Constraints

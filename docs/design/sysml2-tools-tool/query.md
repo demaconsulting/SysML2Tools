@@ -3,16 +3,18 @@
 ### Overview
 
 The Tool Query subsystem is now a thin CLI adapter over Core's public Query API. It owns only
-CLI-specific concerns: parsing `query` command tokens, extracting the Tool-only `--output`
-flag, resolving file globs, loading the workspace, resolving `--element`, writing stdout or a
+CLI-specific concerns: parsing `query` command tokens, extracting the Tool-only `--output` and
+`--strict-unresolved` flags, resolving file globs, loading the workspace, resolving `--element`,
+writing stdout or a
 single output file, and printing localized help text. Verb semantics, the shared `QueryResult`
 output model, deterministic Markdown/JSON rendering, JSON serialization, and the file-writing
 helpers themselves live in `docs/design/sysml2-tools-core/query.md`.
 
 This subsystem contains three cooperating types:
 
-- `QueryCliArgumentParser` — pre-scans for the Tool-only `--output <file>` flag, removes those
-  two tokens, then delegates the remaining grammar to Core's `QueryArgumentParser`.
+- `QueryCliArgumentParser` — pre-scans for the Tool-only `--output <file>` and boolean
+  `--strict-unresolved` flags, removes those tokens, then delegates the remaining grammar to Core's
+  `QueryArgumentParser`.
 - `QueryCommand` — the CLI entry point. It validates CLI-only rules, resolves globs, loads the
   workspace, looks up the target element, delegates execution to `QueryEngine.Execute`, and then
   either writes rendered output to stdout or to `Context.QueryOutput`.
@@ -38,8 +40,9 @@ flowchart TD
 
 - *Type*: Static class.
 - *Role*: Provider.
-- *Contract*: `Parse(IReadOnlyList<string> commandArgs, bool helpRequested)` returns the parsed
-  `QueryOptions`, trailing file-glob patterns, and optional output-file path.
+- *Contract*: `Parse(IReadOnlyList<string> commandArgs, bool helpRequested)` returns the 4-tuple
+  `(Options, Files, Output, StrictUnresolved)`: the parsed `QueryOptions`, trailing file-glob
+  patterns, the optional output-file path, and whether `--strict-unresolved` was supplied.
 
 **`QueryCommand`**: CLI command orchestrator.
 
@@ -59,16 +62,22 @@ flowchart TD
 
 1. `Context.Create` delegates the `query` command's remaining tokens to
    `QueryCliArgumentParser.Parse`. `QueryCliArgumentParser` strips the Tool-only
-   `--output <file>` pair, delegates the rest to Core's `QueryArgumentParser`, and stores the
-   results on `Context.Query`, `Context.QueryFiles`, and `Context.QueryOutput`.
+   `--output <file>` pair and the `--strict-unresolved` flag, delegates the rest to Core's
+   `QueryArgumentParser`, and stores the
+   results on `Context.Query`, `Context.QueryFiles`, `Context.QueryOutput`, and
+   `Context.QueryStrictUnresolved`.
 2. `QueryCommand.RunAsync` performs the CLI-only validation that remains outside Core:
    `--element` is required for element-scoped verbs, `find` requires at least one of
    `--kind`/`--name`, and `--format` must be `markdown` or `json`.
 3. The command resolves `Context.QueryFiles` through `GlobFileCollector.Collect`, then loads the
-   semantic workspace with `StdlibProvider.GetSymbolTable()` and `WorkspaceLoader.LoadAsync`.
+   semantic workspace with `StdlibProvider.GetSymbolTable()` and
+   `WorkspaceLoader.LoadAsync(files, stdlibTable, context.QueryStrictUnresolved)`.
    Each load diagnostic is formatted by the shared `DiagnosticFormatter.Format` — the same
    `file(line,col): severity: message` line `lint` and `render` print, with no indentation — and
-   written via `context.WriteError` (errors) or `context.WriteLine` (others).
+   written via `context.WriteError` (errors) or `context.WriteLine` (others). Load errors are
+   reported and processing continues, so the query still runs and writes its output, but the exit
+   code is 1 when any error was reported; unresolved references are warnings by default and
+   errors with `--strict-unresolved`.
 4. For verbs that require a target element, `QueryCommand` resolves `QueryOptions.Element`
    through `workspace.Declarations.TryGetValue`. Missing elements are reported as a CLI error;
    Core never receives a `null` element from this path.
@@ -83,7 +92,8 @@ flowchart TD
 
 #### Pass-Through Options
 
-- `QueryCliArgumentParser` pre-extracts only `--output`; every other token is forwarded verbatim
+- `QueryCliArgumentParser` pre-extracts only `--output` and `--strict-unresolved`; every other token
+  is forwarded verbatim
   to Core's `QueryArgumentParser`, and `Context` stores the resulting `QueryOptions` whole.
   Adding a new Core option therefore requires no parsing change in this subsystem.
 - `--include-connections` (connection-aware `impact` analysis, Core's
@@ -112,6 +122,15 @@ flowchart TD
   and one `impact`-verb-help test; a Core-only option with no Tool help line would be silently
   undiscoverable.
 
+#### Strict-Unresolved Option
+
+- `--strict-unresolved` is a Tool-only boolean flag, extracted by `QueryCliArgumentParser` and stored
+  on `Context.QueryStrictUnresolved`; Core's public `QueryArgumentParser` and `QueryOptions` are
+  unchanged and unaware of it, because it controls workspace loading, not query semantics.
+- `PrintGeneralHelp` writes `Query_GeneralOptionStrictUnresolved` after the `--output` lines, and
+  every `PrintVerbHelp` arm writes the same key after its `--output` line, so every `query` help
+  screen lists the flag.
+
 #### Output File Option
 
 - `Context.QueryOutput` is a **file path** (not a directory) from `--output`; when omitted,
@@ -132,8 +151,8 @@ flowchart TD
 - The Tool subsystem shall not re-implement verb semantics, result rendering, JSON
   serialization, or Markdown-only name shortening; those are single-source-of-truth Core
   responsibilities documented in `docs/design/sysml2-tools-core/query.md`.
-- `QueryCliArgumentParser` is intentionally aware of `--output`; Core's public
-  `QueryArgumentParser` is intentionally unaware of it.
+- `QueryCliArgumentParser` is intentionally aware of `--output` and `--strict-unresolved`; Core's
+  public `QueryArgumentParser` is intentionally unaware of them.
 - Workspace loading, glob resolution, element lookup, and console/log/file reporting remain in
   the Tool layer because they depend on `Context`, filesystem conventions, and CLI error
   phrasing.

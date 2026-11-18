@@ -238,6 +238,7 @@ internal static class Program
         context.WriteLine(ProgramStrings.TopLevel_OptionKind);
         context.WriteLine(ProgramStrings.TopLevel_OptionName);
         context.WriteLine(ProgramStrings.TopLevel_OptionIncludeStdlib);
+        context.WriteLine(ProgramStrings.TopLevel_OptionStrictUnresolved);
     }
 
     /// <summary>

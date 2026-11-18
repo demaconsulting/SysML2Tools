@@ -25,7 +25,8 @@ No instance state. All data flows through the `Context` parameter and local vari
   (`ViewName`), auto-view flag (`AutoView`), dynamic-view kind (`ViewType`), dynamic-view target
   (`ViewTarget`), dynamic-view filter expression (`FilterExpression`), and maximum diagram
   nesting depth (`WalkDepth`, command-scoped — parsed by `RenderArgumentParser`, unrelated to
-  the global `--depth` flag; see `docs/design/sysml2-tools-tool/cli/context.md`)
+  the global `--depth` flag; see `docs/design/sysml2-tools-tool/cli/context.md`), and the
+  `--strict-unresolved` flag (`StrictUnresolved`, default `false`)
 - Intermediate: `SysmlLoadResult` — workspace and diagnostics from `WorkspaceLoader`
 - Output: files written to `OutputDirectory` via `File.Create`
 
@@ -44,9 +45,11 @@ Entry point for the render command. Steps:
    `Io` subsystem) — the same shared resolver used by `lint`/`query`. Calls `context.WriteError`
    and returns when the pattern list resolved to zero files (e.g., every pattern matched nothing).
 3. Calls `StdlibProvider.GetSymbolTable()` to obtain the pre-resolved OMG stdlib symbol table,
-   then calls `WorkspaceLoader.LoadAsync(files, stdlibTable)` to load the workspace from the
+   then calls `WorkspaceLoader.LoadAsync(files, stdlibTable, options.StrictUnresolved)` to load the
+   workspace from the
    resolved file paths, seeded with the stdlib symbol table so stdlib elements resolve without
-   re-parsing them.
+   re-parsing them. Unresolved references are Warning diagnostics unless `--strict-unresolved` is
+   given.
 4. Reports all diagnostics from `loadResult.Diagnostics`, formatting each with the shared
    `DiagnosticFormatter.Format` (the same `file(line,col): severity: message` line `lint` prints,
    with no indentation) and writing errors via `context.WriteError` and other messages via
@@ -102,8 +105,9 @@ Entry point for the render command. Steps:
     file). Every view is still written, and these diagnostics do not change the exit code,
     following the tool's convention that only errors fail a run.
 
-**`PrintHelp(Context context)`**: Prints `render`'s usage line and its eight flags (`--output`,
-`--format`, `--view`, `--auto`, `--view-type`, `--view-target`, `--filter`, `--walk-depth`).
+**`PrintHelp(Context context)`**: Prints `render`'s usage line and its nine flags (`--output`,
+`--format`, `--view`, `--auto`, `--view-type`, `--view-target`, `--filter`, `--walk-depth`,
+`--strict-unresolved`).
 This is the single source of truth for both `render --help`
 (dispatched from `Program.RunAsync`'s command-aware help block) and `help render` (dispatched
 from `Help.HelpCommand.Run`); neither entry point duplicates the help text. Every line printed
@@ -118,11 +122,16 @@ future-locale story, which applies identically here.
 - Patterns given but none matched any files: `context.WriteError` reports
   `"render: no files matched the given pattern(s)."` and the method returns before loading a
   workspace.
-- Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless. These are
+- Load diagnostics: reported to the context; rendering proceeds regardless (load errors are
+  reported, processing continues). Error-severity diagnostics — syntax errors and, with
+  `--strict-unresolved`, unresolved references — go through `context.WriteError`, so the run still
+  produces its output files but exits 1; by default unresolved references are warnings and do not
+  affect the exit code. These are
   the single report of an unresolved reference: `ReferenceResolver` emits one `Unresolved
-  reference: '<name>'` warning per unresolved name per file, printed before rendering, and the
+  reference: '<name>'` diagnostic per unresolved name per file, printed before rendering, and the
   layout strategies draw no relationship for such a reference and emit no layout warning for it,
-  so the same reference is never reported twice.
+  so the same reference is never reported twice. A `render` target naming a SysML2Tools extension
+  selector (`asGeneralDiagram`, ...) is reported as a portability warning only, and still renders.
 - Empty view (diagram contains nothing renderable): reported as a located warning via
   `context.WriteLine`; a lone exposed package drawn without contents is reported as an `info`
   hint; both are non-fatal; the output file is still written and the exit code is unchanged.

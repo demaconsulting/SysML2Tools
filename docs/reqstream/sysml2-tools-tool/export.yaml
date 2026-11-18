@@ -15,9 +15,9 @@ sections:
     requirements:
       - id: SysML2Tools-Tool-Export-Grammar
         title: >-
-          The export command shall accept --format, --output, --include-stdlib, --target, and
-          --filter options, plus one or more positional file glob patterns, and shall reject
-          any other `-`-prefixed token.
+          The export command shall accept --format, --output, --include-stdlib, --target,
+          --filter, and --strict-unresolved options, plus one or more positional file glob
+          patterns, and shall reject any other `-`-prefixed token.
         justification: |
           A small, fixed flag vocabulary (mirroring the query/render commands' own per-command
           argument parsers) keeps export's grammar simple and predictable, and rejecting
@@ -32,6 +32,7 @@ sections:
           - SysML2Tools-Tool-Export-Help
           - SysML2Tools-Tool-Export-Target
           - SysML2Tools-Tool-Export-Filter
+          - SysML2Tools-Tool-Export-StrictUnresolved
         tests:
           - ExportArgumentParser_NoFlags_ProducesDefaults
           - ExportArgumentParser_FormatFlag_CapturesRawValue
@@ -208,6 +209,22 @@ sections:
           - ExportSubsystem_FilterFlag_UnsupportedConstruct_AddsDiagnosticAndWarns
           - Context_Create_ExportCommand_WithFilter_SetsFilterExpression
           - ExportIntegration_RealFixture_TargetAndFilter_ProducesScopedJson
+
+      - id: SysML2Tools-Tool-Export-StrictUnresolved
+        title: >-
+          The export command shall record each unresolved reference in the exported
+          "Diagnostics" with severity Warning (1) by default, or Error (2) when
+          `--strict-unresolved` is supplied, without changing the exit code (0) or printing the
+          load diagnostics to the console.
+        justification: |
+          Export is a lossless dump for downstream consumers, which decide for themselves
+          whether a diagnostic is fatal. The severity must match the one lint and render
+          report for the same model so all commands agree, and the strict opt-in must reach
+          the exported data as well.
+        tests:
+          - ExportSubsystem_UnresolvedReference_DiagnosticSeverityIsWarningExitCodeZero
+          - ExportSubsystem_StrictUnresolved_DiagnosticSeverityIsError
+          - Context_Create_ExportCommand_WithStrictUnresolved_SetsStrictUnresolved
 
       - id: SysML2Tools-Tool-Export-SelfTest
         title: >-

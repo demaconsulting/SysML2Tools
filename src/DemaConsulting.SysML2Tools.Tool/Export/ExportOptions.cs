@@ -104,4 +104,11 @@ internal sealed record ExportOptions
     ///     Gets the file glob patterns supplied as positional arguments.
     /// </summary>
     public IReadOnlyList<string> Files { get; init; } = [];
+
+    /// <summary>
+    ///     Gets a value indicating whether <c>--strict-unresolved</c> was specified, which reports
+    ///     unresolved references as Error (instead of Warning) diagnostics in the exported
+    ///     <see cref="ExportResult.Diagnostics"/>.
+    /// </summary>
+    public bool StrictUnresolved { get; init; }
 }

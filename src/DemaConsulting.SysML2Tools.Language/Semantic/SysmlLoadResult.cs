@@ -12,7 +12,7 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 ///     The semantic workspace. Always non-null when returned by <see cref="WorkspaceLoader.LoadAsync"/>;
 ///     see the property's <c>remarks</c> below for details.
 /// </param>
-/// <param name="Diagnostics">All diagnostics (parse errors, semantic warnings) from the load operation.</param>
+/// <param name="Diagnostics">All diagnostics (parse errors, semantic warnings; unresolved-reference errors under strict mode) from the load operation.</param>
 /// <remarks>
 ///     <see cref="Workspace"/> is non-null for every result returned by
 ///     <see cref="WorkspaceLoader.LoadAsync"/> today — even a workspace containing only parse

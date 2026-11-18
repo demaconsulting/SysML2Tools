@@ -26,6 +26,9 @@ on context output and exit code. File-writing scenarios use a temporary director
   the shared `GlobFileCollector` (see `docs/verification/sysml2-tools-core/io.md` for the
   underlying glob-semantics verification) and the workspace loads all of them
 - Workspace loads without errors for a valid SysML model file
+- An unresolved reference does not stop the render: it is reported as a Warning by default
+  (exit code 0), or as an Error with `--strict-unresolved` (output still written, exit code 1);
+  see the unresolved-reference criteria below
 - SVG output produced for `--format svg` (or default)
 - PNG output produced for `--format png`
 - Output files written to `--output` directory
@@ -81,6 +84,13 @@ on context output and exit code. File-writing scenarios use a temporary director
 - A reference that does not resolve by SysML v2 name resolution (for example a private member of
   another package) is reported exactly once, by the load-time `Unresolved reference` diagnostic,
   with no duplicate layout warning.
+- An unresolved reference is a Warning-severity diagnostic by default: the command renders and
+  writes the output files and exits with code 0. With `--strict-unresolved` the same diagnostic
+  is an Error-severity diagnostic written via `context.WriteError`: the command still renders
+  and writes the output files, but exits with code 1 (as it already does for a syntax error).
+- A view using a SysML2Tools extension `render` selector (`asGeneralDiagram`, …) that the model
+  does not declare renders exactly as before, reports one portability Warning at the token, and
+  exits 0, with or without `--strict-unresolved`.
 
 ### Test Scenarios
 
@@ -186,9 +196,11 @@ thisIdentifierDoesNotExistAnywhere;` (an unresolvable target). Verifies that ren
 without `--view` produces `ViewValid.svg` and `ViewBogus.svg` whose content DIFFERS (a view with
 no resolved `Expose` edges renders the full workspace, while the valid view's sole `Expose` entry
 scopes to that target's subtree), and that the captured `--log` output contains
-`"thisIdentifierDoesNotExistAnywhere"` — the unresolved-reference diagnostic surfaced by
+`"thisIdentifierDoesNotExistAnywhere"` — the unresolved-reference diagnostic (a warning, so the
+run exits with code 0) surfaced by
 `ReferenceResolver` for the bogus exposed name. `render <target>;` plays no role in scoping —
-only `expose` does, per the corrected semantics.
+only `expose` does, per the corrected semantics. Satisfies
+`SysML2Tools-Tool-Render-UnresolvedReferenceSeverity`.
 
 #### RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages
 
@@ -276,6 +288,34 @@ DoesNotExist;`, written at line 2, column 19) prints the load diagnostic as the 
 `<file>(2,19): warning: Unresolved reference: 'DoesNotExist'` — the exact format `lint` uses,
 located at the reference text — and never as a raw `SysmlDiagnostic { ... }` record dump.
 Satisfies `SysML2Tools-Tool-Render-LoadDiagnosticFormat`.
+
+#### RenderSubsystem_UnresolvedReference_ReportsWarningWritesOutputAndExitsZero
+
+Verifies that rendering a model with an unresolved supertype reference prints the `warning:`
+diagnostic to the output, writes nothing containing "error" to the error stream, still writes
+the view's `.svg` file, and exits with code 0. Satisfies
+`SysML2Tools-Tool-Render-UnresolvedReferenceSeverity`.
+
+#### RenderSubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorWritesOutputAndExitsOne
+
+Verifies that `render --strict-unresolved` over the same model writes the diagnostic as
+`<file>(2,19): error: Unresolved reference: 'DoesNotExist'` to the error stream, still writes
+the `.svg` file, and exits with code 1. Satisfies
+`SysML2Tools-Tool-Render-UnresolvedReferenceSeverity`.
+
+#### RenderSubsystem_ToolRenderSelector_RendersUnchangedWithPortabilityWarning
+
+Verifies that rendering a view declared with `render asGeneralDiagram;` (no declaration of the
+selector) writes the view's `.svg` file, prints the portability warning at the selector token
+(`'asGeneralDiagram' is a SysML2Tools extension` and the suggested
+`StandardViewDefinitions::GeneralView`), and exits with code 0. Satisfies
+`SysML2Tools-Tool-Render-UnresolvedReferenceSeverity`.
+
+#### RenderSubsystem_StrictUnresolved_ToolRenderSelector_RendersWithPortabilityWarning
+
+Verifies that the same view rendered with `--strict-unresolved` still prints the portability
+warning as a warning, writes nothing containing "error" to the error stream, writes the `.svg`
+file, and exits with code 0. Satisfies `SysML2Tools-Tool-Render-UnresolvedReferenceSeverity`.
 
 #### RenderSubsystem_PrivateMemberReference_ReportsOneUnresolvedDiagnosticAndNoLayoutWarning
 

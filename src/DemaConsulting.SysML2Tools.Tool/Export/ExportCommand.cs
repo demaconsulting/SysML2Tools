@@ -132,7 +132,7 @@ internal static class ExportCommand
 
         // Load the workspace from the resolved file paths, exactly as 'lint'/'render'/'query' do
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-        var loadResult = await WorkspaceLoader.LoadAsync(files, stdlibTable).ConfigureAwait(false);
+        var loadResult = await WorkspaceLoader.LoadAsync(files, stdlibTable, options.StrictUnresolved).ConfigureAwait(false);
 
         if (loadResult.Workspace is null)
         {
@@ -406,5 +406,6 @@ internal static class ExportCommand
         context.WriteLine(ExportStrings.Export_OptionTarget2);
         context.WriteLine(ExportStrings.Export_OptionFilter1);
         context.WriteLine(ExportStrings.Export_OptionFilter2);
+        context.WriteLine(ExportStrings.Export_OptionStrictUnresolved);
     }
 }

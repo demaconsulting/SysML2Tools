@@ -729,9 +729,12 @@ sections:
           an operator or a library function; only the syntax tree can, so the references are
           located where it is still available and ReferenceResolver resolves them like any other.
           `rendering` usages (`Views::asTreeDiagram`) and view-local imports must be declarations
-          for a `render` target to resolve.
+          for a `render` target to resolve. The SysML2Tools extension selectors
+          (`asGeneralDiagram` and the other four) stay in the occurrences so the resolver can
+          report that they are not portable.
         tests:
           - WorkspaceLoader_LoadAsync_TransitionExpressions_CaptureReferenceOccurrences
           - WorkspaceLoader_LoadAsync_LibraryFunctionsAndOperatorsInExpressions_NoUnresolvedWarning
           - WorkspaceLoader_LoadAsync_RenderingUsage_IsDeclared
           - WorkspaceLoader_LoadAsync_ExpressionReferencesDeclared_NoUnresolvedWarning
+          - WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken

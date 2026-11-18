@@ -1001,6 +1001,155 @@ public class ContextTests
         // Assert: verify expected behavior
         Assert.NotNull(context.Query);
         Assert.Equal("output/path.md", context.QueryOutput);
+        Assert.False(context.QueryStrictUnresolved);
+    }
+
+    /// <summary>
+    ///     Test that <c>--strict-unresolved</c> is parsed for the lint command.
+    /// </summary>
+    [Fact]
+    public void Context_Create_LintCommand_WithStrictUnresolved_SetsStrictUnresolved()
+    {
+        // Act
+        using var context = Context.Create(["lint", "--strict-unresolved", "a.sysml"]);
+
+        // Assert
+        Assert.NotNull(context.Lint);
+        Assert.True(context.Lint.StrictUnresolved);
+        Assert.Equal(["a.sysml"], context.Lint.Files);
+    }
+
+    /// <summary>
+    ///     Test that lint defaults to warnings for unresolved references (flag not set).
+    /// </summary>
+    [Fact]
+    public void Context_Create_LintCommand_WithoutStrictUnresolved_DefaultsFalse()
+    {
+        // Act
+        using var context = Context.Create(["lint", "a.sysml"]);
+
+        // Assert
+        Assert.NotNull(context.Lint);
+        Assert.False(context.Lint.StrictUnresolved);
+    }
+
+    /// <summary>
+    ///     Test that <c>--strict-unresolved</c> is parsed for the render command.
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_WithStrictUnresolved_SetsStrictUnresolved()
+    {
+        // Act
+        using var context = Context.Create(["render", "--strict-unresolved", "a.sysml"]);
+
+        // Assert
+        Assert.NotNull(context.Render);
+        Assert.True(context.Render.StrictUnresolved);
+        Assert.Equal(["a.sysml"], context.Render.Files);
+    }
+
+    /// <summary>
+    ///     Test that render defaults to warnings for unresolved references (flag not set).
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_WithoutStrictUnresolved_DefaultsFalse()
+    {
+        // Act
+        using var context = Context.Create(["render", "a.sysml"]);
+
+        // Assert
+        Assert.NotNull(context.Render);
+        Assert.False(context.Render.StrictUnresolved);
+    }
+
+    /// <summary>
+    ///     Test that <c>--strict-unresolved</c> is parsed for the export command.
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_WithStrictUnresolved_SetsStrictUnresolved()
+    {
+        // Act
+        using var context = Context.Create(["export", "--strict-unresolved", "a.sysml"]);
+
+        // Assert
+        Assert.NotNull(context.Export);
+        Assert.True(context.Export.StrictUnresolved);
+        Assert.Equal(["a.sysml"], context.Export.Files);
+    }
+
+    /// <summary>
+    ///     Test that export defaults to warnings for unresolved references (flag not set).
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_WithoutStrictUnresolved_DefaultsFalse()
+    {
+        // Act
+        using var context = Context.Create(["export", "a.sysml"]);
+
+        // Assert
+        Assert.NotNull(context.Export);
+        Assert.False(context.Export.StrictUnresolved);
+    }
+
+    /// <summary>
+    ///     Test that the query command's <c>--strict-unresolved</c> pre-scan sets
+    ///     <see cref="Context.QueryStrictUnresolved"/> and leaves the remaining tokens to Core's parser.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithStrictUnresolved_SetsQueryStrictUnresolved()
+    {
+        // Act
+        using var context = Context.Create(["query", "list", "--strict-unresolved", "a.sysml"]);
+
+        // Assert
+        Assert.NotNull(context.Query);
+        Assert.True(context.QueryStrictUnresolved);
+        Assert.Equal(["a.sysml"], context.QueryFiles);
+    }
+
+    /// <summary>
+    ///     Test that query defaults to warnings for unresolved references (flag not set).
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithoutStrictUnresolved_DefaultsFalse()
+    {
+        // Act
+        using var context = Context.Create(["query", "list", "a.sysml"]);
+
+        // Assert
+        Assert.NotNull(context.Query);
+        Assert.False(context.QueryStrictUnresolved);
+    }
+
+    /// <summary>
+    ///     Test that <c>--strict-unresolved</c> is rejected by the help command (out of scope).
+    /// </summary>
+    [Fact]
+    public void Context_Create_HelpCommand_StrictUnresolvedFlag_ThrowsArgumentException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => Context.Create(["help", "--strict-unresolved"]));
+    }
+
+    /// <summary>
+    ///     Test that the removed <c>--warn-unresolved</c> option is rejected as unsupported by
+    ///     the lint, render, export and query commands.
+    /// </summary>
+    [Theory]
+    [InlineData("lint")]
+    [InlineData("render")]
+    [InlineData("export")]
+    [InlineData("query")]
+    public void Context_Create_WarnUnresolvedFlag_ThrowsArgumentException(string command)
+    {
+        // Arrange
+        string[] args = command == "query"
+            ? ["query", "list", "--warn-unresolved", "a.sysml"]
+            : [command, "--warn-unresolved", "a.sysml"];
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => Context.Create(args));
+        Assert.Contains("--warn-unresolved", exception.Message);
     }
 
     /// <summary>

@@ -68,19 +68,26 @@ self-testing, and uses `PathHelpers` to construct safe temporary file paths. `Li
 - *Contract*: Accepts arguments `-v`/`--version`, `-?`/`-h`/`--help`, `--silent`, `--validate`,
   `--results <file>`, `--result <file>` (legacy alias for `--results`), `--depth <n>` (Markdown
   heading depth, shared by `--validate` and `query`), `--heading <text>` (Markdown heading text
-  override, shared by `query`), and `--log <file>`. Accepts `lint <patterns...>` as a subcommand
-  that invokes lint mode. Accepts `render [options] <patterns...>` (`--walk-depth <n>` controls
-  diagram-nesting depth) as a subcommand that renders diagrams. Accepts `help [subcommand]` as a
+  override, shared by `query`), and `--log <file>`. Accepts `lint [--strict-unresolved] <patterns...>`
+  as a subcommand that invokes lint mode. Accepts `render [options] <patterns...>` (`--walk-depth <n>`
+  controls diagram-nesting depth; `--strict-unresolved`) as a subcommand that renders diagrams.
+  Accepts `help [subcommand]` as a
   subcommand (equivalent to `--help`/`-?`/`-h`) that prints general or per-subcommand usage
   text. Accepts `query <verb> [options] <patterns...>` (12 verbs; `--element`/`-e`, `--format`,
   `--direction`, `--kind`, `--name`, `--include-stdlib`, `--walk-depth` (bounded-traversal depth,
   meaningful only for the `impact` verb, applied uniformly to every relationship kind and
-  unlimited when omitted) options). Accepts
+  unlimited when omitted), `--strict-unresolved` options). Accepts
   `export [options] <patterns...>` (`--format json|jsonl`, `--output <file>`,
-  `--include-stdlib` options) which dumps the resolved semantic model (declarations, edges,
-  diagnostics) as JSON or JSON Lines. Returns
+  `--include-stdlib`, `--strict-unresolved` options) which dumps the resolved semantic model
+  (declarations, edges, diagnostics) as JSON or JSON Lines. Returns
   exit code 0 for success and 1 for failures.
 - *Constraints*: Unknown arguments cause exit code 1 and an error message on stderr.
+  `--strict-unresolved` is accepted by `lint`, `render`, `query`, and `export`: unresolved
+  references (a Warning diagnostic by default) become errors. Because load errors are written
+  through `Context.WriteError`, `lint`, `render`, and `query` exit 1 for a model with unresolved
+  references only when the flag is given — `render` and `query` still report the errors, continue,
+  and produce their output. `export` prints no load diagnostics and keeps exit code 0; it reports
+  them only in the JSON `Diagnostics` (`Severity` Warning by default, Error with the flag).
 
 **Standard Output**: Normal program output written to `Console.Out`.
 

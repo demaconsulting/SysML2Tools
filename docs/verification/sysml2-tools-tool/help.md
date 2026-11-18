@@ -38,6 +38,10 @@ run against the tool's target framework.
 - `--silent help query` (and `help lint --silent`) suppress all console output, consistent
   with `Context.WriteLine`'s existing unconditional `Silent` suppression (the same behavior
   already applies to, e.g., `--silent --version`).
+- The top-level help, `help lint`, `help render`, `export --help`, `help query`, and
+  `help query <verb>` for every one of the 12 verbs each list the `--strict-unresolved` option
+  and exit with code 0; `help lint` states that unresolved references are warnings by default,
+  describes the strict option, and no longer claims that lint accepts no flags.
 - Existing `-h`/`-?`/`--help` regression tests (`ProgramTests.cs`) continue to pass
   unmodified, confirming no regression in the pre-existing global-flag behavior.
 - `HelpArgumentParser.Parse` in isolation: no arguments → both fields null; `lint`/`render`/
@@ -111,6 +115,17 @@ stderr — via `Main`'s existing `ArgumentException` handler — without an unha
 --silent` both produce empty captured stdout and exit code 0, documenting that `--silent`'s
 existing unconditional suppression in `Context.WriteLine` applies equally to `help`'s output
 (consistent with, e.g., `--silent --version`), with no special-case bypass for `help`.
+
+**`HelpSubsystem_StrictUnresolved_IsDocumentedInEveryAffectedHelp`**: The output of `help`,
+`help lint`, `help render`, `export --help`, `help query`, and `help query <verb>` for each of
+the 12 verbs contains `--strict-unresolved` and the run exits with code 0. Satisfies
+`SysML2Tools-Tool-Help-StrictUnresolvedDocumented`.
+
+**`HelpSubsystem_HelpLint_DescribesWarningsAndStrictUnresolved`**: `help lint` contains the
+usage line `Usage: sysml2tools lint [--strict-unresolved] <files...>`, states that unresolved
+references are warnings, mentions a non-zero exit and the strict option, and does not contain
+the former "accepts no flags of its own" text. Satisfies
+`SysML2Tools-Tool-Help-StrictUnresolvedDocumented`.
 
 #### Regression tests (existing files, updated)
 

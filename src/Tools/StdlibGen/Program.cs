@@ -73,8 +73,9 @@ foreach (var filePath in allFiles)
     astRoots.Add((relativePath, root));
 }
 
-// Run reference resolution
-var resolver = new ReferenceResolver(symbolTable, allDiagnostics);
+// Run reference resolution. The standard library's own diagnostics stay Warnings (they are
+// compile-time findings, never surfaced to users, and this generator fails on any Error).
+var resolver = new ReferenceResolver(symbolTable, allDiagnostics, DiagnosticSeverity.Warning);
 resolver.ResolveAll(astRoots);
 
 // Run supertype walking

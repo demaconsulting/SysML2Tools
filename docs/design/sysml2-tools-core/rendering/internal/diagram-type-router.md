@@ -53,6 +53,12 @@ standard target or adds `private import Views::*;` and uses the bare name; the r
 all three spellings identically (a bare name without an import is still tolerated, although
 the OMG Pilot Implementation rejects it as an unresolved reference).
 
+Routing is independent of load-time diagnostics: when one of the five extension tokens does not
+resolve to a declaration, `ReferenceResolver` reports a portability Warning at load time, and the
+router still dispatches on it unchanged. The Language library's `ReferenceResolver.ToolRenderSelectors`
+table is the second copy of these five tokens (the Language library cannot reference Core), so the
+two lists must be kept in sync.
+
 When the view's own render target is not recognized, the router walks its view definitions
 (`FromViewDefinitions`): the target of the view's resolved `Typing` edge (`view V : Def`), then
 transitively the targets of each definition's `Supertype` edges, breadth-first and cycle-guarded.

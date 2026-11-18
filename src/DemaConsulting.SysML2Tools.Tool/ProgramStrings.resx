@@ -71,7 +71,7 @@
     <value>Commands:</value>
   </data>
   <data name="TopLevel_CommandLint" xml:space="preserve">
-    <value>  lint &lt;files...&gt;            Parse files and report syntax errors</value>
+    <value>  lint &lt;files...&gt;            Parse files and report syntax errors and unresolved references</value>
   </data>
   <data name="TopLevel_CommandRender" xml:space="preserve">
     <value>  render [options] &lt;files..&gt; Render view diagrams to SVG or PNG files</value>
@@ -159,6 +159,9 @@
   </data>
   <data name="TopLevel_OptionIncludeStdlib" xml:space="preserve">
     <value>  --include-stdlib           Include OMG standard library elements (query command)</value>
+  </data>
+  <data name="TopLevel_OptionStrictUnresolved" xml:space="preserve">
+    <value>  --strict-unresolved        Report unresolved references as errors, not warnings (lint, render, query, export)</value>
   </data>
   <data name="NoCommand_Message" xml:space="preserve">
     <value>No command specified. Run 'sysml2tools --help' for usage.</value>

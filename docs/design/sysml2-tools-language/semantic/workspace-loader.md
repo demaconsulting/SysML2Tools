@@ -13,15 +13,18 @@ call to `LoadAsync` creates an independent `SymbolTable`.
 
 #### Key Methods
 
-##### `LoadAsync(IEnumerable<string> filePaths, SymbolTable? seedSymbolTable = null)`
+##### `LoadAsync(IEnumerable<string> filePaths, SymbolTable? seedSymbolTable = null, bool strictUnresolved = false)`
 
 1. Creates a `SymbolTable` seeded from `seedSymbolTable` via the copy constructor
    `new SymbolTable(seedSymbolTable.Symbols)` when a seed is provided, or creates an
    empty `SymbolTable` when `seedSymbolTable` is `null`.
 2. Dispatches all user file paths to `ParseUserFileAsync` in parallel via `Task.WhenAll`.
 3. Collects all AST roots and registers them into a shared `SymbolTable`.
-4. Runs `ReferenceResolver.ResolveAll` on all user file roots (handing it the seed symbol table's
-   names as the standard library names, which filtered-import evaluation needs), capturing the
+4. Runs `ReferenceResolver.ResolveAll` on all user file roots, constructing the resolver with the
+   unresolved severity — `DiagnosticSeverity.Error` when `strictUnresolved` is `true`, otherwise
+   `WorkspaceLoader.DefaultUserUnresolvedSeverity` (`Warning`) —
+   and handing it the seed symbol table's
+   names as the standard library names, which filtered-import evaluation needs, capturing the
    returned `SemanticIndex`.
 5. Runs `SupertypeWalker.WalkAll` on the populated symbol table.
 6. Constructs a `SysmlWorkspace` from the file list, symbol table, and the `SemanticIndex`
@@ -38,8 +41,33 @@ are caught and converted to a single Error diagnostic.
 
 - `ParseUserFileAsync` catches any `Exception` from `File.ReadAllTextAsync` and returns an
   `Error`-severity `SysmlDiagnostic` rather than propagating the exception.
-- Reference and cycle errors from `ReferenceResolver` and `SupertypeWalker` are `Warning`
-  severity and do not cause `HasErrors` to be set on the returned `SysmlLoadResult`.
+- Unresolved references reported by `ReferenceResolver` are `Warning` severity by default and do
+  not cause `HasErrors` to be set on the returned `SysmlLoadResult`; with `strictUnresolved: true`
+  they are `Error` severity and do. The standard library is a pre-resolved seed that is never
+  re-resolved here, so it contributes no unresolved-reference diagnostics.
+- Circular-import (`ReferenceResolver`), cyclic-specialization (`SupertypeWalker`), and
+  tool-render-selector portability diagnostics are always `Warning` severity and never set
+  `HasErrors`, independent of `strictUnresolved`.
+
+#### Unresolved-Reference Severity Policy
+
+The severity of an unresolved reference in a user file is chosen once, in `LoadAsync`:
+
+- `WorkspaceLoader.DefaultUserUnresolvedSeverity` (an internal constant, currently
+  `DiagnosticSeverity.Warning`) is the single place that defines the default.
+- The `strictUnresolved` parameter promotes user-file unresolved references to
+  `DiagnosticSeverity.Error` for callers that opt in (the `--strict-unresolved` CLI option).
+- Standard library diagnostics are always `Warning`: `StdlibGen` passes `Warning` to the
+  `ReferenceResolver` explicitly, and the compiled library is never re-resolved on a user load.
+- The portability Warning for a SysML2Tools extension `render` selector is independent of this
+  policy and stays a `Warning` either way.
+
+The default is `Warning` while name resolution has known gaps (dotted feature chains, and
+kernel/library features that the resolver does not model), which would otherwise report errors
+for valid models. These gaps are tracked by issue #93 and the resolver-gap tracking issue. The
+plan is: once the OMG example corpus produces close to zero strict-mode errors, flip
+`DefaultUserUnresolvedSeverity` to `Error` and replace the `--strict-unresolved` option with an
+opt-out (for example, a flag that downgrades unresolved references to warnings).
 
 #### Dependencies
 

@@ -137,6 +137,9 @@ internal static class QueryStrings
     /// <summary>Gets the second line of the general --output option description.</summary>
     public static string Query_GeneralOptionOutput2 => ResourceManager.GetString(nameof(Query_GeneralOptionOutput2))!;
 
+    /// <summary>Gets the --strict-unresolved option line shown in query help (general and per-verb).</summary>
+    public static string Query_GeneralOptionStrictUnresolved => ResourceManager.GetString(nameof(Query_GeneralOptionStrictUnresolved))!;
+
     /// <summary>Gets the first line of the "typical workflow" note.</summary>
     public static string Query_WorkflowNote1 => ResourceManager.GetString(nameof(Query_WorkflowNote1))!;
 

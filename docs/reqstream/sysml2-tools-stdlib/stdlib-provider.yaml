@@ -48,9 +48,11 @@ sections:
           SymbolTable, reporting any issues from the pre-compilation step.
         justification: |
           Exposing pre-compilation diagnostics lets callers detect and report standard library
-          parse warnings rather than hiding them from end users.
+          parse warnings rather than hiding them from end users. The standard library's own
+          unresolved references stay Warnings, so the pre-compiled library carries no errors.
         tests:
           - GetSymbolTable_DiagnosticsNotNull
+          - GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings
 
       - id: SysML2Tools-Stdlib-StdlibProvider-ModifierData
         title: >-
