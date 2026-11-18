@@ -85,6 +85,7 @@ sections:
         tests:
           - ExportSubsystem_NoIncludeStdlib_ExcludesStdlib
           - ExportSubsystem_IncludeStdlib_IncludesStdlibAndIncreasesSize
+          - ExportSubsystem_UserPackageNamedLikeStdlibPackage_ExportsUserMembersOnly
           - ExportIntegration_RealFixture_ProducesValidJsonAndJsonl
 
       - id: SysML2Tools-Tool-Export-NoFilesOrNoMatch

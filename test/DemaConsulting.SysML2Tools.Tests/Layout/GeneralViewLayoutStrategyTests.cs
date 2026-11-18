@@ -55,14 +55,15 @@ public sealed class GeneralViewLayoutStrategyTests
         {
             Declarations = new Dictionary<string, SysmlNode>
             {
-                // SysML stdlib element — must be filtered
+                // SysML stdlib element — must be filtered (it originates from the stdlib seed)
                 ["SysML::Parts::PartDef"] = new SysmlDefinitionNode
                 {
                     Name = "PartDef",
                     QualifiedName = "SysML::Parts::PartDef",
                     DefinitionKeyword = "part def"
                 }
-            }
+            },
+            StdlibNames = new HashSet<string>(StringComparer.Ordinal) { "SysML::Parts::PartDef" }
         };
         var context = new ViewContext("stdlibView", workspace);
         var options = new RenderOptions(Themes.Light);
@@ -439,8 +440,8 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     BuildLayout excludes declarations listed in the workspace's seed-derived
-    ///     <see cref="SysmlWorkspace.StdlibNames"/> set even when their names do not match a known
-    ///     stdlib root-package prefix.
+    ///     <see cref="SysmlWorkspace.StdlibNames"/> set whatever their names (the filter is based on
+    ///     element origin, never on a list of stdlib root-package names).
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded()
@@ -6017,6 +6018,43 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Assert
         Assert.Same(tree, result);
+    }
+
+    /// <summary>
+    ///     A user package named like a standard-library package (<c>Parts</c>) is drawn with its
+    ///     members: the stdlib filter identifies the standard library by origin, not by name, so
+    ///     the user's <c>Parts</c> folder and <c>Wheel</c> definition render, and no member of the
+    ///     real standard-library <c>Parts</c> package (such as <c>Part</c>) appears.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UserPackageNamedLikeStdlibPackage_RendersUserMembersOnly()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package Parts { part def Wheel; }");
+
+        // Assert: exactly the user's folder and definition are drawn
+        var boxes = CollectBoxes(layout.Nodes);
+        var folder = FindBox(layout.Nodes, "Parts", BoxShape.Folder);
+        Assert.Contains(FindBox(layout.Nodes, "Wheel"), CollectBoxes(folder.Children));
+        Assert.Equal(["Parts", "Wheel"], boxes.Select(b => b.Label).Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    ///     User definitions in a package whose name collides with a standard-library root package
+    ///     are drawn alongside definitions of an ordinary package, and a stdlib-only name is still
+    ///     excluded: the real <c>Parts::Part</c> definition never appears.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UserPackageNamedLikeStdlibPackage_StdlibMembersStayExcluded()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package Parts { part def Wheel; } package Mine { part def Hub; }");
+
+        // Assert
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("Wheel", labels);
+        Assert.Contains("Hub", labels);
+        Assert.DoesNotContain("Part", labels);
     }
 }
 

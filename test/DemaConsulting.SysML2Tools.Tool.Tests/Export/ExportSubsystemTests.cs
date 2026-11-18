@@ -361,6 +361,22 @@ public class ExportSubsystemTests
     }
 
     /// <summary>
+    ///     A user package named like a standard-library package (<c>Parts</c>) is exported without
+    ///     --include-stdlib (stdlib filtering is by origin, not by name), while the real
+    ///     standard-library <c>Parts::Part</c> declaration is still excluded.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_UserPackageNamedLikeStdlibPackage_ExportsUserMembersOnly()
+    {
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            "package Parts { part def Wheel; }", "--format", "json");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("\"Parts::Wheel\"", output);
+        Assert.DoesNotContain("\"Parts::Part\"", output);
+    }
+
+    /// <summary>
     ///     --output writes the export document to the given file path instead of stdout, and
     ///     stdout instead reports a short summary line.
     /// </summary>

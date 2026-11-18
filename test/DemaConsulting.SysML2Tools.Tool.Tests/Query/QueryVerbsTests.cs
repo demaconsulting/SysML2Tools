@@ -1157,4 +1157,27 @@ public class QueryVerbsTests
         Assert.Contains("Model::Vehicle", withStdlib);
         Assert.True(withStdlib.Length > withoutStdlib.Length);
     }
+
+    /// <summary>
+    ///     A user package named like a standard-library package (<c>Parts</c>) is user-origin: its
+    ///     members are listed without '--include-stdlib', while the real standard-library
+    ///     <c>Parts::Part</c> stays hidden.
+    /// </summary>
+    [Fact]
+    public async Task List_UserPackageNamedLikeStdlibPackage_ListsUserMembersWithoutIncludeStdlib()
+    {
+        const string sysml = """
+            package Parts {
+                part def Wheel;
+            }
+            """;
+
+        var (withoutStdlib, exitCode) = await QueryTestFixtures.RunQueryAsync(sysml, "list");
+        var (withStdlib, _) = await QueryTestFixtures.RunQueryAsync(sysml, "list", "--include-stdlib");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Parts::Wheel", withoutStdlib);
+        Assert.DoesNotContain("Parts::Part", withoutStdlib);
+        Assert.Contains("Parts::Part", withStdlib);
+    }
 }

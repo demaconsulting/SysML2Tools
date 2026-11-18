@@ -476,6 +476,7 @@ sections:
         tests:
           - Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue
           - List_IncludeStdlib_TogglesStandardLibraryVisibility
+          - List_UserPackageNamedLikeStdlibPackage_ListsUserMembersWithoutIncludeStdlib
 
       - id: SysML2Tools-Core-Query-Exporter
         title: >-

@@ -51,6 +51,7 @@ sections:
               the correct context and stdlib declarations are available for reference resolution.
             children:
               - SysML2Tools-Language-Semantic-WorkspaceLoader-Load
+              - SysML2Tools-Language-Semantic-WorkspaceLoader-StdlibOrigin
               - SysML2Tools-Language-Semantic-AstSerializer-Serialize
               - SysML2Tools-Language-Semantic-AstSerializer-PreservesNodeTypes
               - SysML2Tools-Language-Semantic-AstSerializer-PreservesNodeData

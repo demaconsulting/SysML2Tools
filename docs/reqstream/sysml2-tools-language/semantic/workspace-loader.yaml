@@ -29,3 +29,16 @@ sections:
           Reporting it as an Error diagnostic allows callers to surface the problem to users.
         tests:
           - WorkspaceLoader_LoadAsync_UnreadableFile_ProducesErrorDiagnostic
+
+      - id: SysML2Tools-Language-Semantic-WorkspaceLoader-StdlibOrigin
+        title: >-
+          WorkspaceLoader.LoadAsync shall record the standard-library origin of an element by its
+          membership in the seed symbol table, never by its name, so that a user element in a
+          package named like a standard-library package is not reported as standard library.
+        justification: |
+          Renderers, the query command and the export command hide standard-library elements by
+          consulting SysmlWorkspace.StdlibNames. Deciding origin from the seed (and not from a list
+          of standard-library root-package names) keeps a user package such as Parts visible while the
+          real standard-library members of Parts stay hidden.
+        tests:
+          - WorkspaceLoader_LoadAsync_UserPackageNamedLikeStdlibPackage_MembersAreNotStdlibOrigin

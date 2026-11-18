@@ -7237,5 +7237,24 @@ public sealed class WorkspaceLoaderTests
         Assert.EndsWith(".sysml", diagnostic.FilePath, StringComparison.Ordinal);
         Assert.True(diagnostic.Line is 2 or 5, $"Unexpected line {diagnostic.Line}");
     }
+
+    /// <summary>
+    ///     A user package named like a standard-library package (<c>Parts</c>) contributes
+    ///     user-origin members: its own members are not in <see cref="SysmlWorkspace.StdlibNames"/>
+    ///     (which holds exactly the embedded seed's qualified names), while real standard-library
+    ///     members of <c>Parts</c> still are.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UserPackageNamedLikeStdlibPackage_MembersAreNotStdlibOrigin()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("package Parts { part def Wheel; }");
+
+        // Assert
+        var names = result.Workspace!.StdlibNames;
+        Assert.DoesNotContain("Parts::Wheel", names);
+        Assert.Contains("Parts::Part", names);
+        Assert.Contains("Parts::Wheel", result.Workspace.Declarations.Keys);
+    }
 }
 

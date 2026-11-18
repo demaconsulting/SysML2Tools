@@ -56,11 +56,11 @@ Remaining work, each independently scoped:
   specialization connectors of `DriveUnitGeneralView`).
 - **Gallery model for requirements and imports.** No gallery model shows `satisfy`, `verify`, `import`,
   or `::>`; they are covered by unit tests only. A model with requirement usages renders crossing,
-  overlapping `satisfy` and `verify` connectors and tangled labels, and shows no requirement typing (see
-  the requirement-usage typing gap below); a model with requirement definitions as `satisfy` and
+  overlapping `satisfy` and `verify` connectors and tangled labels; a model with requirement
+  definitions as `satisfy` and
   `verify` targets renders cleanly but is not valid SysML (the specification defines these relationships
-  for requirement usages), and import labels still clip. Add the model once the connector routing and
-  the typing gap are fixed.
+  for requirement usages), and import labels still clip. Add the model once the connector routing is
+  fixed.
 - **Package-heavy drawings.** The vehicle packages drawing (`VehiclePackagesGeneralView`) is tall
   because the engine places a folder's externally connected single box after the connected group, and
   one connector crosses a specialization line; the leaf-block share of the canvas of the package views is
@@ -73,10 +73,6 @@ Remaining work, each independently scoped:
   or port without nested features stays a compartment row, and its `doc` and `comment` are not drawn
   (as in the OMG Pilot implementation). Draw them as a note joined to the row by a dashed link, which
   the specification permits.
-- **Requirement-usage typing gap.** `requirement r : R;` (also concern and constraint usages) keeps no
-  typing in the syntax tree, so it draws no typing edge and its box shows `r` instead of `r : R`.
-- **Standard-library name collision.** A user package named like a standard-library package (for
-  example `Requirements` or `Views`) is dropped by the name-based standard-library filter.
 - **Import label clipping.** The `«import»*` label is cut off when an import connector routes around the
   outside of a folder, because the canvas fit shifts waypoints but not label extents.
 - **More relationships.** `perform`, `require`, `frame`, `exhibit`, and `include` need their data in the

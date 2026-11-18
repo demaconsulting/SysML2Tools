@@ -298,9 +298,7 @@ internal static class ExposeScopeResolver
     /// <list type="bullet">
     /// <item><description><see cref="ExposeRecursionKind.MembershipRecursive"/>: the subject
     /// itself or lies within its containment subtree (a <c>"{subject}::"</c> prefix match, reusing
-    /// the same qualified-name-prefix idiom
-    /// <see cref="StdlibFilter.IsStdlibElement(string, IReadOnlySet{string})"/> already uses for
-    /// stdlib-prefix matching).</description></item>
+    /// the same qualified-name-prefix idiom used elsewhere for containment-subtree matching).</description></item>
     /// <item><description><see cref="ExposeRecursionKind.NamespaceRecursive"/>: lies within the
     /// subject's containment subtree at any depth — never the subject itself. Per
     /// formal-26-03-02.md §8.3.26.4, a NamespaceExpose exposes the subject's Memberships (its

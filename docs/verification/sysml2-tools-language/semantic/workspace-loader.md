@@ -27,6 +27,8 @@ external services, network access, or additional configuration are required beyo
 - A resolved specialization (`specializes` with a known type) produces no unresolved Warning.
 - An unresolved supertype reference produces exactly one `Warning`-severity diagnostic.
 - A circular import produces a `Warning`-severity diagnostic and completes in finite time.
+- A user package named like a standard-library package (`Parts`) contributes members that are
+  not in `SysmlWorkspace.StdlibNames`, which holds exactly the embedded seed's qualified names.
 
 #### Test Scenarios
 
@@ -41,6 +43,7 @@ external services, network access, or additional configuration are required beyo
 | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` | 7 | Resolved supertype produces no unresolved warning |
 | `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` | 8 | Unresolved supertype produces Warning |
 | `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` | 9 | Circular import; Warning emitted |
+| `WorkspaceLoader_LoadAsync_UserPackageNamedLikeStdlibPackage_MembersAreNotStdlibOrigin` | — | Not stdlib |
 
 #### Level 10 Gate
 

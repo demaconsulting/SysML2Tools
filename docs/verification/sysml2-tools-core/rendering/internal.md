@@ -7,7 +7,9 @@ covered by `DiagramTypeRouterTests`, which construct view nodes of each kind and
 concrete strategy returned. `DynamicViewSynthesizer` is covered by
 `DynamicViewSynthesizerTests` — see its own verification chapter for full scenario detail. The
 `StdlibFilter` behavior is verified indirectly through the view-strategy tests that assert
-standard-library elements are excluded from the produced layout. No mocking is required; all
+standard-library elements are excluded from the produced layout, including the case of a user
+package named like a standard-library package (`Parts`), which must be drawn while the real
+standard-library `Parts::Part` stays excluded. No mocking is required; all
 three components are pure and deterministic.
 
 #### Test Environment
@@ -27,7 +29,8 @@ or configuration are required beyond a standard .NET SDK installation.
 - A view declaring `render asElementTable;`, `render asTextualNotation;`, or any other
   unrecognized (or absent) render target falls through unchanged to the existing
   name-heuristic/general-view behavior, with no diagnostic.
-- Standard-library elements do not appear in the produced layout.
+- Standard-library elements do not appear in the produced layout, while a user package that
+  shares a name with a standard-library package is drawn with its members.
 
 #### Test Scenarios
 
