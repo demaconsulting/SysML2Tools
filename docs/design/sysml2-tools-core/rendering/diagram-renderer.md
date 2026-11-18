@@ -35,12 +35,16 @@ Between layout and rendering, `ApplyNameStyleDefault` walks the `LayoutTree` onc
 requests no `NameStyle` the regular, upright name style (`TextStyle.Regular`); the rendering engine's
 own default for an unset name style is bold. This is the single place the SysML notation's name
 weight is set: the specification's graphical notation (clause 8.2.3 BNF, Tables 3, 4, 9, 10) and the
-OMG Pilot Implementation draw node names in regular weight under an italic «keyword» line, so every
-view kind (general, interconnection, state transition, action flow, sequence, browser) inherits it
-without per-strategy code, and the package name in a folder tab is regular as in the BNF figure. A
-style a strategy requests explicitly is kept (the italic name of an abstract definition). Grid
-header cells are not boxes and stay in the engine's table-header weight. The engine offers no
-theme-level switch for the name style, which is why the default is applied to the layout tree here.
+OMG Pilot Implementation draw node names in regular weight (a node's «keyword», where it has one, is
+a separate italic line). Box and lifeline-header names therefore default to regular weight, and every
+strategy that emits them (general, interconnection, state transition, action flow, sequence, browser)
+inherits it without per-strategy code. Browser rows are boxes with one combined «keyword» name label
+and accept/send nodes have no keyword line, but both get the same default. The package name in a
+folder tab is regular as in the BNF figure. A style a strategy requests explicitly is kept (the
+italic name of an abstract definition). Grid header cells are not boxes, are not processed, and stay
+in the engine's table-header weight (bold; `LayoutGridCell` has no style option). The engine offers
+no theme-level switch for the name style, which is why the default is applied to the layout tree
+here.
 
 When the `diagnostics` collection is supplied, `BuildViewDiagnostic` appends at most one
 `SysmlDiagnostic` per view, located at the view's declaration

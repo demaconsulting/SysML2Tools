@@ -22,8 +22,11 @@ declare the signals, guard conditions, and payloads that `accept`, `if`, and `se
 
 Every diagram uses the same plain, spec-style notation: white boxes with black one-pixel
 borders and lines (the `SysmlThemes.Plain` theme), with meaning carried by shape, border and
-line style, and text rather than by fill color. Names are drawn in regular weight (not bold)
-beneath an italic keyword line, as in the specification's figures and the OMG Pilot Implementation.
+line style, and text rather than by fill color. The names of boxes and sequence lifeline headers are
+drawn in regular weight (not bold), as in the specification's figures and the OMG Pilot
+Implementation. The one exception is the header cells of the grid views (`CarLineageGridView`,
+`TaxonomyMatrixView`), which remain bold because the rendering engine's `LayoutGridCell` has no
+style option.
 
 To regenerate the gallery, run for each model:
 

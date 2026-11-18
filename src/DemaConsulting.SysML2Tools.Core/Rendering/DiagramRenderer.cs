@@ -462,10 +462,12 @@ public sealed class DiagramRenderer
     /// </summary>
     /// <remarks>
     /// The SysML v2 graphical notation (OMG formal/2025-09-03, clause 8.2.3 graphical BNF and
-    /// Tables 3, 4, 9, and 10) draws the name of every node in regular weight below an italic
-    /// «keyword» line, as does the OMG Pilot Implementation. This is the one place that default is
-    /// set, so every view kind inherits it; a style a strategy requests explicitly (such as the italic
-    /// name of an abstract definition) is kept.
+    /// Tables 3, 4, 9, and 10) and the OMG Pilot Implementation draw node names in regular weight
+    /// (a node's «keyword», where it has one, is a separate italic line). This is the one place the
+    /// default is set for box and lifeline-header names, so every strategy that emits them inherits
+    /// it; a style a strategy requests explicitly (such as the italic name of an abstract definition)
+    /// is kept. Browser rows (one combined label) are boxes and get the default; accept/send nodes
+    /// have no keyword line; grid header cells are not boxes and are not processed (they stay bold).
     /// </remarks>
     /// <param name="tree">The laid-out tree.</param>
     /// <returns>The tree with the default name style applied to every box and lifeline header.</returns>
