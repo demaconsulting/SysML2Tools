@@ -176,6 +176,7 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/NameResolverTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/KermlLibraryIndexingTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstSerializerTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionParserTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionEvaluatorTests.cs"
@@ -381,6 +382,7 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/NameResolverTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/KermlLibraryIndexingTests.cs"
 
   - id: SysML2Tools-Language-Semantic-WorkspaceLoader
     title: Review of DemaConsulting.SysML2Tools.Language WorkspaceLoader Unit Implementation

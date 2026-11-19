@@ -206,6 +206,40 @@ satisfied requirement's raw reference text is taken from `ownedReferenceSubsetti
 text comes from `satisfactionSubjectMember()` (the `by <subject>` clause), or is `null` when
 absent.
 
+**KerML declarations.** The KerML library files are parsed with the same grammar (see Local
+Patch 4 in `Grammar/README.md`), so every named KerML declaration is indexed with the existing
+node types — no new `SysmlNode` subtype and no change to the serialized standard library format:
+
+- The classifier rules `classifier`, `datatype`, `class`, `structure`, `association`,
+  `associationStructure`, `metaclass`, `behavior`, `interaction`, `type`, `function`, and
+  `predicate` build a `SysmlDefinitionNode` whose keyword is `classifier`, `datatype`, `class`,
+  `struct`, `assoc`, `assoc struct`, `metaclass`, `behavior`, `interaction`, `type`, `function`,
+  or `predicate`.
+- The feature rules `feature`, `step`, `expression`, `booleanExpression`, `invariant`,
+  `connector`, `bindingConnector`, `succession`, `flow`, and `successionFlow` build a
+  `SysmlFeatureNode` whose keyword is `feature`, `step`, `expr`, `bool`, `inv`, `connector`,
+  `binding`, `succession`, `flow`, or `succession flow`.
+
+The classifier visitors share the `BuildClassifierNode` overloads (name, supertypes from the
+`:>`/`specializes` part, and a body callback); `VisitType` reads the supertypes from the
+`typeDeclaration`'s specialization parts. `VisitFunction` and `VisitPredicate` collect the members
+of their `kermlFunctionBodyPart` through `CollectFunctionBodyItems` (type body elements such as
+`in x : T;` and `return` feature members; the trailing result expression is not a declaration), so
+parameters and return features are indexed under the function. Every feature visitor goes through
+`BuildKermlFeatureNode`, which reads the name and short name from the `featureIdentification`, the
+first typing, subsetting targets, first redefinition and multiplicity from the
+`featureSpecializationPart` (reusing the usage extraction helpers), and the nested members from the
+type or function body. A member declared without a name (`inv { ... }`, `step;`, a `feature :>> x;`
+that only redefines) gets a null `Name` and `QualifiedName`: it keeps its references for resolution
+but `SymbolTable` registers no symbol for it. The relationship statements (`subclassifier`,
+`subset`, `redefinition`, `specialization`, `disjoint`, `conjugate`, `typing`, `featuring`,
+`inverse`) and `namespace` produce no node; making them add supertypes or features to the
+referenced element is part of #93 and out of scope. `CollectBodyElements` takes the member prefix of
+a `kermlPackageMember` like that of a `packageMember`, so visibility and short names are applied
+identically. At package level the SysML alternatives of the grammar come first, so a KerML `flow`
+or `succession flow` there is built as the SysML flow usage; only in classifier bodies are they
+KerML features (the standard library declares none at package level).
+
 **Membership details.** Every body collector — `CollectBodyElements`, `CollectDefinitionBodyItems`,
 `CollectTypeBodyItems` (KerML type bodies), `CollectChildren` (state and requirement bodies), and
 `CollectActionBodyChildren` — calls `ApplyMembershipDetails` on each built child (every node of an

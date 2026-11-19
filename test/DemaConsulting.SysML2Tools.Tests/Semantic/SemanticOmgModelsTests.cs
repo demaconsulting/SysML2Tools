@@ -115,7 +115,7 @@ public sealed class SemanticOmgModelsTests
     public async Task SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline()
     {
         // Arrange
-        const int baseline = 161;
+        const int baseline = 139;
         var modelsRoot = FindSysMLModelsRoot();
         if (modelsRoot is null)
         {

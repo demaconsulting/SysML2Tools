@@ -16,6 +16,15 @@ external services or additional configuration are required beyond a standard .NE
 
 ##### Acceptance Criteria
 
+- Every named KerML classifier kind (`classifier`, `datatype`, `class`, `struct`, `assoc`,
+  `assoc struct`, `metaclass`, `behavior`, `interaction`, `type`, `function`, `predicate`) and
+  feature kind (`feature`, `step`, `expr`, `bool`, `inv`, `connector`, `binding`, `succession`,
+  `flow`, `succession flow`) declared in a package or nested in a classifier or function body is
+  registered under its qualified name with the matching keyword, its supertypes or typing, its
+  visibility, short name, and multiplicity; function parameters and `return` features are
+  registered under the function; members declared without a name register no symbol; and a SysML
+  model resolves references to the standard library's KerML declarations without diagnostics.
+
 - A single package `package Foo {}` registers `"Foo"` in `Declarations`.
 - Nested packages `package Foo { package Bar {} }` register both `"Foo"` and `"Foo::Bar"`.
 - A part definition `part def MyPart {}` inside `Foo` registers `"Foo::MyPart"`.
@@ -248,3 +257,14 @@ external services or additional configuration are required beyond a standard .NE
 | Message payload text | `WorkspaceLoader_LoadAsync_MessageWithPayload_CapturesPayloadText` |
 | Event occurrences | `WorkspaceLoader_LoadAsync_EventOccurrences_AreCapturedInDeclarationOrder` |
 | Plain model leaves new members at defaults | `WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault` |
+| KerML classifier kinds indexed (one row per kind) | `KermlClassifierKind_AtPackageLevel_IsIndexed` |
+| KerML feature kinds indexed (one row per kind) | `KermlFeatureKind_AtPackageLevel_IsIndexed` |
+| KerML `flow`/`succession flow` in a classifier body | `KermlFlowKind_InClassifierBody_IsIndexed` |
+| KerML classifier membership details | `KermlClassifier_WithVisibilityShortNameAndAbstract_KeepsMembershipDetails` |
+| KerML feature membership details | `KermlFeature_WithVisibilityShortNameAndMultiplicity_KeepsMembershipDetails` |
+| KerML subsetting and redefinition targets | `KermlFeature_WithSubsettingAndRedefinition_RecordsTargets` |
+| Feature nested in a KerML classifier | `KermlClassifier_WithNestedFeature_IndexesTheFeature` |
+| KerML function parameters and return feature | `KermlFunction_WithParametersAndReturn_IndexesTheMembers` |
+| Unnamed KerML members register no symbol | `KermlUnnamedMembers_AreSkippedFromTheSymbolTable` |
+| KerML relationship statements parse | `KermlRelationshipStatements_ParseWithoutDiagnostics` |
+| SysML model resolves KerML library | `SysmlModel_ReferencingKermlLibraryDeclarations_ResolvesWithoutDiagnostics` |

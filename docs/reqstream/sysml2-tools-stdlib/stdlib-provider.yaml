@@ -66,3 +66,17 @@ sections:
         tests:
           - GetSymbolTable_RegeneratedStdlib_CarriesModifiers
           - GetSymbolTable_Diagnostics_ContainNoErrors
+
+      - id: SysML2Tools-Stdlib-StdlibProvider-KermlDeclarations
+        title: >-
+          StdlibProvider.GetSymbolTable shall return the named declarations of the KerML library
+          files (abstract classifiers and metaclasses, package-level features, structs, and
+          associations such as `Base::Anything`, `Metaobjects::SemanticMetadata`,
+          `TrigFunctions::pi`, `Objects::Point`, and `Occurrences::HappensBefore`), so that SysML
+          models can reference them.
+        justification: |
+          User models import and specialize these library elements; before they were indexed,
+          every such reference was reported as unresolved. The shipped resource is regenerated
+          from the library source, so this requirement also proves the regeneration happened.
+        tests:
+          - GetSymbolTable_KermlLibraryDeclarations_AreIndexed

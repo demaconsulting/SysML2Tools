@@ -444,7 +444,7 @@ severity is decided by *which resolver invocation produced the diagnostic*, not 
   is reported as an error by the other commands.
 - **Standard library — always Warning.** `StdlibGen` constructs the resolver with
   `DiagnosticSeverity.Warning` explicitly, so the diagnostics produced while compiling the standard
-  library stay Warnings (the compile reports 0 errors and 1964 warnings). The compiled library is a
+  library stay Warnings (the compile reports 0 errors and 65 warnings). The compiled library is a
   pre-resolved seed symbol table that is never re-resolved at load time, so a user load produces no
   standard-library-origin diagnostics and the model, serialization, and `SysmlDiagnostic` carry no
   origin marker.

@@ -1357,6 +1357,18 @@ public partial class SysMLv2ParserBaseListener : ISysMLv2ParserListener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitFeatureTyping([NotNull] SysMLv2Parser.FeatureTypingContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="SysMLv2Parser.typingStatement"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterTypingStatement([NotNull] SysMLv2Parser.TypingStatementContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="SysMLv2Parser.typingStatement"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitTypingStatement([NotNull] SysMLv2Parser.TypingStatementContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="SysMLv2Parser.ownedFeatureTyping"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>
@@ -1752,6 +1764,18 @@ public partial class SysMLv2ParserBaseListener : ISysMLv2ParserListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitFunctionBodyPart([NotNull] SysMLv2Parser.FunctionBodyPartContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="SysMLv2Parser.kermlFunctionBodyPart"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterKermlFunctionBodyPart([NotNull] SysMLv2Parser.KermlFunctionBodyPartContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="SysMLv2Parser.kermlFunctionBodyPart"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitKermlFunctionBodyPart([NotNull] SysMLv2Parser.KermlFunctionBodyPartContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="SysMLv2Parser.returnFeatureMember"/>.
 	/// <para>The default implementation does nothing.</para>
@@ -2268,6 +2292,30 @@ public partial class SysMLv2ParserBaseListener : ISysMLv2ParserListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitPackageBodyElement([NotNull] SysMLv2Parser.PackageBodyElementContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="SysMLv2Parser.kermlPackageMember"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterKermlPackageMember([NotNull] SysMLv2Parser.KermlPackageMemberContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="SysMLv2Parser.kermlPackageMember"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitKermlPackageMember([NotNull] SysMLv2Parser.KermlPackageMemberContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="SysMLv2Parser.kermlNonFeatureElement"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterKermlNonFeatureElement([NotNull] SysMLv2Parser.KermlNonFeatureElementContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="SysMLv2Parser.kermlNonFeatureElement"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitKermlNonFeatureElement([NotNull] SysMLv2Parser.KermlNonFeatureElementContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="SysMLv2Parser.packageMember"/>.
 	/// <para>The default implementation does nothing.</para>

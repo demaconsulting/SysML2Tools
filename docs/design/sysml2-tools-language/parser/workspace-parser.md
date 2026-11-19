@@ -28,6 +28,18 @@ parser and installs a shared `SysmlDiagnosticListener` so that lexer and parser 
 collected uniformly. It returns the `rootNamespace` CST context for callers in the Semantic
 subsystem.
 
+#### Accepted Syntax
+
+The parser accepts SysML v2 textual notation and, through the grammar's Local Patch 4, the KerML
+package members used by the standard library's `.kerml` files directly in a package body or at the
+root of a file: `classifier`, `metaclass`, `behavior`, `interaction`, `type`, `multiplicity`,
+`namespace`, the relationship statements (`subclassifier`, `subset`, `redefinition`, ...), and
+every feature element (`feature`, `step`, `expr`, `bool`, `inv`, `connector`, `binding`,
+`succession`, `flow`, `succession flow`). `step`, `expr`, `bool`, and `inv` may omit their
+declaration (`inv { ... }`, `step;`), as in the KerML grammar. The KerML alternatives are tried
+after the SysML ones, so SysML models — including usages named `feature`, `type`, `behavior`, or
+`step` — parse as before. See `Grammar/README.md` for the exact productions.
+
 #### Dependencies
 
 - **SysmlDiagnosticListener** — receives lexer and parser syntax errors and appends them to the

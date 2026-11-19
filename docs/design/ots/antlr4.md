@@ -29,7 +29,10 @@ dispatching syntax errors to registered error listeners.
 The grammar files (`Grammar/SysMLv2Lexer.g4` and `Grammar/SysMLv2Parser.g4`) are the
 authoritative source. The generated C# files are produced by running
 `antlr-4.13.1-complete.jar` as documented in `Grammar/README.md` and committed to the
-`Parser/Antlr/` folder. The generated files must not be manually edited.
+`Parser/Antlr/` folder. The generated files must not be manually edited. The jar and a JDK are
+needed only to regenerate the parser; neither is committed or required to build the solution
+(`Grammar/README.md` documents the regeneration with a portable JDK and the jar kept outside the
+repository, and how to confirm the generated header reports ANTLR 4.13.1).
 
 At runtime the integration sequence is as follows:
 

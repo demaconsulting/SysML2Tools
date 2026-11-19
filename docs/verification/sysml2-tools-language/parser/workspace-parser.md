@@ -20,6 +20,11 @@ a standard .NET SDK installation.
 - A valid part definition with an attribute declaration produces zero diagnostics.
 - Invalid SysML syntax produces at least one `Error`-severity diagnostic.
 - The file path supplied to `ParseSource` appears verbatim in every returned diagnostic.
+- Every KerML package member production (classifier kinds, relationship statements, feature
+  elements, and `step`/`expr`/`bool`/`inv` without a declaration) parses with zero diagnostics in a
+  package body and at the root of a file.
+- SysML usages named like KerML keywords, and the words `entry`/`do`/`exit`/`accept`/`frame` in
+  state, action, and requirement bodies, keep their SysML parse.
 
 #### Test Scenarios
 
@@ -30,3 +35,7 @@ a standard .NET SDK installation.
 | `ParseSource_PartDef_NoErrors` | A package with a `part def` block yields no diagnostics |
 | `ParseSource_InvalidSyntax_ReportsError` | Invalid source yields an Error-severity diagnostic |
 | `ParseSource_ErrorPath_MatchesSuppliedPath` | Every diagnostic carries the supplied file path |
+| `ParseSource_KermlNamespaceMemberAtPackageLevel_NoErrors` | Each KerML member form parses cleanly |
+| `ParseSource_KermlMembersAtRootNamespace_NoErrors` | KerML members at the file root parse cleanly |
+| `ParseSource_SysmlUsagesNamedLikeKermlKeywords_NoErrors` | SysML usages named like KerML keywords parse |
+| `ParseSource_SysmlKeywordsAlsoUsedAsKermlNames_KeepSysmlMeaning` | `entry`/`do`/`exit`/`accept`/`frame` parse |
