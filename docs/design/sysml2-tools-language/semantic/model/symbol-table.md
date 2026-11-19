@@ -9,7 +9,10 @@ declaration nodes. It is populated by calling `RegisterAll` on each AST root aft
 
 `RegisterAll(SysmlNode? root)` performs a depth-first traversal of the AST. For each node
 with a non-null, non-empty `QualifiedName`, it calls `_symbols.TryAdd(QualifiedName, node)`.
-`TryAdd` is used (not direct assignment) to silently ignore duplicate declarations.
+`TryAdd` is used (not direct assignment) to silently ignore duplicate declarations. KerML
+declarations (classifiers, metaclasses, features, steps, functions and their parameters, ...)
+register under the same scheme as SysML ones; a KerML member without a name has no
+`QualifiedName`, so it is skipped while its children are still visited.
 
 ##### Lookup
 

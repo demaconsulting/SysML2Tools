@@ -88,6 +88,35 @@ public sealed class StdlibProviderTests
     }
 
     /// <summary>
+    ///     The pre-compiled stdlib indexes the named KerML library declarations that were
+    ///     previously unreachable from package bodies (abstract classifier, abstract metaclass,
+    ///     package-level feature, struct, and associations). Fails if the stdlib resource was not
+    ///     regenerated.
+    /// </summary>
+    /// <param name="qualifiedName">The qualified name of the library declaration.</param>
+    /// <param name="keyword">The expected definition or feature keyword.</param>
+    [Theory]
+    [InlineData("Base::Anything", "classifier")]
+    [InlineData("Metaobjects::SemanticMetadata", "metaclass")]
+    [InlineData("TrigFunctions::pi", "feature")]
+    [InlineData("Objects::Point", "struct")]
+    [InlineData("Occurrences::HappensBefore", "assoc")]
+    [InlineData("Occurrences::HappensJustBefore", "assoc")]
+    public void GetSymbolTable_KermlLibraryDeclarations_AreIndexed(string qualifiedName, string keyword)
+    {
+        var (table, _) = StdlibProvider.GetSymbolTable();
+
+        Assert.True(table.Symbols.TryGetValue(qualifiedName, out var node), $"{qualifiedName} is not indexed.");
+        var actualKeyword = node switch
+        {
+            SysmlDefinitionNode definition => definition.DefinitionKeyword,
+            SysmlFeatureNode feature => feature.FeatureKeyword,
+            _ => node.GetType().Name,
+        };
+        Assert.Equal(keyword, actualKeyword);
+    }
+
+    /// <summary>
     ///     The stdlib diagnostics contain no errors.
     /// </summary>
     [Fact]

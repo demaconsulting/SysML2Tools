@@ -149,6 +149,13 @@ unreservedKeyword
     | PREDICATE
     | INTERACTION
     | METACLASS
+    // Local Patch 4c-3: further keywords used as feature names in the KerML kernel libraries
+    // (step entry/do/exit, accept, in frame); not keywords in KerML.
+    | ENTRY
+    | DO
+    | EXIT
+    | ACCEPT
+    | FRAME
     ;
 
 // ===== Parser rules =====
@@ -316,7 +323,7 @@ nonFeatureElement
     | subclassification
     | disjoining
     | featureInverting
-    | featureTyping
+    | typingStatement
     | subsetting
     | redefinition
     | typeFeaturing
@@ -577,9 +584,14 @@ redefines
     ;
 
 featureTyping
-    : ( SPECIALIZATION identification? )? TYPING qualifiedName ( COLON | TYPED BY ) generalType relationshipBody
-    | ownedFeatureTyping
+    : ownedFeatureTyping
     | conjugatedPortTyping
+    ;
+
+// Local Patch 4c-1: the KerML FeatureTyping relationship statement (nonFeatureElement), split out
+// of featureTyping so that a bare name can no longer be parsed as a member of its own.
+typingStatement
+    : ( SPECIALIZATION identification? )? TYPING qualifiedName ( COLON | TYPED BY ) generalType relationshipBody
     ;
 
 ownedFeatureTyping
@@ -702,7 +714,7 @@ behavior
     ;
 
 step
-    : featurePrefix STEP featureDeclaration valuePart? typeBody
+    : featurePrefix STEP featureDeclaration? valuePart? typeBody
     ;
 
 function
@@ -711,11 +723,18 @@ function
 
 functionBody
     : SEMI
-    | LBRACE functionBodyPart RBRACE
+    | LBRACE kermlFunctionBodyPart RBRACE
     ;
 
 functionBodyPart
     : ( definitionBodyItem | typeBodyElement | returnFeatureMember )* ( resultExpressionMember )?
+    ;
+
+// Local Patch 4c-2: the KerML FunctionBodyPart, (TypeBodyElement | ReturnFeatureMember)* ResultExpressionMember?,
+// used by the KerML function/predicate/expr/bool/inv bodies. functionBodyPart (which additionally accepts
+// SysML definitionBodyItems) is kept for the SysML bodyExpression.
+kermlFunctionBodyPart
+    : ( typeBodyElement | returnFeatureMember )* ( resultExpressionMember )?
     ;
 
 returnFeatureMember
@@ -727,7 +746,7 @@ resultExpressionMember
     ;
 
 expression
-    : featurePrefix EXPR featureDeclaration valuePart? functionBody
+    : featurePrefix EXPR featureDeclaration? valuePart? functionBody
     ;
 
 predicate
@@ -735,11 +754,11 @@ predicate
     ;
 
 booleanExpression
-    : featurePrefix BOOL featureDeclaration valuePart? functionBody
+    : featurePrefix BOOL featureDeclaration? valuePart? functionBody
     ;
 
 invariant
-    : featurePrefix INV ( TRUE | FALSE )? featureDeclaration valuePart? functionBody
+    : featurePrefix INV ( TRUE | FALSE )? featureDeclaration? valuePart? functionBody
     ;
 
 featureChainMember
@@ -906,6 +925,38 @@ packageBodyElement
     | elementFilterMember
     | aliasMember
     | importRule
+    // Local Patch 4: KerML members not reachable through packageMember. Kept as the last alternative
+    // so every SysML alternative above keeps priority.
+    | kermlPackageMember
+    ;
+
+// Local Patch 4: the KerML NamespaceMember (NonFeatureMember | NamespaceFeatureMember) minus the
+// elements packageMember already reaches (package, library package, dependency, comments and
+// documentation, and the Patch 1/2 classifier and behavioral classifier kinds). Excluding them keeps
+// the two alternatives disjoint: a member both could parse would otherwise force ANTLR to scan the
+// whole member (including a nested package body) with full-context prediction to resolve the
+// ambiguity, which made parsing of SysML models more than an order of magnitude slower.
+kermlPackageMember
+    : memberPrefix ( kermlNonFeatureElement | featureElement )
+    ;
+
+kermlNonFeatureElement
+    : namespace
+    | type
+    | classifier
+    | metaclass
+    | interaction
+    | behavior
+    | multiplicity
+    | specialization
+    | conjugation
+    | subclassification
+    | disjoining
+    | featureInverting
+    | typingStatement
+    | subsetting
+    | redefinition
+    | typeFeaturing
     ;
 
 packageMember
@@ -1704,12 +1755,12 @@ stateDefBody
     ;
 
 stateBodyItem
-    : nonBehaviorBodyItem
-    | ( sourceSuccessionMember )? behaviorUsageMember ( targetTransitionUsageMember )*
-    | transitionUsageMember
-    | entryActionMember ( entryTransitionMember )*
+    : entryActionMember ( entryTransitionMember )*
     | doActionMember
     | exitActionMember
+    | nonBehaviorBodyItem
+    | ( sourceSuccessionMember )? behaviorUsageMember ( targetTransitionUsageMember )*
+    | transitionUsageMember
     ;
 
 entryActionMember

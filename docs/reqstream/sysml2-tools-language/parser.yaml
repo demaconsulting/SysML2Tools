@@ -39,6 +39,7 @@ sections:
             children:
               - SysML2Tools-Language-Parser-WorkspaceParser-ParseSourceString
               - SysML2Tools-Language-Parser-WorkspaceParser-EmptySource
+              - SysML2Tools-Language-Parser-WorkspaceParser-KermlNamespaceMembers
             tests:
               - ParseSource_EmptyFile_NoErrors
               - ParseSource_MinimalPackage_NoErrors

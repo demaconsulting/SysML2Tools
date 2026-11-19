@@ -63,6 +63,15 @@ file path for diagnostic attribution.
 
 - The ANTLR4-generated C# under `Parser/Antlr/` is committed to the repository and must not be
   edited by hand; it is regenerated as documented in `Grammar/README.md`.
+- The grammar carries documented local patches (`Grammar/README.md`, *Local Patches*). Patch 4
+  makes the KerML package members (`classifier`, `metaclass`, `behavior`, `interaction`, `type`,
+  `multiplicity`, `namespace`, the relationship statements, and every feature element) reachable
+  from a package body or file root through a `kermlPackageMember` alternative placed **after** the
+  SysML alternatives, so the KerML standard library files parse with the same parser and SysML
+  models parse exactly as before. The new alternative is kept disjoint from the SysML ones
+  (it omits the members `packageMember` already reaches); an overlap forces ANTLR into
+  full-context prediction over the whole member and slowed parsing by more than an order of
+  magnitude. Patch 4 is superseded when #89 adopts the official OMG grammar.
 - `WorkspaceParser` performs syntax-only parsing. Semantic model construction, symbol
   registration, and reference resolution are performed by `WorkspaceLoader` in the Semantic
   subsystem.

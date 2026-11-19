@@ -693,6 +693,12 @@ public interface ISysMLv2ParserVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitFeatureTyping([NotNull] SysMLv2Parser.FeatureTypingContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="SysMLv2Parser.typingStatement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitTypingStatement([NotNull] SysMLv2Parser.TypingStatementContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="SysMLv2Parser.ownedFeatureTyping"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -890,6 +896,12 @@ public interface ISysMLv2ParserVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitFunctionBodyPart([NotNull] SysMLv2Parser.FunctionBodyPartContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="SysMLv2Parser.kermlFunctionBodyPart"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitKermlFunctionBodyPart([NotNull] SysMLv2Parser.KermlFunctionBodyPartContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="SysMLv2Parser.returnFeatureMember"/>.
 	/// </summary>
@@ -1148,6 +1160,18 @@ public interface ISysMLv2ParserVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitPackageBodyElement([NotNull] SysMLv2Parser.PackageBodyElementContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="SysMLv2Parser.kermlPackageMember"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitKermlPackageMember([NotNull] SysMLv2Parser.KermlPackageMemberContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="SysMLv2Parser.kermlNonFeatureElement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitKermlNonFeatureElement([NotNull] SysMLv2Parser.KermlNonFeatureElementContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="SysMLv2Parser.packageMember"/>.
 	/// </summary>

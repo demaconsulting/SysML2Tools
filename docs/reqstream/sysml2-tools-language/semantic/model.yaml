@@ -84,6 +84,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-MessagePayload
           - SysML2Tools-Language-Semantic-Model-AstBuilder-EventOccurrences
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceOccurrences
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-KermlDeclarations
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames

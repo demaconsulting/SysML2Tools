@@ -738,3 +738,34 @@ sections:
           - WorkspaceLoader_LoadAsync_RenderingUsage_IsDeclared
           - WorkspaceLoader_LoadAsync_ExpressionReferencesDeclared_NoUnresolvedWarning
           - WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-KermlDeclarations
+        title: >-
+          AstBuilder shall build a named definition node for every KerML classifier declaration
+          (`classifier`, `datatype`, `class`, `struct`, `assoc`, `assoc struct`, `metaclass`,
+          `behavior`, `interaction`, `type`, `function`, `predicate`) and a named feature node
+          for every KerML feature declaration (`feature`, `step`, `expr`, `bool`, `inv`,
+          `connector`, `binding`, `succession`, `flow`, `succession flow`), at package level and
+          nested in classifier, feature and function bodies (including function parameters and
+          `return` features), recording the keyword, qualified name, member visibility, short
+          name, supertypes or subsetting targets, typing, redefinition, and multiplicity, and
+          shall register no symbol for a member declared without a name.
+        justification: |
+          The KerML standard library declares the base types and features that SysML models
+          reference (`Base::Anything`, `Objects::Point`, `Metaobjects::SemanticMetadata`,
+          `Occurrences::HappensBefore`, `TrigFunctions::pi`). Those references resolve only if
+          the declarations are in the symbol table. Reusing the existing definition and feature
+          nodes keeps the serialized standard library format unchanged. An anonymous member
+          (`inv { ... }`, `step;`) has no name to register.
+        tests:
+          - KermlClassifierKind_AtPackageLevel_IsIndexed
+          - KermlFeatureKind_AtPackageLevel_IsIndexed
+          - KermlFlowKind_InClassifierBody_IsIndexed
+          - KermlClassifier_WithVisibilityShortNameAndAbstract_KeepsMembershipDetails
+          - KermlFeature_WithVisibilityShortNameAndMultiplicity_KeepsMembershipDetails
+          - KermlFeature_WithSubsettingAndRedefinition_RecordsTargets
+          - KermlClassifier_WithNestedFeature_IndexesTheFeature
+          - KermlFunction_WithParametersAndReturn_IndexesTheMembers
+          - KermlUnnamedMembers_AreSkippedFromTheSymbolTable
+          - KermlRelationshipStatements_ParseWithoutDiagnostics
+          - SysmlModel_ReferencingKermlLibraryDeclarations_ResolvesWithoutDiagnostics

@@ -2437,12 +2437,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         var owned = ft.ownedFeatureTyping();
-        if (owned is not null)
-        {
-            return owned.GetText();
-        }
-
-        return ft.qualifiedName()?.GetText();
+        return owned?.GetText();
     }
 
     /// <summary>
@@ -3627,34 +3622,106 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitFunction(SysMLv2Parser.FunctionContext context)
     {
-        return BuildClassifierNode(context.classifierDeclaration(), body: null, "function");
+        return BuildClassifierNode(
+            context.classifierDeclaration(), () => CollectFunctionBodyItems(context.functionBody()), "function");
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitPredicate(SysMLv2Parser.PredicateContext context)
     {
-        return BuildClassifierNode(context.classifierDeclaration(), body: null, "predicate");
+        return BuildClassifierNode(
+            context.classifierDeclaration(), () => CollectFunctionBodyItems(context.functionBody()), "predicate");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitClassifier(SysMLv2Parser.ClassifierContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), context.typeBody(), "classifier");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitMetaclass(SysMLv2Parser.MetaclassContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), context.typeBody(), "metaclass");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitBehavior(SysMLv2Parser.BehaviorContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), context.typeBody(), "behavior");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitInteraction(SysMLv2Parser.InteractionContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), context.typeBody(), "interaction");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitType(SysMLv2Parser.TypeContext context)
+    {
+        var declaration = context.typeDeclaration();
+        var supertypeNames = declaration?.specializationPart()
+            .SelectMany(part => part.ownedSpecialization())
+            .Select(specialization => specialization.GetText())
+            .Where(text => text.Length > 0)
+            .ToList() ?? [];
+        return BuildClassifierNode(
+            GetDeclaredName(declaration?.identification()),
+            supertypeNames,
+            () => CollectTypeBodyItems(context.typeBody()?.typeBodyElement() ?? []),
+            "type");
     }
 
     /// <summary>
-    ///     Builds a definition AST node from a KerML classifier declaration (datatype, class, struct, assoc).
+    ///     Builds a definition AST node from a KerML classifier declaration (datatype, class, struct,
+    ///     assoc, classifier, metaclass, behavior, interaction) with a type body.
     /// </summary>
     private SysmlDefinitionNode? BuildClassifierNode(
         SysMLv2Parser.ClassifierDeclarationContext? decl,
         SysMLv2Parser.TypeBodyContext? body,
         string keyword)
     {
-        var name = GetDeclaredName(decl?.identification());
+        return BuildClassifierNode(decl, () => CollectTypeBodyItems(body?.typeBodyElement() ?? []), keyword);
+    }
+
+    /// <summary>
+    ///     Builds a definition AST node from a KerML classifier declaration whose body members are
+    ///     collected by <paramref name="collectBody"/> (a type body, or a function body for
+    ///     <c>function</c> and <c>predicate</c>).
+    /// </summary>
+    private SysmlDefinitionNode? BuildClassifierNode(
+        SysMLv2Parser.ClassifierDeclarationContext? decl,
+        Func<(IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations)> collectBody,
+        string keyword)
+    {
+        return BuildClassifierNode(
+            GetDeclaredName(decl?.identification()),
+            GetSuperclassingSupertypes(decl?.superclassingPart()),
+            collectBody,
+            keyword);
+    }
+
+    /// <summary>
+    ///     Builds a definition AST node from an already-extracted declared name and supertype list,
+    ///     collecting the members that the body callback yields underneath the new node's name.
+    ///     Returns null for an unnamed declaration.
+    /// </summary>
+    private SysmlDefinitionNode? BuildClassifierNode(
+        string? name,
+        IReadOnlyList<string> supertypeNames,
+        Func<(IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations)> collectBody,
+        string keyword)
+    {
         if (name is null)
         {
             return null;
         }
 
         var qualifiedName = QualifyName(name);
-        var supertypeNames = GetSuperclassingSupertypes(decl?.superclassingPart());
 
         _namespaceStack.Add(name);
-        var (children, annotations) = CollectTypeBodyItems(body?.typeBodyElement() ?? []);
+        var (children, annotations) = collectBody();
         _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
         return new SysmlDefinitionNode
@@ -3663,6 +3730,178 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             QualifiedName = qualifiedName,
             DefinitionKeyword = keyword,
             SupertypeNames = supertypeNames,
+            Children = children,
+            Annotations = annotations,
+        };
+    }
+
+    /// <summary>
+    ///     Collects the member nodes of a KerML function or predicate body — its
+    ///     <c>kermlFunctionBodyPart</c> items, which are KerML type body elements (parameters such
+    ///     as <c>in x : T;</c>) and <c>return</c> feature members — in source order. The trailing
+    ///     result expression is not a declaration and is ignored.
+    /// </summary>
+    private (IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations) CollectFunctionBodyItems(
+        SysMLv2Parser.FunctionBodyContext? body)
+    {
+        var children = new List<SysmlNode>();
+        var annotations = new List<SysmlAnnotation>();
+        foreach (var item in body?.kermlFunctionBodyPart()?.children?.OfType<Antlr4.Runtime.ParserRuleContext>() ?? [])
+        {
+            if (item is not (SysMLv2Parser.TypeBodyElementContext or SysMLv2Parser.ReturnFeatureMemberContext))
+            {
+                continue;
+            }
+
+            var node = Visit(item);
+            if (node is AnnotationCapture capture)
+            {
+                annotations.Add(capture.Annotation);
+            }
+            else if (node is not null)
+            {
+                ApplyMembershipDetails(node, FindMemberPrefix(item), item);
+                children.Add(node);
+            }
+        }
+
+        return (children, annotations);
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitReturnFeatureMember(SysMLv2Parser.ReturnFeatureMemberContext context)
+    {
+        return Visit(context.featureElement());
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitFeature(SysMLv2Parser.FeatureContext context)
+    {
+        return BuildKermlFeatureNode(context.featureDeclaration(), "feature", TypeBodyCollector(context.typeBody()));
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitStep(SysMLv2Parser.StepContext context)
+    {
+        return BuildKermlFeatureNode(context.featureDeclaration(), "step", TypeBodyCollector(context.typeBody()));
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitExpression(SysMLv2Parser.ExpressionContext context)
+    {
+        return BuildKermlFeatureNode(context.featureDeclaration(), "expr", FunctionBodyCollector(context.functionBody()));
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitBooleanExpression(SysMLv2Parser.BooleanExpressionContext context)
+    {
+        return BuildKermlFeatureNode(context.featureDeclaration(), "bool", FunctionBodyCollector(context.functionBody()));
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitInvariant(SysMLv2Parser.InvariantContext context)
+    {
+        return BuildKermlFeatureNode(context.featureDeclaration(), "inv", FunctionBodyCollector(context.functionBody()));
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConnector(SysMLv2Parser.ConnectorContext context)
+    {
+        var connectorDeclaration = context.connectorDeclaration();
+        var declaration = context.featureDeclaration()
+            ?? connectorDeclaration?.binaryConnectorDeclaration()?.featureDeclaration()
+            ?? connectorDeclaration?.naryConnectorDeclaration()?.featureDeclaration();
+        return BuildKermlFeatureNode(declaration, "connector", TypeBodyCollector(context.typeBody()));
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitBindingConnector(SysMLv2Parser.BindingConnectorContext context)
+    {
+        return BuildKermlFeatureNode(
+            context.bindingConnectorDeclaration()?.featureDeclaration(), "binding", TypeBodyCollector(context.typeBody()));
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitSuccession(SysMLv2Parser.SuccessionContext context)
+    {
+        return BuildKermlFeatureNode(
+            context.successionDeclaration()?.featureDeclaration(), "succession", TypeBodyCollector(context.typeBody()));
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitFlow(SysMLv2Parser.FlowContext context)
+    {
+        return BuildKermlFeatureNode(
+            context.flowDeclaration()?.featureDeclaration(), "flow", TypeBodyCollector(context.typeBody()));
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitSuccessionFlow(SysMLv2Parser.SuccessionFlowContext context)
+    {
+        return BuildKermlFeatureNode(
+            context.flowDeclaration()?.featureDeclaration(), "succession flow", TypeBodyCollector(context.typeBody()));
+    }
+
+    /// <summary>
+    ///     Returns a callback collecting the members of a KerML type body.
+    /// </summary>
+    private Func<(IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations)> TypeBodyCollector(
+        SysMLv2Parser.TypeBodyContext? body) =>
+        () => CollectTypeBodyItems(body?.typeBodyElement() ?? []);
+
+    /// <summary>
+    ///     Returns a callback collecting the members of a KerML function body.
+    /// </summary>
+    private Func<(IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations)> FunctionBodyCollector(
+        SysMLv2Parser.FunctionBodyContext? body) =>
+        () => CollectFunctionBodyItems(body);
+
+    /// <summary>
+    ///     Builds a feature AST node from a KerML feature declaration (<c>feature</c>, <c>step</c>,
+    ///     <c>expr</c>, <c>bool</c>, <c>inv</c>, <c>connector</c>, <c>binding</c>, <c>succession</c>,
+    ///     <c>flow</c>, <c>succession flow</c>), capturing the declared name and short name, the first
+    ///     typing, subsetting targets, the first redefinition, the multiplicity, and the nested
+    ///     members. A member declared without a name (an anonymous invariant or step, or a feature
+    ///     that only redefines another) keeps its typing, subsetting, and redefinition references
+    ///     for reference checking but has no name, so it registers no symbol.
+    /// </summary>
+    /// <param name="declaration">The feature declaration, or null when the member has none.</param>
+    /// <param name="keyword">The KerML feature keyword recorded as the node's feature keyword.</param>
+    /// <param name="collectBody">Callback collecting the members of the feature's body.</param>
+    private SysmlFeatureNode BuildKermlFeatureNode(
+        SysMLv2Parser.FeatureDeclarationContext? declaration,
+        string keyword,
+        Func<(IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations)> collectBody)
+    {
+        var identification = declaration?.featureIdentification();
+        var name = identification is null ? null : GetDeclaredName(identification);
+        var shortName = name is not null && identification?.LT() is not null
+            ? identification.name()[0].GetText()
+            : null;
+        var specialization = declaration?.featureSpecializationPart();
+
+        if (name is not null)
+        {
+            _namespaceStack.Add(name);
+        }
+
+        var (children, annotations) = collectBody();
+
+        if (name is not null)
+        {
+            _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+        }
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            ShortName = shortName,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            FeatureKeyword = keyword,
+            FeatureTyping = ExtractFeatureTyping(specialization),
+            RedefinedFeatureName = ExtractRedefinedFeature(specialization),
+            SupertypeNames = ExtractSubsettingTargetNames(specialization),
+            Multiplicity = ExtractMultiplicity(specialization),
             Children = children,
             Annotations = annotations,
         };
@@ -4016,7 +4255,11 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             else if (node is not null)
             {
                 ApplyMembershipDetails(
-                    node, element.packageMember()?.memberPrefix() ?? element.aliasMember()?.memberPrefix(), element);
+                    node,
+                    element.packageMember()?.memberPrefix()
+                        ?? element.kermlPackageMember()?.memberPrefix()
+                        ?? element.aliasMember()?.memberPrefix(),
+                    element);
                 children.Add(node);
             }
         }

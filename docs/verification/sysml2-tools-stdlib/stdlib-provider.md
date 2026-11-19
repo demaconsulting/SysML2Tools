@@ -21,6 +21,9 @@ beyond a standard .NET SDK installation.
 - A non-null diagnostics list is returned alongside the `SymbolTable`.
 - The returned declarations carry the modifier data of the standard library source
   (`Parts::Part` is abstract), and the diagnostics contain no errors.
+- The named KerML library declarations are indexed with the expected keyword
+  (`Base::Anything`, `Metaobjects::SemanticMetadata`, `TrigFunctions::pi`, `Objects::Point`,
+  `Occurrences::HappensBefore`, `Occurrences::HappensJustBefore`).
 
 #### Test Scenarios
 
@@ -34,3 +37,4 @@ beyond a standard .NET SDK installation.
 | `GetSymbolTable_RegeneratedStdlib_CarriesModifiers` | `Parts::Part` is abstract (stale resource fails) |
 | `GetSymbolTable_Diagnostics_ContainNoErrors` | No diagnostic has error severity |
 | `GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings` | Unresolved references are Warnings |
+| `GetSymbolTable_KermlLibraryDeclarations_AreIndexed` | Named KerML library declarations are present |

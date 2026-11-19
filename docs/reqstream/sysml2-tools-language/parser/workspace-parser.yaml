@@ -51,3 +51,22 @@ sections:
           source file when many files are parsed.
         tests:
           - ParseSource_ErrorPath_MatchesSuppliedPath
+
+      - id: SysML2Tools-Language-Parser-WorkspaceParser-KermlNamespaceMembers
+        title: >-
+          WorkspaceParser.ParseSource shall accept the KerML namespace members
+          (`classifier`, `metaclass`, `behavior`, `interaction`, `type`, `multiplicity`,
+          `namespace`, the relationship statements, and every feature element, including `step`,
+          `expr`, `bool`, and `inv` declared without a name) directly in a package body or at the
+          root of a file, and shall keep parsing SysML usages whose names are KerML keywords as
+          SysML.
+        justification: |
+          The standard library's KerML files declare these members at package level, and parsing
+          them is what makes their declarations indexable. The KerML alternatives come after
+          the SysML ones, so a SysML model that happens to use a KerML keyword as a name parses
+          exactly as before.
+        tests:
+          - ParseSource_KermlNamespaceMemberAtPackageLevel_NoErrors
+          - ParseSource_KermlMembersAtRootNamespace_NoErrors
+          - ParseSource_SysmlUsagesNamedLikeKermlKeywords_NoErrors
+          - ParseSource_SysmlKeywordsAlsoUsedAsKermlNames_KeepSysmlMeaning
