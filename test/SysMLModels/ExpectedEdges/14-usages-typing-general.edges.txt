@@ -1,0 +1,7 @@
+Redefinition|DriveSystem::RearDrive::mainMotor|DriveSystem::DriveUnit::main|main
+Supertype|DriveSystem::InductionMotor|DriveSystem::Motor|Motor
+Supertype|DriveSystem::RearDrive::frontMotor|DriveSystem::DriveUnit::motors|motors
+Supertype|DriveSystem::RearDrive|DriveSystem::DriveUnit|DriveUnit
+Typing|DriveSystem::DriveUnit::main|DriveSystem::Motor|Motor
+Typing|DriveSystem::DriveUnit::motors|DriveSystem::Motor|Motor
+Typing|DriveSystem::DriveUnit::spare|DriveSystem::InductionMotor|InductionMotor

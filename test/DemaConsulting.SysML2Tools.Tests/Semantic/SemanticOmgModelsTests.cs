@@ -107,6 +107,47 @@ public sealed class SemanticOmgModelsTests
     }
 
     /// <summary>
+    ///     The gallery models' resolved edges are exactly the recorded baseline: implicit
+    ///     specializations and inherited lookup feed name resolution only and never add, drop or
+    ///     retarget a relationship (the golden files were captured before they existed). Model 03
+    ///     and 12 cover the legacy <c>Actions::Action::start</c>/<c>done</c> transition targets.
+    /// </summary>
+    /// <param name="model">The gallery model's file name without extension.</param>
+    [Theory]
+    [InlineData("01-drone-general")]
+    [InlineData("03-elevator-state")]
+    [InlineData("12-heater-state")]
+    [InlineData("14-usages-typing-general")]
+    public async Task SemanticGalleryModels_Edges_MatchBaselineGolden(string model)
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        Assert.NotNull(modelsRoot);
+        var repoRoot = Directory.GetParent(Directory.GetParent(modelsRoot)!.FullName)!.FullName;
+        var modelFile = Path.Combine(repoRoot, "docs", "gallery", "models", model + ".sysml");
+        var goldenFile = Path.Combine(modelsRoot, "ExpectedEdges", model + ".edges.txt");
+        Assert.True(File.Exists(modelFile), $"Missing gallery model {modelFile}");
+        Assert.True(File.Exists(goldenFile), $"Missing golden edge file {goldenFile}");
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([modelFile], stdlibTable);
+        var actual = result.Workspace!.Index.AllEdges
+            .Select(e => $"{e.Kind}|{e.SourceQualifiedName}|{e.TargetQualifiedName}|{e.RawReference}")
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        var expected = (await File.ReadAllLinesAsync(goldenFile, TestContext.Current.CancellationToken))
+            .Where(line => line.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        // Assert
+        Assert.Equal(expected, actual);
+    }
+
+    /// <summary>
     ///     In strict mode the OMG corpus reports its known unresolved references (resolver gaps)
     ///     as Errors; the count must never grow beyond the recorded baseline. Lower the baseline
     ///     whenever resolver gaps are closed. The default run reports none of them as Errors.
@@ -115,7 +156,7 @@ public sealed class SemanticOmgModelsTests
     public async Task SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline()
     {
         // Arrange
-        const int baseline = 139;
+        const int baseline = 100;
         var modelsRoot = FindSysMLModelsRoot();
         if (modelsRoot is null)
         {

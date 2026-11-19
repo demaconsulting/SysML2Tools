@@ -3824,6 +3824,28 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Implicit specializations are lookup input only: a model that declares no specialization
+    ///     draws only its own elements, with no library-type box and no specialization line.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ImplicitSpecializations_DrawNoLibraryTypesOrSpecializationLines()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def A; item def I; action def R; state def S; port def Q;
+            part def Owner { part a : A; port q : Q; }
+            """);
+
+        // Assert
+        Assert.Empty(DirectSpecializationLines(layout.Nodes));
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangle);
+        string[] declared = ["A", "I", "R", "S", "Q", "Owner", "a", "q"];
+        Assert.All(
+            CollectBoxes(layout.Nodes),
+            b => Assert.Contains(b.Label!.Split(' ')[0], declared));
+    }
+
+    /// <summary>
     ///     Loads <paramref name="sysml"/> and lays out an unscoped view (no <c>expose</c>: every
     ///     non-stdlib definition and package is drawn) with the general view strategy.
     /// </summary>

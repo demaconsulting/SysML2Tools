@@ -262,6 +262,18 @@ public sealed class NameResolver
     }
 
     /// <summary>
+    ///     The qualified names of every library type or feature an element can implicitly
+    ///     specialize (placeholder, populated by the implementation).
+    /// </summary>
+    internal static IReadOnlyCollection<string> ImplicitSpecializationTargets => [];
+
+    /// <summary>
+    ///     The general types lookup uses for <paramref name="typeName"/> (placeholder, populated
+    ///     by the implementation).
+    /// </summary>
+    internal IReadOnlyList<string> LookupGeneralTypes(string typeName) => GeneralTypes(typeName);
+
+    /// <summary>
     ///     The file-root imports that apply to <paramref name="typeName"/>'s own references: those
     ///     of the file that declares it (registered against its qualified name), or null when that
     ///     file has none.

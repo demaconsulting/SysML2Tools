@@ -1,0 +1,15 @@
+Import||ScalarValues::Boolean|ScalarValues::Boolean
+Transition|Actions::Action::start|ElevatorController::ElevatorStates::idle|
+Transition|ElevatorController::ElevatorStates::doorsClosing|ElevatorController::ElevatorStates::movingDown|
+Transition|ElevatorController::ElevatorStates::doorsClosing|ElevatorController::ElevatorStates::movingUp|
+Transition|ElevatorController::ElevatorStates::doorsOpen|Actions::Action::done|
+Transition|ElevatorController::ElevatorStates::doorsOpen|ElevatorController::ElevatorStates::doorsClosing|
+Transition|ElevatorController::ElevatorStates::doorsOpening|ElevatorController::ElevatorStates::doorsOpen|
+Transition|ElevatorController::ElevatorStates::idle|ElevatorController::ElevatorStates::doorsClosing|
+Transition|ElevatorController::ElevatorStates::movingDown|ElevatorController::ElevatorStates::doorsOpening|
+Transition|ElevatorController::ElevatorStates::movingUp|ElevatorController::ElevatorStates::doorsOpening|
+Typing|ElevatorController::ElevatorStates::atFloor|ScalarValues::Boolean|Boolean
+Typing|ElevatorController::ElevatorStates::doorsAreOpen|ScalarValues::Boolean|Boolean
+Typing|ElevatorController::ElevatorStates::doorsClear|ScalarValues::Boolean|Boolean
+Typing|ElevatorController::ElevatorStates::doorsClosed|ScalarValues::Boolean|Boolean
+Typing|ElevatorController::ElevatorStates::goingDown|ScalarValues::Boolean|Boolean

@@ -414,6 +414,554 @@ public sealed class NameResolverTests
     }
 
     /// <summary>
+    ///     Every definition and usage kind implicitly specializes its library type (KerML 7.3.4 /
+    ///     SysML 7.x default general types): the library type is a lookup general type of the
+    ///     element, but never a declared one.
+    /// </summary>
+    /// <param name="body">The package body declaring the element <c>P::X</c>.</param>
+    /// <param name="element">The element's qualified name.</param>
+    /// <param name="expected">The library qualified name the element implicitly specializes.</param>
+    [Theory]
+    [InlineData("part def X;", "P::X", "Parts::Part")]
+    [InlineData("item def X;", "P::X", "Items::Item")]
+    [InlineData("port def X;", "P::X", "Ports::Port")]
+    [InlineData("attribute def X;", "P::X", "Base::DataValue")]
+    [InlineData("enum def X { enum A; }", "P::X", "Base::DataValue")]
+    [InlineData("action def X;", "P::X", "Actions::Action")]
+    [InlineData("state def X;", "P::X", "States::StateAction")]
+    [InlineData("calc def X;", "P::X", "Calculations::Calculation")]
+    [InlineData("constraint def X;", "P::X", "Constraints::ConstraintCheck")]
+    [InlineData("requirement def X;", "P::X", "Requirements::RequirementCheck")]
+    [InlineData("concern def X;", "P::X", "Requirements::ConcernCheck")]
+    [InlineData("case def X;", "P::X", "Cases::Case")]
+    [InlineData("analysis def X;", "P::X", "AnalysisCases::AnalysisCase")]
+    [InlineData("verification def X;", "P::X", "VerificationCases::VerificationCase")]
+    [InlineData("use case def X;", "P::X", "UseCases::UseCase")]
+    [InlineData("connection def X;", "P::X", "Connections::Connection")]
+    [InlineData("interface def X;", "P::X", "Interfaces::Interface")]
+    [InlineData("allocation def X;", "P::X", "Allocations::Allocation")]
+    [InlineData("flow def X;", "P::X", "Flows::MessageAction")]
+    [InlineData("occurrence def X;", "P::X", "Occurrences::Occurrence")]
+    [InlineData("individual def X;", "P::X", "Occurrences::Occurrence")]
+    [InlineData("metadata def X;", "P::X", "Metadata::MetadataItem")]
+    [InlineData("rendering def X;", "P::X", "Views::Rendering")]
+    [InlineData("view def X;", "P::X", "Views::View")]
+    [InlineData("view X;", "P::X", "Views::View")]
+    [InlineData("viewpoint def X;", "P::X", "Views::ViewpointCheck")]
+    [InlineData("class X;", "P::X", "Occurrences::Occurrence")]
+    [InlineData("struct X;", "P::X", "Objects::Object")]
+    [InlineData("assoc struct X;", "P::X", "Objects::LinkObject")]
+    [InlineData("assoc X;", "P::X", "Links::Link")]
+    [InlineData("datatype X;", "P::X", "Base::DataValue")]
+    [InlineData("classifier X;", "P::X", "Base::Anything")]
+    [InlineData("type X;", "P::X", "Base::Anything")]
+    [InlineData("metaclass X;", "P::X", "Metaobjects::Metaobject")]
+    [InlineData("behavior X;", "P::X", "Performances::Performance")]
+    [InlineData("function X;", "P::X", "Performances::Evaluation")]
+    [InlineData("predicate X;", "P::X", "Performances::BooleanEvaluation")]
+    [InlineData("interaction X;", "P::X", "Links::Link")]
+    [InlineData("interaction X;", "P::X", "Performances::Performance")]
+    [InlineData("part X;", "P::X", "Parts::parts")]
+    [InlineData("requirement def R { actor X; }", "P::R::X", "Parts::parts")]
+    [InlineData("requirement def R { stakeholder X; }", "P::R::X", "Parts::parts")]
+    [InlineData("port X;", "P::X", "Ports::ports")]
+    [InlineData("item X;", "P::X", "Items::items")]
+    [InlineData("attribute X;", "P::X", "Base::dataValues")]
+    [InlineData("enum def E { enum X; }", "P::E::X", "Base::dataValues")]
+    [InlineData("action X;", "P::X", "Actions::actions")]
+    [InlineData("state def S { entry action X; }", "P::S::X", "Actions::actions")]
+    [InlineData("state def S { do action X; }", "P::S::X", "Actions::actions")]
+    [InlineData("state def S { exit action X; }", "P::S::X", "Actions::actions")]
+    [InlineData("action def A { merge X; }", "P::A::X", "Actions::actions")]
+    [InlineData("action def A { decide X; }", "P::A::X", "Actions::actions")]
+    [InlineData("action def A { join X; }", "P::A::X", "Actions::actions")]
+    [InlineData("action def A { fork X; }", "P::A::X", "Actions::actions")]
+    [InlineData("action def A { action X accept ScalarValues::Boolean; }", "P::A::X", "Actions::acceptActions")]
+    [InlineData("action def A { attribute p; action X send p; }", "P::A::X", "Actions::sendActions")]
+    [InlineData("action def A { action X terminate; }", "P::A::X", "Actions::terminateActions")]
+    [InlineData("state X;", "P::X", "States::stateActions")]
+    [InlineData("calc X;", "P::X", "Calculations::calculations")]
+    [InlineData("constraint X;", "P::X", "Constraints::constraintChecks")]
+    [InlineData("requirement def R { assume constraint X; }", "P::R::X", "Constraints::constraintChecks")]
+    [InlineData("requirement def R { require constraint X; }", "P::R::X", "Constraints::constraintChecks")]
+    [InlineData("requirement X;", "P::X", "Requirements::requirementChecks")]
+    [InlineData("concern X;", "P::X", "Requirements::concernChecks")]
+    [InlineData("case X;", "P::X", "Cases::cases")]
+    [InlineData("analysis X;", "P::X", "AnalysisCases::analysisCases")]
+    [InlineData("verification X;", "P::X", "VerificationCases::verificationCases")]
+    [InlineData("use case X;", "P::X", "UseCases::useCases")]
+    [InlineData("rendering X;", "P::X", "Views::renderings")]
+    [InlineData("occurrence X;", "P::X", "Occurrences::occurrences")]
+    [InlineData("part def O { event occurrence X; }", "P::O::X", "Occurrences::occurrences")]
+    [InlineData("ref X;", "P::X", "Base::things")]
+    [InlineData("feature X;", "P::X", "Base::things")]
+    [InlineData("step X;", "P::X", "Performances::performances")]
+    [InlineData("expr X;", "P::X", "Performances::evaluations")]
+    [InlineData("bool X;", "P::X", "Performances::booleanEvaluations")]
+    [InlineData("inv X;", "P::X", "Performances::trueEvaluations")]
+    [InlineData("connector X;", "P::X", "Links::links")]
+    [InlineData("feature a; feature b; binding X of a = b;", "P::X", "Links::selfLinks")]
+    [InlineData("feature a; feature b; succession X first a then b;", "P::X", "Occurrences::happensBeforeLinks")]
+    [InlineData("feature a; feature b; flow X from a to b;", "P::X", "Transfers::transfers")]
+    public async Task NameResolver_ImplicitSpecialization_PerKind_AddsLibraryGeneralType(
+        string body, string element, string expected)
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync($"package P {{ {body} }}");
+        var resolver = new NameResolver(workspace.Declarations);
+
+        // Act
+        var lookupGeneral = resolver.LookupGeneralTypes(element);
+
+        // Assert: a lookup general type, never a declared one
+        Assert.Contains(expected, lookupGeneral);
+        Assert.DoesNotContain(expected, resolver.GeneralTypes(element));
+    }
+
+    /// <summary>
+    ///     A member declared only on (or inherited by) an element's implicit library general type
+    ///     resolves in the element's own scope with no explicit specialization written.
+    /// </summary>
+    /// <param name="body">The package body declaring the element <c>P::X</c>.</param>
+    /// <param name="element">The element's qualified name.</param>
+    /// <param name="member">The bare member name to resolve in the element's scope.</param>
+    /// <param name="expected">The expected library member qualified name.</param>
+    [Theory]
+    [InlineData("part def X;", "P::X", "ownedPorts", "Parts::Part::ownedPorts")]
+    [InlineData("part def X;", "P::X", "shape", "Items::Item::shape")]
+    [InlineData("part def X;", "P::X", "localClock", "Occurrences::Occurrence::localClock")]
+    [InlineData("item def X;", "P::X", "shape", "Items::Item::shape")]
+    [InlineData("port def X;", "P::X", "subports", "Ports::Port::subports")]
+    [InlineData("attribute def X;", "P::X", "self", "Base::DataValue::self")]
+    [InlineData("action def X;", "P::X", "subactions", "Actions::Action::subactions")]
+    [InlineData("action def X;", "P::X", "start", "Actions::Action::start")]
+    [InlineData("state def X;", "P::X", "substates", "States::StateAction::substates")]
+    [InlineData("state def X;", "P::X", "done", "States::StateAction::done")]
+    [InlineData("calc def X;", "P::X", "result", "Performances::Evaluation::result")]
+    [InlineData("constraint def X;", "P::X", "result", "Performances::Evaluation::result")]
+    [InlineData("requirement def X;", "P::X", "subrequirements", "Requirements::RequirementCheck::subrequirements")]
+    [InlineData("concern def X;", "P::X", "stakeholders", "Requirements::RequirementCheck::stakeholders")]
+    [InlineData("case def X;", "P::X", "result", "Performances::Evaluation::result")]
+    [InlineData("analysis def X;", "P::X", "result", "Performances::Evaluation::result")]
+    [InlineData("verification def X;", "P::X", "result", "Performances::Evaluation::result")]
+    [InlineData("use case def X;", "P::X", "result", "Performances::Evaluation::result")]
+    [InlineData("connection def X;", "P::X", "participant", "Links::Link::participant")]
+    [InlineData("interface def X;", "P::X", "participant", "Links::Link::participant")]
+    [InlineData("flow def X;", "P::X", "payload", "Flows::MessageAction::payload")]
+    [InlineData("occurrence def X;", "P::X", "suboccurrences", "Occurrences::Occurrence::suboccurrences")]
+    [InlineData("metadata def X;", "P::X", "annotatedElement", "Metaobjects::Metaobject::annotatedElement")]
+    [InlineData("rendering def X;", "P::X", "subrenderings", "Views::Rendering::subrenderings")]
+    [InlineData("view def X;", "P::X", "ownedPorts", "Parts::Part::ownedPorts")]
+    [InlineData("viewpoint def X;", "P::X", "subrequirements", "Requirements::RequirementCheck::subrequirements")]
+    [InlineData("class X;", "P::X", "suboccurrences", "Occurrences::Occurrence::suboccurrences")]
+    [InlineData("struct X;", "P::X", "subobjects", "Objects::Object::subobjects")]
+    [InlineData("assoc X;", "P::X", "participant", "Links::Link::participant")]
+    [InlineData("behavior X;", "P::X", "subperformances", "Performances::Performance::subperformances")]
+    [InlineData("function X;", "P::X", "result", "Performances::Evaluation::result")]
+    [InlineData("part X;", "P::X", "ownedPorts", "Parts::Part::ownedPorts")]
+    [InlineData("port X;", "P::X", "subports", "Ports::Port::subports")]
+    [InlineData("item X;", "P::X", "shape", "Items::Item::shape")]
+    [InlineData("attribute X;", "P::X", "self", "Base::DataValue::self")]
+    [InlineData("action X;", "P::X", "subactions", "Actions::Action::subactions")]
+    [InlineData("state X;", "P::X", "substates", "States::StateAction::substates")]
+    [InlineData("calc X;", "P::X", "result", "Performances::Evaluation::result")]
+    [InlineData("requirement X;", "P::X", "subrequirements", "Requirements::RequirementCheck::subrequirements")]
+    [InlineData("occurrence X;", "P::X", "suboccurrences", "Occurrences::Occurrence::suboccurrences")]
+    [InlineData("rendering X;", "P::X", "subrenderings", "Views::Rendering::subrenderings")]
+    public async Task NameResolver_ImplicitSpecialization_PerKind_LibraryMemberResolvesWithoutExplicitSpecialization(
+        string body, string element, string member, string expected)
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync($"package P {{ {body} }}");
+        var resolver = new NameResolver(workspace.Declarations);
+
+        // Act / Assert
+        Assert.Equal(expected, resolver.Resolve(member, element));
+    }
+
+    /// <summary>
+    ///     Every library type or feature the implicit-specialization table names is a symbol of the
+    ///     embedded standard library, so a library change cannot silently disable a row.
+    /// </summary>
+    [Fact]
+    public void NameResolver_ImplicitSpecialization_TargetsExistInVendoredStdlib()
+    {
+        // Arrange
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+
+        // Act
+        var targets = NameResolver.ImplicitSpecializationTargets;
+
+        // Assert
+        Assert.NotEmpty(targets);
+        Assert.All(targets, target => Assert.True(
+            stdlibTable.Symbols.ContainsKey(target),
+            $"Implicit-specialization target '{target}' is not a standard library symbol."));
+    }
+
+    /// <summary>
+    ///     Without a standard library in the workspace the implicit general types are absent, so
+    ///     lookup behaves exactly as it does for declared specializations only.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ImplicitSpecialization_NoStdlibSeed_NoEffect()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "package P { part def X; part x; }", TestContext.Current.CancellationToken);
+            var result = await WorkspaceLoader.LoadAsync([tempFile], null);
+            var resolver = new NameResolver(result.Workspace!.Declarations);
+
+            // Act / Assert
+            Assert.Empty(resolver.LookupGeneralTypes("P::X"));
+            Assert.Empty(resolver.LookupGeneralTypes("P::x"));
+            Assert.Null(resolver.Resolve("ownedPorts", "P::X"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A library type never implicitly specializes itself, nor does a library root (the
+    ///     implicit chain ends at <c>Base::Anything</c> / <c>Base::things</c>).
+    /// </summary>
+    /// <param name="library">The library type's qualified name.</param>
+    /// <param name="forbidden">A qualified name that must not appear among its lookup general types.</param>
+    [Theory]
+    [InlineData("Parts::Part", "Parts::Part")]
+    [InlineData("Base::Anything", "Base::Anything")]
+    [InlineData("Base::things", "Base::things")]
+    [InlineData("Parts::parts", "Parts::parts")]
+    public async Task NameResolver_ImplicitSpecialization_LibraryTypeDoesNotSpecializeItself(string library, string forbidden)
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("package P { part def X; }");
+        var resolver = new NameResolver(workspace.Declarations);
+
+        // Act / Assert
+        Assert.DoesNotContain(forbidden, resolver.LookupGeneralTypes(library));
+    }
+
+    /// <summary>
+    ///     An explicit supertype wins a name conflict over an implicit one: the implicit general
+    ///     types are consulted after the declared ones.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ImplicitSpecialization_ExplicitSupertypeWinsOverImplicit()
+    {
+        // Arrange: Base declares its own 'shape', Items::Item::shape is the implicit one
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def Base { attribute shape; }
+                part def D :> Base;
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations);
+
+        // Act / Assert
+        Assert.Equal("P::Base::shape", resolver.Resolve("shape", "P::D"));
+        Assert.Equal("P::Base", resolver.LookupGeneralTypes("P::D")[0]);
+        Assert.Contains("Parts::Part", resolver.LookupGeneralTypes("P::D"));
+    }
+
+    /// <summary>
+    ///     Inherited lookup is transitive through explicit and implicit general types: a member of
+    ///     an explicit grandparent, and a member of a library root reached only implicitly.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_InheritedLookup_Transitive_ThroughExplicitAndImplicitGenerals()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def A { attribute fromA; }
+                part def B :> A;
+                part def C :> B;
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations);
+
+        // Act / Assert: explicit chain, then the implicit Part -> Item -> Object -> Occurrence chain
+        Assert.Equal("P::A::fromA", resolver.Resolve("fromA", "P::C"));
+        Assert.Equal("Items::Item::shape", resolver.Resolve("shape", "P::C"));
+        Assert.Equal("Objects::Object::subobjects", resolver.Resolve("subobjects", "P::C"));
+        Assert.Equal("Occurrences::Occurrence::localClock", resolver.Resolve("localClock", "P::C"));
+    }
+
+    /// <summary>
+    ///     A protected member of a general type is visible to the specialization, a private one is
+    ///     not, and a qualified name reaches public members only — including those inherited
+    ///     implicitly from the library.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_InheritedLookup_ProtectedMemberVisibleToSpecialization_PrivateNot()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def Base {
+                    private attribute secret;
+                    protected attribute guarded;
+                    public attribute open;
+                }
+                part def D :> Base;
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations);
+
+        // Act / Assert: bare names (local resolution) see protected and public, not private
+        Assert.Equal("P::Base::guarded", resolver.Resolve("guarded", "P::D"));
+        Assert.Equal("P::Base::open", resolver.Resolve("open", "P::D"));
+        Assert.Null(resolver.Resolve("secret", "P::D"));
+
+        // Assert: qualified names are visible resolution (public only), also through implicit generals
+        Assert.Null(resolver.Resolve("P::D::guarded", null));
+        Assert.Equal("P::Base::open", resolver.Resolve("P::D::open", null));
+        Assert.Equal("Parts::Part::ownedPorts", resolver.Resolve("P::D::ownedPorts", null));
+    }
+
+    /// <summary>
+    ///     A feature owned by the specialization that redefines an inherited member hides it from
+    ///     inherited lookup (KerML <c>Type::removeRedefinedFeatures</c>): the name falls through
+    ///     to the enclosing namespace instead of reaching the redefined member.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_InheritedLookup_RedefinitionHidesRedefinedMember()
+    {
+        // Arrange: Q redefines Items::Item::shape under another name; the package has its own 'shape'
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                attribute shape;
+                item def Q { attribute myShape redefines shape; }
+                item def Plain;
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations);
+
+        // Act / Assert
+        Assert.Equal("Items::Item::shape", resolver.ResolveRedefinedFeature("shape", "P::Q"));
+        Assert.Equal("P::shape", resolver.Resolve("shape", "P::Q"));
+        Assert.Equal("Items::Item::shape", resolver.Resolve("shape", "P::Plain"));
+    }
+
+    /// <summary>
+    ///     A redefinition that keeps the redefined name resolves to the owned feature, not the
+    ///     redefined one.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_InheritedLookup_RedefinitionWithSameName_ResolvesOwned()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                item def Q { attribute :>> shape; }
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations);
+
+        // Act / Assert
+        Assert.Equal("P::Q::shape", resolver.Resolve("shape", "P::Q"));
+    }
+
+    /// <summary>
+    ///     An unnamed redefinition of a member of a sibling or enclosing feature resolves outward
+    ///     from the redefining feature's owner, since the redefining feature takes the redefined
+    ///     name as its own.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolveRedefinition_UnnamedRedefinitionOfEnclosingMember_Resolves()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def A { part part1; }
+                part a : A { part part2 { part :>> part1; } }
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+
+        // Act
+        var resolved = resolver.ResolveRedefinition("part1", "P::a::part2", "P::a::part2::part1", null);
+
+        // Assert
+        Assert.Equal("P::A::part1", resolved);
+    }
+
+    /// <summary>
+    ///     A redefinition whose only candidate is the redefining feature itself stays unresolved.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolveRedefinition_OnlySelf_StaysUnresolved()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("package P { part holder { part :>> nothing; } }");
+        var resolver = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+
+        // Act / Assert
+        Assert.Null(resolver.ResolveRedefinition("nothing", "P::holder", "P::holder::nothing", null));
+    }
+
+    /// <summary>
+    ///     A variant usage implicitly specializes its owning variation, so the variation's members
+    ///     (and those of its type) are visible to the variant's redefinitions.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_InheritedLookup_VariantSeesVariationMembers()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def EngineDef { part cyl; }
+                part def Car {
+                    variation part engine : EngineDef {
+                        variant part small { part :>> cyl; }
+                    }
+                }
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations);
+
+        // Act / Assert
+        Assert.Contains("P::Car::engine", resolver.LookupGeneralTypes("P::Car::engine::small"));
+        Assert.Equal("P::EngineDef::cyl", resolver.ResolveRedefinedFeature("cyl", "P::Car::engine::small"));
+    }
+
+    /// <summary>
+    ///     A usage typed by a conjugated port definition sees the members of the port definition.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_InheritedLookup_ConjugatedPortTypeMembersVisible()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                port def PortT { attribute publish; }
+                part def Q { port p : ~PortT { attribute :>> publish; } }
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations);
+
+        // Act / Assert
+        Assert.Contains("P::PortT", resolver.LookupGeneralTypes("P::Q::p"));
+        Assert.Equal("P::PortT::publish", resolver.ResolveRedefinedFeature("publish", "P::Q::p"));
+        Assert.DoesNotContain("P::PortT", resolver.GeneralTypes("P::Q::p"));
+    }
+
+    /// <summary>
+    ///     An unqualified redefinition target inside a nested feature of a typed usage resolves
+    ///     through the enclosing usage's type.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_InheritedLookup_EnclosingTypedUsage_TypeMembersResolveForNestedRedefinition()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def Wheel { attribute radius; }
+                part def Car { part wheel : Wheel { part hub { attribute :>> radius; } } }
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+
+        // Act
+        var resolved = resolver.ResolveRedefinition("radius", "P::Car::wheel::hub", "P::Car::wheel::hub::radius", null);
+
+        // Assert
+        Assert.Equal("P::Wheel::radius", resolved);
+    }
+
+    /// <summary>
+    ///     Implicit and declared specializations terminate when a user type is named like a
+    ///     library root and when two user types specialize each other.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ImplicitSpecialization_CyclesTerminate()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def Part :> Parts::Part;
+                part def A :> B;
+                part def B :> A;
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations);
+        var resolving = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+
+        // Act / Assert
+        Assert.Null(resolver.Resolve("missing", "P::A"));
+        Assert.Null(resolving.Resolve("missing", "P::A"));
+        Assert.Equal("Items::Item::shape", resolving.Resolve("shape", "P::Part"));
+        Assert.DoesNotContain("P::A", resolver.LookupGeneralTypes("P::A"));
+    }
+
+    /// <summary>
+    ///     In resolving mode a lookup through implicit general types does not depend on the order
+    ///     lookups are made in.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolvingMode_ImplicitSpecialization_IsOrderIndependent()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def Derived :> Base;
+                part def Base { attribute own; }
+            }
+            """);
+        var forward = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+        var backward = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+
+        // Act
+        var first = new[] { forward.Resolve("shape", "P::Derived"), forward.Resolve("own", "P::Derived") };
+        _ = backward.Resolve("shape", "P::Base");
+        _ = backward.Resolve("Base", "P");
+        var second = new[] { backward.Resolve("shape", "P::Derived"), backward.Resolve("own", "P::Derived") };
+
+        // Assert
+        Assert.Equal(["Items::Item::shape", "P::Base::own"], first);
+        Assert.Equal(first, second);
+    }
+
+    /// <summary>
+    ///     Implicit specializations are lookup input only: no resolved edge of any node targets an
+    ///     implicit library type unless the model wrote it, so renderers, queries and exports see
+    ///     exactly the declared relationships.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ImplicitSpecialization_NotMaterialized_AsEdges()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def Engine { port fuel : ~FuelPort; attribute mass; }
+                port def FuelPort { attribute flow; }
+                action def Run { action step; first start then step; then done; }
+                state def Idle { state off; entry; then off; }
+                requirement def R { subject s : Engine; }
+                part engine : Engine;
+                part spare;
+            }
+            """);
+
+        // Act
+        var implicitTargets = NameResolver.ImplicitSpecializationTargets.ToHashSet(StringComparer.Ordinal);
+        var allEdges = workspace.Index.AllEdges
+            .Concat(workspace.Declarations.Values.SelectMany(node => node.ResolvedEdges))
+            .ToList();
+
+        // Assert: start/done succession ends are the one library-targeting edge kind the model writes
+        Assert.NotEmpty(allEdges);
+        Assert.DoesNotContain(
+            allEdges,
+            edge => edge.Kind != SysmlEdgeKind.Transition && implicitTargets.Contains(edge.TargetQualifiedName));
+    }
+
+    /// <summary>
     ///     Loads <paramref name="sysml"/> (with the standard library) and returns the workspace.
     /// </summary>
     private static async Task<SysmlWorkspace> LoadWorkspaceAsync(string sysml)

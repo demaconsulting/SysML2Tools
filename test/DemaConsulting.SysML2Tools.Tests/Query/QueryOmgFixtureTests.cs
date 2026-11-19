@@ -208,6 +208,46 @@ public class QueryOmgFixtureTests
     }
 
     /// <summary>
+    ///     'hierarchy' reports only declared specializations: a part definition that writes no
+    ///     supertype has none, although it implicitly specializes <c>Parts::Part</c> for name
+    ///     lookup (implicit specializations are never edges).
+    /// </summary>
+    [Fact]
+    public async Task Hierarchy_ImplicitSpecializations_AreNotReported()
+    {
+        // Arrange
+        var file = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(
+                file,
+                "package P { part def A; part def B :> A; part a : A; }",
+                TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var loaded = await WorkspaceLoader.LoadAsync([file], stdlibTable);
+            var workspace = loaded.Workspace!;
+
+            // Act
+            var upA = QueryEngine.Hierarchy(
+                workspace,
+                workspace.Declarations["P::A"],
+                new QueryOptions { Verb = QueryVerb.Hierarchy, Element = "P::A", Direction = "up" });
+            var upB = QueryEngine.Hierarchy(
+                workspace,
+                workspace.Declarations["P::B"],
+                new QueryOptions { Verb = QueryVerb.Hierarchy, Element = "P::B", Direction = "up" });
+
+            // Assert
+            Assert.Empty(upA.Entries);
+            Assert.Equal(["P::A"], upB.Entries.Select(e => e.QualifiedName));
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    /// <summary>
     ///     'describe' against the OMG 'Comments' example fixture reports at least one captured
     ///     comment/documentation annotation.
     /// </summary>
