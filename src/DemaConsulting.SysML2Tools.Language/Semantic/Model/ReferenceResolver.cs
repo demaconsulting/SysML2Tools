@@ -892,9 +892,13 @@ internal sealed class ReferenceResolver
     ///     <see cref="TryResolveInheritedActionMember"/> before giving up — the narrow fallback
     ///     that lets the standard <c>start</c> and <c>done</c> pseudo-features resolve on either end
     ///     of a succession or transition (<c>first start then off;</c> and
-    ///     <c>then done;</c> / <c>transition first x accept e then done;</c>). They are inherited
-    ///     members that ordinary scope/import resolution can never see, since they are not declared
-    ///     or imported anywhere in the referencing file. This fallback is deliberately scoped to
+    ///     <c>then done;</c> / <c>transition first x accept e then done;</c>). Ordinary lookup now
+    ///     finds the library's own <c>start</c>/<c>done</c> through the implicit specialization of
+    ///     the enclosing state or action (see <see cref="NameResolver"/>), but exported transition
+    ///     edges have always targeted the <c>Actions::Action</c> members, so a written end that is
+    ///     exactly <c>start</c>/<c>done</c> and resolves to a library member is canonicalized to
+    ///     that same target (compatibility rule; the fallback is kept for ends that still fail).
+    ///     This is deliberately scoped to
     ///     transition ends only — not connection/binding endpoints or any other reference kind. On the
     ///     <c>Target</c> side it is further limited to exactly <c>start</c>/<c>done</c> inside a state
     ///     or action body (definition or usage); the <c>Source</c> side keeps the wider inherited
@@ -915,6 +919,17 @@ internal sealed class ReferenceResolver
 
         if (TryResolveFeatureChain(end, scope, file.RootImports, out var resolved))
         {
+            // Compatibility canonicalization: ordinary lookup now also finds the library's own
+            // start/done through the implicit specialization of the enclosing state or action
+            // (e.g. States::StateAction::start for a state), but the transition edges this tool
+            // has always exported target the Actions::Action members; keep them stable.
+            if (end is "start" or "done" &&
+                _stdlibNames.Contains(resolved) &&
+                TryResolveInheritedActionMember(scope, end, pseudoFeaturesOnly: isTarget, out var canonical))
+            {
+                return canonical;
+            }
+
             return resolved;
         }
 
@@ -951,12 +966,16 @@ internal sealed class ReferenceResolver
     ///     when the enclosing node itself has a state/action keyword, fall back to a hardcoded,
     ///     narrowly-scoped last resort: look the name up directly among
     ///     <c>Actions::Action</c>'s own direct children in the stdlib. This last-resort branch
-    ///     exists because this codebase implements no general implicit-generalization/default-
-    ///     supertype inference (a bare <c>state def VehicleStates;</c> with no explicit <c>:&gt;</c>
-    ///     clause never gets an automatic <c>Supertype</c> edge to <c>States::StateAction</c>/
-    ///     <c>Actions::Action</c> the way the real SysML v2 spec implies) — it is a deliberate,
-    ///     explicitly-scoped simplification, not a general inherited-member resolver, and must not
-    ///     be reused for any other reference kind or name.
+    ///     exists to keep the exported transition targets stable: <see cref="NameResolver"/> now
+    ///     models implicit specialization for name lookup (a bare <c>state def VehicleStates;</c>
+    ///     implicitly specializes <c>States::StateAction</c>, so ordinary lookup finds
+    ///     <c>States::StateAction::start</c>), but implicit specializations are never edges, and
+    ///     <see cref="ResolveTransitionEnd"/> canonicalizes a library <c>start</c>/<c>done</c> found
+    ///     by ordinary lookup to the <c>Actions::Action</c> member this method has always produced.
+    ///     It is a deliberate, explicitly-scoped compatibility rule, not a general inherited-member
+    ///     resolver, and must not be reused for any other reference kind or name (dropping the
+    ///     canonicalization and this last resort is the library-faithful alternative, at the cost
+    ///     of changing exported state-transition edges).
     /// </summary>
     private bool TryResolveInheritedActionMember(
         string? scope,

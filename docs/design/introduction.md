@@ -65,9 +65,10 @@ system, subsystem, and unit levels:
         severity by origin (Warning by default, Error for user files under `strictUnresolved`;
         Warning always for the standard library) and warns when a `render` target names a
         SysML2Tools extension selector
-      - **NameResolver** (Unit) — public KerML 8.2.3.5 name resolver (owned, imported, inherited,
-        aliased, and short-named memberships; full and visible resolution) used by
-        `ReferenceResolver` (in an internal resolving mode) and by layout strategies for
+      - **NameResolver** (Unit) — public KerML 8.2.3.5 name resolver (owned, imported, inherited
+        — including the implicit specializations of every element kind, which are lookup input
+        only and never edges —, aliased, and short-named memberships; full and visible resolution)
+        used by `ReferenceResolver` (in an internal resolving mode) and by layout strategies for
         references the semantic model did not resolve
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
       - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/MetadataType/

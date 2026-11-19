@@ -19,6 +19,19 @@ created in `Path.GetTempPath()` and deleted after each test.
 - Inherited, imported, aliased, and short-named memberships resolve locally; private members and
   privately imported members do not resolve through a qualified name from outside.
 - A redefined feature resolves against the redefining feature's owning type's general types.
+- Every definition and usage kind implicitly specializes its standard library type for lookup (a
+  member declared only there resolves with no explicit supertype), the implicit types are not
+  declared general types or edges, explicit supertypes win name conflicts, and every table target
+  exists in the embedded standard library. Every keyword `AstBuilder` emits has its own row-level
+  case, including KerML `flow`, `succession` and `succession flow` and the connection, interface,
+  allocation, message, flow and binding usages; only `ref`, `subject` and `feature` use the
+  `Base::things` fallback.
+- Inherited lookup is transitive through explicit and implicit general types, protected members are
+  visible to a specialization, private ones never, and a qualified name sees public members only; a
+  named feature that redefines an inherited member hides it from the specialization's lookup.
+- A variant sees its variation's members, a usage typed by a conjugated port definition sees that
+  port definition's members, and an unnamed redefinition of an enclosing or sibling feature's member
+  resolves outward from the owning type's owner.
 - In the internal resolving mode the general types come only from raw references (a wrong resolved
   edge is ignored), answers do not depend on lookup order, specialization cycles terminate, file-root
   imports apply to the registered declarations (and the referencing file's own supplied imports take
@@ -45,3 +58,21 @@ created in `Path.GetTempPath()` and deleted after each test.
 | `NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredDeclarations` | File-root imports |
 | `NameResolver_ResolvingMode_Resolve_SuppliedFileRootImports_OverrideRegisteredByName` | Supplied imports win |
 | `NameResolver_ResolveRedefinition_ExcludesRedefiningFeatureAndFallsBack` | Redefinition target rules |
+| `NameResolver_ImplicitSpecialization_PerKind_AddsLibraryGeneralType` | Per-kind lookup general type, not declared |
+| `NameResolver_ImplicitSpecialization_PerKind_MemberResolves` | Library member resolves, no `:>` |
+| `NameResolver_ImplicitSpecialization_TargetsExistInVendoredStdlib` | Table targets exist in the stdlib |
+| `NameResolver_ImplicitSpecialization_NoStdlibSeed_NoEffect` | Without the library seed |
+| `NameResolver_ImplicitSpecialization_LibraryTypeDoesNotSpecializeItself` | No self-specialization |
+| `NameResolver_ImplicitSpecialization_ExplicitSupertypeWinsOverImplicit` | Declared supertypes are consulted first |
+| `NameResolver_ImplicitSpecialization_CyclesTerminate` | User type named like a library root; mutual specialization |
+| `NameResolver_ImplicitSpecialization_NotMaterialized_AsEdges` | No resolved edge targets an implicit library type |
+| `NameResolver_ResolvingMode_ImplicitSpecialization_IsOrderIndependent` | Order independent |
+| `NameResolver_InheritedLookup_Transitive_ThroughExplicitAndImplicitGenerals` | Transitive chain |
+| `NameResolver_InheritedLookup_ProtectedMemberVisibleToSpecialization_PrivateNot` | Protected/private/public |
+| `NameResolver_InheritedLookup_RedefinitionHidesRedefinedMember` | Named redefinition hides the member |
+| `NameResolver_InheritedLookup_RedefinitionWithSameName_ResolvesOwned` | Same-name redefinition: owned |
+| `NameResolver_InheritedLookup_VariantSeesVariationMembers` | A variant specializes its owning variation |
+| `NameResolver_InheritedLookup_ConjugatedPortTypeMembersVisible` | Conjugated port members |
+| `NameResolver_InheritedLookup_EnclosingTypedUsage_TypeMembersResolveForNestedRedefinition` | Enclosing usage's type |
+| `NameResolver_ResolveRedefinition_UnnamedRedefinitionOfEnclosingMember_Resolves` | Outward retry |
+| `NameResolver_ResolveRedefinition_OnlySelf_StaysUnresolved` | Nothing but the redefining feature stays unresolved |

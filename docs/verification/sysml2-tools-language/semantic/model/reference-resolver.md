@@ -134,8 +134,9 @@ external services or additional configuration are required beyond a standard .NE
 | Cycle diagnostics stay Warnings | `WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings` |
 | Stdlib references, no diagnostics | `WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics` |
 | Stdlib compile stays Warning | `GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings` |
+| Stdlib compile: no errors, warnings at most 45 | `GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling` |
 | Valid custom and test-case models load clean | `CustomAndTestCaseModels_AllModels_LoadWithZeroDiagnostics` |
-| OMG corpus within baseline (strict) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
+| OMG corpus within baseline (94 errors) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
 | Selector Warning at token | `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` |
 | Standard selectors — no diagnostic | `WorkspaceLoader_LoadAsync_StandardRenderSelectors_ProduceNoDiagnostics` |
 | Selector + strict | `WorkspaceLoader_LoadAsync_ToolRenderSelectorWithStrictUnresolved_StillOnlyPortabilityWarning` |
@@ -223,4 +224,8 @@ external services or additional configuration are required beyond a standard .NE
 | `done` outside a state/action still warns | `WorkspaceLoader_LoadAsync_DoneTarget_OutsideActionOrState_StillWarns` |
 | Private member as target warns | `WorkspaceLoader_LoadAsync_PrivateInheritedMemberAsSuccessionTarget_StillWarns` |
 | Part def, no fallback | `WorkspaceLoader_LoadAsync_DoneTarget_InPartDefSpecializingPart_DoesNotUseActionFallback` |
+| Part def, implicit `Parts::Part` | `WorkspaceLoader_LoadAsync_DoneTarget_InPartDefWithImplicitPart_Resolves` |
+| State start/done keep legacy targets | `WorkspaceLoader_LoadAsync_StateStartAndDone_KeepLegacyActionTargets` |
+| User-declared `start` kept | `WorkspaceLoader_LoadAsync_UserDeclaredStartState_IsNotCanonicalized` |
+| Gallery edge lists equal the baseline golden files | `SemanticGalleryModels_Edges_MatchBaselineGolden` |
 | OMG Transitions corpus fixture | `Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions` |

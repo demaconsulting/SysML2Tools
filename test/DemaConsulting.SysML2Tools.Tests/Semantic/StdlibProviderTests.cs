@@ -128,6 +128,27 @@ public sealed class StdlibProviderTests
     }
 
     /// <summary>
+    ///     The standard library compiles with no errors and no more than the recorded number of
+    ///     unresolved-reference warnings (the remaining gaps are dotted feature chains and similar,
+    ///     tracked in issue #129). Lower the ceiling whenever resolver gaps are closed and the
+    ///     library resource is regenerated.
+    /// </summary>
+    [Fact]
+    public void GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling()
+    {
+        // Arrange
+        const int ceiling = 45;
+
+        // Act
+        var (_, diagnostics) = StdlibProvider.GetSymbolTable();
+
+        // Assert
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var warnings = diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
+        Assert.True(warnings <= ceiling, $"Expected at most {ceiling} stdlib warnings but got {warnings}.");
+    }
+
+    /// <summary>
     ///     The stdlib's unresolved-reference diagnostics stay Warnings: the standard library carries
     ///     known resolver gaps that must not fail a load, even when user models opt in to strict
     ///     (Error) unresolved-reference severity.

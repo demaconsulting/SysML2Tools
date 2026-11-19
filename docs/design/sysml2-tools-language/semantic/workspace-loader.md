@@ -73,9 +73,11 @@ The severity of an unresolved reference in a user file is chosen once, in `LoadA
 - The portability Warning for a SysML2Tools extension `render` selector is independent of this
   policy and stays a `Warning` either way.
 
-The default is `Warning` while name resolution has known gaps (dotted feature chains, and
-kernel/library features that the resolver does not model), which would otherwise report errors
-for valid models. These gaps are tracked by issue #93 and #129. The
+The default is `Warning` while name resolution has known gaps (dotted feature chains, synthetic
+action-node names, and a few single-reference shapes), which would otherwise report errors
+for valid models: the OMG example corpus still reports 94 strict-mode errors in 36 of its 251
+files, 66 of them dotted feature chains. These gaps are tracked by issue #129 (implicit
+specialization, #93, is modeled for lookup). The
 plan is: once the OMG example corpus produces close to zero strict-mode errors, flip
 `DefaultUserUnresolvedSeverity` to `Error` and replace the `--strict-unresolved` option with an
 opt-out (for example, a flag that downgrades unresolved references to warnings).

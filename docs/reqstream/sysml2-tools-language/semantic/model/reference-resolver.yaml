@@ -279,11 +279,13 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-InheritedTransitionSource
         title: >-
           ReferenceResolver.ResolveFeatureChains shall, when resolving a SysmlTransitionNode's
-          Source or Target, fall back to a narrowly-scoped inherited-action-member lookup
-          (TryResolveInheritedActionMember, reusing FindMemberInAncestorChain and
-          FindMemberInTypeHierarchy) after the standard feature-chain resolution fails, so that
-          the standard `start` and `done` pseudo-features resolve without an unresolved-reference
-          warning, while any other unresolved name still warns.
+          Source or Target, resolve the standard `start` and `done` pseudo-features without an
+          unresolved-reference warning and with the Actions::Action member as the edge endpoint
+          (canonicalizing a library `start`/`done` that ordinary lookup finds through implicit
+          specialization, and falling back to a narrowly-scoped inherited-action-member lookup —
+          TryResolveInheritedActionMember, reusing FindMemberInAncestorChain and
+          FindMemberInTypeHierarchy — when the standard feature-chain resolution fails), while
+          any other unresolved name still warns and a user-declared `start` is never replaced.
         justification: |
           A transition's implicit source (e.g. `first start then off;`, or the bare `start`
           feature an attached transition's synthesized Source implicitly names) and its completion
@@ -298,10 +300,15 @@ sections:
           resolves against the standard library's `Actions::Action` direct children when no
           user-declared supertype supplies the member, covering the common case of a `state def`
           with no explicit `:>` clause (whose implicit ultimate supertype is `Actions::Action`).
-          This is the minimal approach that yields the targets implicit specialization (#93)
-          would; it is intentionally not a general implicit-generalization/default-supertype
-          resolver: it is scoped to Transition Source and Target resolution only, and to the two
-          well-known pseudostate-derived names.
+          NameResolver now models implicit specialization (#93) for lookup, so ordinary
+          resolution finds the library's own `start`/`done` (for a state, the
+          States::StateAction members); implicit specializations are never edges, and the
+          exported Transition edges have always targeted Actions::Action::start/done, so a
+          library `start`/`done` found by ordinary lookup is canonicalized to that same target
+          to keep exports, queries and renderings byte-stable (a compatibility rule that can be
+          dropped, with a golden-file refresh, to follow the library members exactly). It is
+          scoped to Transition Source and Target resolution only, and to the two well-known
+          pseudostate-derived names.
         tests:
           - WorkspaceLoader_LoadAsync_TransitionSourceStartFeature_ResolvesToStdlibActionMember
           - WorkspaceLoader_LoadAsync_StartSource_InActionBody_ResolvesToStdlibActionMember
@@ -310,6 +317,9 @@ sections:
           - WorkspaceLoader_LoadAsync_DoneTarget_OutsideActionOrState_StillWarns
           - WorkspaceLoader_LoadAsync_PrivateInheritedMemberAsSuccessionTarget_StillWarns
           - WorkspaceLoader_LoadAsync_DoneTarget_InPartDefSpecializingPart_DoesNotUseActionFallback
+          - WorkspaceLoader_LoadAsync_DoneTarget_InPartDefWithImplicitPart_Resolves
+          - WorkspaceLoader_LoadAsync_StateStartAndDone_KeepLegacyActionTargets
+          - WorkspaceLoader_LoadAsync_UserDeclaredStartState_IsNotCanonicalized
           - Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-EdgeRawReference
@@ -389,6 +399,7 @@ sections:
           - WorkspaceLoader_DefaultUnresolvedSeverity_IsWarning
           - ReferenceResolver_ResolveAll_WarningSeverity_UnresolvedReferenceIsWarning
           - GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings
+          - GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling
           - CustomAndTestCaseModels_AllModels_LoadWithZeroDiagnostics
           - SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline
 

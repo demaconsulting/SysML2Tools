@@ -20,6 +20,19 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 ///     <c>importFilter</c> predicate; without one, an import's filter conditions are ignored.
 ///     Results are cached per instance, so one instance should be used per loaded workspace.
 ///     <para>
+///     Inherited memberships also follow the <em>implicit</em> specializations KerML and SysML
+///     give every kind of element (a part definition specializes <c>Parts::Part</c>, a part usage
+///     subsets <c>Parts::parts</c>, a state definition specializes <c>States::StateAction</c>, a
+///     variant its variation, a usage typed by a conjugated port definition that port definition,
+///     and so on): they are appended after the declared general types, so library members such as
+///     <c>self</c>, <c>start</c> or <c>shape</c> resolve without an explicit supertype, and an
+///     explicit supertype wins a name conflict. Implicit specializations are lookup input only —
+///     never <see cref="SysmlEdge"/>s and not part of the public <see cref="GeneralTypes"/> — so
+///     renderers, queries and exports see exactly the declared relationships. Features a type's
+///     own named features redefine are not inherited (KerML <c>removeRedefinedFeatures</c>),
+///     except when the target of a redefinition is being resolved.
+///     </para>
+///     <para>
 ///     <see cref="ReferenceResolver"/> uses an internal <em>resolving</em> mode while the
 ///     workspace's edges are still being attached: general types are then derived only from each
 ///     type's raw references (never from <see cref="SysmlNode.ResolvedEdges"/>), which makes
@@ -39,6 +52,12 @@ public sealed class NameResolver
         /// <summary>Memberships a specialization inherits: everything except private.</summary>
         Inheritable,
 
+        /// <summary>
+        ///     As <see cref="Inheritable"/>, for resolving the target of a redefinition: members
+        ///     the general types' own features redefine are still found.
+        /// </summary>
+        RedefinitionTarget,
+
         /// <summary>Visible resolution: public memberships only.</summary>
         Visible,
     }
@@ -50,7 +69,137 @@ public sealed class NameResolver
     private readonly HashSet<(string Name, string Namespace, Scope Scope)> _inProgress = new();
     private readonly Dictionary<string, IReadOnlyList<string>> _declaredGeneralTypes = new(StringComparer.Ordinal);
     private readonly HashSet<string> _declaredGeneralTypesInProgress = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, HashSet<string>> _redefinedMembers = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _redefinedMembersInProgress = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<SysmlImportNode>> _rootImportsByDeclaration = new(StringComparer.Ordinal);
+
+    // Implicit specialization tables (KerML 7.3.4 / SysML v2 default general types).
+    // Source: the OMG Pilot Implementation's ImplicitGeneralizationMap
+    // (org.omg.sysml.logic/.../util/ImplicitGeneralizationMap.java) and the "Default general
+    // types" clauses of KerML 9.2 / SysML 8.3 for each kind, restricted to the targets the
+    // vendored standard library declares. The keys are the DefinitionKeyword/FeatureKeyword
+    // strings AstBuilder emits; a usage keyword with no row falls back to UnmappedFeatureType.
+
+    /// <summary>The library type every view (definition or usage) implicitly specializes.</summary>
+    private const string ViewImplicitType = "Views::View";
+
+    /// <summary>The library type every viewpoint definition implicitly specializes.</summary>
+    private const string ViewpointImplicitType = "Views::ViewpointCheck";
+
+    /// <summary>The library feature a usage with no keyword row implicitly subsets.</summary>
+    private const string UnmappedFeatureType = "Base::things";
+
+    /// <summary>The library types a definition implicitly specializes, by definition keyword.</summary>
+    private static readonly Dictionary<string, string[]> DefinitionImplicitTypes = new(StringComparer.Ordinal)
+    {
+        ["part def"] = ["Parts::Part"],
+        ["item def"] = ["Items::Item"],
+        ["port def"] = ["Ports::Port"],
+        ["attribute def"] = ["Base::DataValue"],
+        ["enum def"] = ["Base::DataValue"],
+        ["action def"] = ["Actions::Action"],
+        ["state def"] = ["States::StateAction"],
+        ["calc def"] = ["Calculations::Calculation"],
+        ["constraint def"] = ["Constraints::ConstraintCheck"],
+        ["requirement def"] = ["Requirements::RequirementCheck"],
+        ["concern def"] = ["Requirements::ConcernCheck"],
+        ["case def"] = ["Cases::Case"],
+        ["analysis def"] = ["AnalysisCases::AnalysisCase"],
+        ["verification def"] = ["VerificationCases::VerificationCase"],
+        ["use case def"] = ["UseCases::UseCase"],
+        ["connection def"] = ["Connections::Connection"],
+        ["interface def"] = ["Interfaces::Interface"],
+        ["allocation def"] = ["Allocations::Allocation"],
+        ["flow def"] = ["Flows::MessageAction"],
+        ["occurrence def"] = ["Occurrences::Occurrence"],
+        ["individual def"] = ["Occurrences::Occurrence"],
+        ["metadata def"] = ["Metadata::MetadataItem"],
+        ["rendering def"] = ["Views::Rendering"],
+        ["class"] = ["Occurrences::Occurrence"],
+        ["struct"] = ["Objects::Object"],
+        ["assoc struct"] = ["Objects::LinkObject"],
+        ["assoc"] = ["Links::Link"],
+        ["datatype"] = ["Base::DataValue"],
+        ["classifier"] = ["Base::Anything"],
+        ["type"] = ["Base::Anything"],
+        ["metaclass"] = ["Metaobjects::Metaobject"],
+        ["behavior"] = ["Performances::Performance"],
+        ["function"] = ["Performances::Evaluation"],
+        ["predicate"] = ["Performances::BooleanEvaluation"],
+        ["interaction"] = ["Links::Link", "Performances::Performance"],
+    };
+
+    /// <summary>The library features a usage implicitly subsets, by usage keyword.</summary>
+    private static readonly Dictionary<string, string[]> FeatureImplicitTypes = new(StringComparer.Ordinal)
+    {
+        ["part"] = ["Parts::parts"],
+        ["actor"] = ["Parts::parts"],
+        ["stakeholder"] = ["Parts::parts"],
+        ["port"] = ["Ports::ports"],
+        ["item"] = ["Items::items"],
+        ["attribute"] = ["Base::dataValues"],
+        ["enum"] = ["Base::dataValues"],
+        ["enum value"] = ["Base::dataValues"],
+        ["action"] = ["Actions::actions"],
+        ["entry"] = ["Actions::actions"],
+        ["do"] = ["Actions::actions"],
+        ["exit"] = ["Actions::actions"],
+        ["merge"] = ["Actions::actions"],
+        ["decide"] = ["Actions::actions"],
+        ["join"] = ["Actions::actions"],
+        ["fork"] = ["Actions::actions"],
+        ["accept"] = ["Actions::acceptActions"],
+        ["send"] = ["Actions::sendActions"],
+        ["terminate"] = ["Actions::terminateActions"],
+        ["state"] = ["States::stateActions"],
+        ["calc"] = ["Calculations::calculations"],
+        ["constraint"] = ["Constraints::constraintChecks"],
+        ["assume constraint"] = ["Constraints::constraintChecks"],
+        ["require constraint"] = ["Constraints::constraintChecks"],
+        ["requirement"] = ["Requirements::requirementChecks"],
+        ["concern"] = ["Requirements::concernChecks"],
+        ["case"] = ["Cases::cases"],
+        ["analysis"] = ["AnalysisCases::analysisCases"],
+        ["verification"] = ["VerificationCases::verificationCases"],
+        ["use case"] = ["UseCases::useCases"],
+        ["rendering"] = ["Views::renderings"],
+        ["occurrence"] = ["Occurrences::occurrences"],
+        ["event occurrence"] = ["Occurrences::occurrences"],
+        ["step"] = ["Performances::performances"],
+        ["expr"] = ["Performances::evaluations"],
+        ["bool"] = ["Performances::booleanEvaluations"],
+        ["inv"] = ["Performances::trueEvaluations"],
+        ["connector"] = ["Links::links"],
+        ["binding"] = ["Links::selfLinks"],
+        ["succession"] = ["Occurrences::happensBeforeLinks"],
+        ["flow"] = ["Transfers::flowTransfers", "Transfers::transfers"],
+        ["succession flow"] =
+        [
+            "Transfers::flowTransfersBefore", "Transfers::flowTransfers", "Transfers::transfers",
+            "Occurrences::happensBeforeLinks",
+        ],
+    };
+
+    /// <summary>
+    ///     The library features a connection-like usage (<see cref="SysmlConnectionNode"/>)
+    ///     implicitly subsets, by connection keyword. Each row starts with the specification's
+    ///     default (e.g. <c>Flows::flows</c> for a flow usage) and continues with that feature's
+    ///     own subsetted features. The library declares its connection-like features
+    ///     (<c>Connections::connections</c>, <c>Flows::flows</c>, <c>Transfers::flowTransfers</c>, ...)
+    ///     with connection syntax, which <see cref="SysmlConnectionNode"/> records without any
+    ///     supertypes or typing, so the default alone is a lookup dead end; the listed ancestors
+    ///     (<c>Parts::parts</c>, <c>Transfers::transfers</c>, <c>Actions::actions</c>, ...) are the
+    ///     nearest ones that do carry members.
+    /// </summary>
+    private static readonly Dictionary<string, string[]> ConnectionImplicitTypes = new(StringComparer.Ordinal)
+    {
+        ["connection"] = ["Connections::connections", "Parts::parts"],
+        ["interface"] = ["Interfaces::interfaces", "Connections::connections", "Parts::parts"],
+        ["allocation"] = ["Allocations::allocations", "Connections::connections", "Parts::parts"],
+        ["message"] = ["Flows::messages", "Transfers::transfers", "Actions::actions"],
+        ["flow"] = ["Flows::flows", "Flows::messages", "Transfers::flowTransfers", "Transfers::transfers", "Actions::actions"],
+        ["binding"] = ["Links::selfLinks"],
+    };
 
     /// <summary>
     ///     Initializes a new resolver over the given declarations.
@@ -171,13 +320,13 @@ public sealed class NameResolver
         ArgumentNullException.ThrowIfNull(reference);
         ArgumentNullException.ThrowIfNull(owningType);
         var segments = SplitSegments(reference);
-        foreach (var general in GeneralTypes(owningType))
+        foreach (var general in LookupGeneralTypes(owningType))
         {
             // The redefining feature inherits from the general type, so a bare name is looked up
             // among the general type's inheritable memberships (not its private ones); the
             // enclosing namespaces and the qualified-name segments resolve as usual.
             var resolved = segments is [var bare] && bare != "$"
-                ? FullResolve(bare, general, null, Scope.Inheritable)
+                ? FullResolve(bare, general, null, Scope.RedefinitionTarget)
                 : Resolve(reference, general);
             if (resolved is not null)
             {
@@ -194,7 +343,10 @@ public sealed class NameResolver
     ///     qualified target such as <c>:&gt;&gt; ISQ::mass</c> still resolves in a type with no
     ///     resolvable general types — otherwise by ordinary resolution from the owning type. The
     ///     redefining feature itself (which the owning type owns under the same name for the
-    ///     dominant bare <c>:&gt;&gt; name</c> shape) is never an acceptable target.
+    ///     dominant bare <c>:&gt;&gt; name</c> shape) is never an acceptable target; when ordinary
+    ///     resolution finds only that feature, the reference is resolved again from the owning
+    ///     type's own owner, so an unnamed redefinition of a member of an enclosing or sibling
+    ///     feature (<c>part :&gt;&gt; part1;</c> inside a nested usage) reaches that member.
     /// </summary>
     /// <param name="reference">The redefined feature's (possibly qualified) name.</param>
     /// <param name="owningType">The redefining feature's owning type's qualified name, or empty at the file root.</param>
@@ -209,9 +361,21 @@ public sealed class NameResolver
             return redefined;
         }
 
-        return Resolve(reference, owningType, fileRootImports) is { } fallback && fallback != redefiningFeature
-            ? fallback
-            : null;
+        var ordinary = Resolve(reference, owningType, fileRootImports);
+        if (ordinary is not null && ordinary != redefiningFeature)
+        {
+            return ordinary;
+        }
+
+        // Only the redefining feature itself was found: the owning type owns it under the
+        // redefined name, so look past it in the enclosing namespaces.
+        if (ordinary is not null && OwnerOf(owningType) is { } outer &&
+            Resolve(reference, outer, fileRootImports) is { } outward && outward != redefiningFeature)
+        {
+            return outward;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -259,6 +423,126 @@ public sealed class NameResolver
             .Where(target => target != typeName)
             .Distinct(StringComparer.Ordinal)
             .ToList();
+    }
+
+    /// <summary>
+    ///     The qualified names of every library type or feature an element can implicitly
+    ///     specialize (the values of the implicit-specialization tables, plus the shared
+    ///     <c>Base::things</c> fallback), for tests that guard the tables against library drift.
+    /// </summary>
+    internal static IReadOnlyCollection<string> ImplicitSpecializationTargets { get; } =
+        DefinitionImplicitTypes.Values
+            .Concat(FeatureImplicitTypes.Values)
+            .Concat(ConnectionImplicitTypes.Values)
+            .SelectMany(targets => targets)
+            .Append(UnmappedFeatureType)
+            .Append(ViewImplicitType)
+            .Append(ViewpointImplicitType)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>
+    ///     The general types lookup uses for <paramref name="typeName"/>: its declared general
+    ///     types (<see cref="GeneralTypes"/>) followed by the library types its kind implicitly
+    ///     specializes (KerML 7.3.4/SysML default general types), a variant's owning variation, and
+    ///     the type of a conjugated typing. Implicit entries come last so an explicit supertype
+    ///     wins a name conflict; one that is the type itself, already declared, or absent from the
+    ///     loaded declarations (a workspace without the standard library) is skipped.
+    /// </summary>
+    /// <remarks>
+    ///     Implicit specializations are deliberately not <see cref="SysmlEdge"/>s and not part of
+    ///     the public <see cref="GeneralTypes"/>: they only feed name lookup, so renderers, queries
+    ///     and exports see exactly the declared relationships.
+    /// </remarks>
+    /// <param name="typeName">The type's qualified name.</param>
+    /// <returns>The lookup general types' qualified names, without duplicates.</returns>
+    internal IReadOnlyList<string> LookupGeneralTypes(string typeName)
+    {
+        var declared = GeneralTypes(typeName);
+        if (!_declarations.TryGetValue(typeName, out var node))
+        {
+            return declared;
+        }
+
+        List<string>? result = null;
+        foreach (var candidate in ImplicitGeneralTypes(typeName, node))
+        {
+            if (candidate == typeName || !_declarations.ContainsKey(candidate) || declared.Contains(candidate) ||
+                (result is not null && result.Contains(candidate)))
+            {
+                continue;
+            }
+
+            result ??= [.. declared];
+            result.Add(candidate);
+        }
+
+        return result ?? declared;
+    }
+
+    /// <summary>
+    ///     The candidate implicit general types of a node: the library types its definition or
+    ///     usage keyword names in the implicit-specialization tables, the owning variation of a
+    ///     variant, and the port definition of a conjugated typing (resolved relative to the
+    ///     owning namespace like any declared reference). Candidates are not yet filtered for
+    ///     existence, self-reference or duplicates.
+    /// </summary>
+    private IEnumerable<string> ImplicitGeneralTypes(string typeName, SysmlNode node)
+    {
+        switch (node)
+        {
+            case SysmlDefinitionNode definition:
+                if (DefinitionImplicitTypes.TryGetValue(definition.DefinitionKeyword, out var definitionTypes))
+                {
+                    return definitionTypes;
+                }
+
+                return [];
+
+            case SysmlViewNode:
+                return [ViewImplicitType];
+
+            case SysmlViewpointNode:
+                return [ViewpointImplicitType];
+
+            case SysmlFeatureNode feature:
+                return ImplicitFeatureGeneralTypes(typeName, feature);
+
+            case SysmlConnectionNode connection:
+                return ConnectionImplicitTypes.TryGetValue(connection.ConnectionKeyword, out var connectionTypes)
+                    ? connectionTypes
+                    : [UnmappedFeatureType];
+
+            default:
+                return [];
+        }
+    }
+
+    /// <summary>The candidate implicit general types of a usage (see <see cref="ImplicitGeneralTypes"/>).</summary>
+    private List<string> ImplicitFeatureGeneralTypes(string typeName, SysmlFeatureNode feature)
+    {
+        var result = new List<string>();
+        if (feature.IsVariant && OwnerOf(typeName) is { } variation)
+        {
+            result.Add(variation);
+        }
+
+        if (feature.ConjugatedFeatureTyping is { Length: > 0 } conjugated &&
+            Resolve(conjugated, OwnerOf(typeName), RootImportsOf(typeName)) is { } conjugatedType)
+        {
+            result.Add(conjugatedType);
+        }
+
+        if (FeatureImplicitTypes.TryGetValue(feature.FeatureKeyword, out var featureTypes))
+        {
+            result.AddRange(featureTypes);
+        }
+        else
+        {
+            result.Add(UnmappedFeatureType);
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -477,17 +761,65 @@ public sealed class NameResolver
         }
 
         // Inherited memberships of a type: the non-private memberships of its general types
-        // (only the public ones for visible resolution).
-        var inheritedScope = scope == Scope.Visible ? Scope.Visible : Scope.Inheritable;
-        foreach (var general in GeneralTypes(namespaceName))
+        // (only the public ones for visible resolution), explicit and implicit alike, except the
+        // features the type's own features redefine (KerML Type::removeRedefinedFeatures). The
+        // targets of a redefinition are resolved without that exclusion: a library association
+        // routinely redefines a name its general type's own feature already redefined.
+        var inheritedScope = scope switch
         {
-            if (Lookup(name, general, inheritedScope) is { } inherited)
+            Scope.Visible => Scope.Visible,
+            Scope.RedefinitionTarget => Scope.RedefinitionTarget,
+            _ => Scope.Inheritable,
+        };
+        foreach (var general in LookupGeneralTypes(namespaceName))
+        {
+            if (Lookup(name, general, inheritedScope) is { } inherited &&
+                (scope == Scope.RedefinitionTarget || !IsRedefinedByOwnedFeature(ns, namespaceName, inherited)))
             {
                 return inherited;
             }
         }
 
         return null;
+    }
+
+    /// <summary>
+    ///     Returns whether a feature owned by <paramref name="ns"/> redefines the inherited member
+    ///     <paramref name="member"/>, which therefore is not among <paramref name="ns"/>'s inherited
+    ///     memberships. The redefined targets of the namespace's owned features are resolved once
+    ///     per namespace (strictly, against its general types); a namespace re-entered while its own
+    ///     targets are being resolved (a specialization cycle) hides nothing.
+    /// </summary>
+    private bool IsRedefinedByOwnedFeature(SysmlNode ns, string namespaceName, string member)
+    {
+        if (!_redefinedMembers.TryGetValue(namespaceName, out var redefined))
+        {
+            if (!_redefinedMembersInProgress.Add(namespaceName))
+            {
+                return false;
+            }
+
+            try
+            {
+                redefined = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var child in ns.Children)
+                {
+                    if (child is SysmlFeatureNode { RedefinedFeatureName: { Length: > 0 } reference, Name: { Length: > 0 } } &&
+                        ResolveRedefinedFeature(reference, namespaceName) is { } target)
+                    {
+                        redefined.Add(target);
+                    }
+                }
+
+                _redefinedMembers[namespaceName] = redefined;
+            }
+            finally
+            {
+                _redefinedMembersInProgress.Remove(namespaceName);
+            }
+        }
+
+        return redefined.Count > 0 && redefined.Contains(member);
     }
 
     /// <summary>
@@ -607,7 +939,7 @@ public sealed class NameResolver
     private static bool Admits(SysmlVisibility visibility, Scope scope) => scope switch
     {
         Scope.Local => true,
-        Scope.Inheritable => visibility != SysmlVisibility.Private,
+        Scope.Inheritable or Scope.RedefinitionTarget => visibility != SysmlVisibility.Private,
         _ => visibility == SysmlVisibility.Public,
     };
 

@@ -9,6 +9,11 @@ internal build/resolve implementation of the semantic loading pipeline (`AstBuil
 ten units: `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `NameResolver`, `SupertypeWalker`,
 `SysmlNode`, `SysmlMetadataNode`, `SysmlEdge`, `SemanticIndex`, and `SysmlAnnotation`.
 
+`SysmlEdge` records only relationships a model declares. The implicit specializations the language
+gives every element (a part definition's `Parts::Part`, a part usage's `Parts::parts`, and so on)
+are applied by `NameResolver` to name lookup only and are never `SysmlEdge`s, so renderers, queries
+and exports are unaffected by them.
+
 #### Interfaces
 
 **`AstBuilder.Build(RootNamespaceContext)`**: Transforms the ANTLR4 CST root into a typed AST root.

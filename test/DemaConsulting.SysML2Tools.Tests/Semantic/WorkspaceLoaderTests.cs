@@ -7827,13 +7827,37 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     A name <c>done</c> used as a succession target outside a state or action (here a part
-    ///     definition) is not given the pseudo-feature fallback and is still reported.
+    ///     A name <c>done</c> used as a succession target outside a state or action (here an
+    ///     occurrence definition, which inherits no <c>done</c>) is not given the pseudo-feature
+    ///     fallback and is still reported.
     /// </summary>
     [Fact]
     public async Task WorkspaceLoader_LoadAsync_DoneTarget_OutsideActionOrState_StillWarns()
     {
-        // Arrange / Act: a succession inside a part def is not an action body
+        // Arrange / Act: a succession inside an occurrence def is not an action body, and
+        // Occurrences::Occurrence has no 'done' member to inherit
+        var result = await LoadModelsAsync("""
+            package P {
+                occurrence def Q {
+                    action step;
+                    first step then done;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Contains(result.Diagnostics, d => d.Message == "Unresolved reference: 'done'");
+    }
+
+    /// <summary>
+    ///     <c>then done</c> inside a part definition with no written specialization resolves through
+    ///     ordinary inherited lookup, because a part definition implicitly specializes
+    ///     <c>Parts::Part</c>; the pseudo-feature fallback (<c>Actions::Action::done</c>) is not used.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DoneTarget_InPartDefWithImplicitPart_Resolves()
+    {
+        // Arrange / Act
         var result = await LoadModelsAsync("""
             package P {
                 part def Q {
@@ -7844,7 +7868,89 @@ public sealed class WorkspaceLoaderTests
             """);
 
         // Assert
-        Assert.Contains(result.Diagnostics, d => d.Message == "Unresolved reference: 'done'");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message == "Unresolved reference: 'done'");
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "P::Q::step", "Parts::Part::done"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Transition, "P::Q::step", "Actions::Action::done"));
+    }
+
+    /// <summary>
+    ///     A state definition's <c>start</c>/<c>done</c> resolve (through the implicit
+    ///     <c>States::StateAction</c> specialization) to a library member, and the transition edge
+    ///     keeps the legacy <c>Actions::Action::start</c>/<c>done</c> target — the compatibility
+    ///     canonicalization that keeps exported edges stable.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_StateStartAndDone_KeepLegacyActionTargets()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                state def S {
+                    entry; then idle;
+                    state idle;
+                    transition first idle then done;
+                }
+                state s {
+                    first start then run;
+                    state run;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference", StringComparison.Ordinal));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "P::S::idle", "Actions::Action::done"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "Actions::Action::start", "P::s::run"));
+        Assert.DoesNotContain(
+            result.Workspace!.Index.AllEdges,
+            e => e.Kind == SysmlEdgeKind.Transition &&
+                 (e.SourceQualifiedName?.StartsWith("States::", StringComparison.Ordinal) == true ||
+                  e.TargetQualifiedName.StartsWith("States::", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    ///     The legacy canonicalization applies only to library members: a state the model itself
+    ///     names <c>start</c> is the transition source, untouched.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UserDeclaredStartState_IsNotCanonicalized()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                state def S {
+                    state start;
+                    state next;
+                    transition first start then next;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "P::S::start", "P::S::next"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Transition, "Actions::Action::start", "P::S::next"));
+    }
+
+    /// <summary>
+    ///     Implicit specializations are not declared relationships, so a model made only of them
+    ///     (no written supertype anywhere) produces no cyclic-specialization warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ImplicitSpecializationsOnly_NoCycleWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def A; item def I; port def Q; action def Run; state def S; requirement def R;
+                part a : A; item i : I; port q : Q; action run : Run; state s : S; requirement r : R;
+                part spare; attribute x;
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(
+            result.Diagnostics, d => d.Message.StartsWith("Cyclic specialization", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
     /// <summary>

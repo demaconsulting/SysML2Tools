@@ -22,10 +22,13 @@ external services or additional configuration are required beyond a standard .NE
 - Symbols with no supertypes are processed without producing any diagnostic.
 - The cyclic-specialization Warning names the declaring file and is located at the supertype
   reference that closes the cycle.
+- A model made only of implicit specializations (no declared supertype) produces no
+  cyclic-specialization Warning.
 
 ##### Test Scenarios
 
 | Scenario | Verified By |
 | --- | --- |
 | Cycle Warning file and position | `WorkspaceLoader_LoadAsync_CyclicSpecialization_ReportsFileAndPosition` |
+| Implicit specializations not walked | `WorkspaceLoader_LoadAsync_ImplicitSpecializationsOnly_NoCycleWarning` |
 | Resolved chain — no Warning | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |

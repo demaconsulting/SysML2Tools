@@ -1,0 +1,7 @@
+Import||ScalarValues::Boolean|ScalarValues::Boolean
+Transition|Actions::Action::start|Heater::HeaterStates::standby|
+Transition|Heater::HeaterStates::cooling|Actions::Action::done|
+Transition|Heater::HeaterStates::cooling|Heater::HeaterStates::standby|
+Transition|Heater::HeaterStates::heating|Heater::HeaterStates::cooling|
+Transition|Heater::HeaterStates::standby|Heater::HeaterStates::heating|
+Typing|Heater::HeaterStates::tempLow|ScalarValues::Boolean|Boolean

@@ -477,9 +477,9 @@ require/assume constraint members) and case-kind (`case`, `analysis`, `verificat
 and `calc` usage builders, so a `requirement r : R;` keeps `R` as its `FeatureTyping` and the
 resolver records the `Typing` edge that the General view draws as a `r : R` label and a
 feature-typing edge (#113). Redefinition and subsetting clauses of these usages are deliberately
-not captured: resolving them needs the implicit specialization of actions, states and
-requirements (#93), and capturing them now would only add unresolved-reference diagnostics for valid
-models. The case-kind and `calc` usage builders (`BuildCaseUsageNode`,
+not captured: `NameResolver` models implicit specialization (#93) for lookup only, and capturing them
+is deferred until the remaining resolver gaps (#129) are closed, since it would now add only the
+unresolved-reference diagnostics those gaps produce for valid models. The case-kind and `calc` usage builders (`BuildCaseUsageNode`,
 `VisitCalculationUsage`) mirror the definition-side builders: they capture the name, the
 typing and multiplicity and (for the case kinds) the nested verified-requirement names, but do not
 collect the body's other members. Before this change those usages produced no node at all.
@@ -755,8 +755,8 @@ reference is skipped, which is what keeps valid models free of false diagnostics
 - named-argument names, redefinitions, and everything inside a nested body (`{ ... }`,
   `ActionBodyContext`, `BodyExpressionContext`), whose names are declared locally;
 - the implicit feature names `self`, `that`, `start`, `done` (`ImplicitFeatureNames`), which every
-  occurrence/action inherits; implicit specialization (#93) is not modeled, so name resolution
-  cannot see them;
+  occurrence/action inherits; they are exempt from reporting because expression references are
+  syntactic captures not resolved against the implicit general types;
 - the names the construct declares for itself: an `accept` payload's own name
   (`DeclaredPayloadNames`, usable by the same transition's guard and effect), a constraint body's
   own parameters and local usages (`NamesDeclaredWithin`), and the names of bare usages
