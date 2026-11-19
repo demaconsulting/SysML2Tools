@@ -501,6 +501,15 @@ public sealed class NameResolverTests
     [InlineData("inv X;", "P::X", "Performances::trueEvaluations")]
     [InlineData("connector X;", "P::X", "Links::links")]
     [InlineData("feature a; feature b; binding X of a = b;", "P::X", "Links::selfLinks")]
+    [InlineData("class C { feature a; feature b; succession X first a then b; }", "P::C::X", "Occurrences::happensBeforeLinks")]
+    [InlineData("class C { feature a; feature b; flow X from a to b; }", "P::C::X", "Transfers::flowTransfers")]
+    [InlineData("class C { feature a; feature b; succession flow X from a to b; }", "P::C::X", "Transfers::flowTransfersBefore")]
+    [InlineData("part a; part b; connection X connect a to b;", "P::X", "Connections::connections")]
+    [InlineData("part a; part b; interface X connect a to b;", "P::X", "Interfaces::interfaces")]
+    [InlineData("part a; part b; allocation X allocate a to b;", "P::X", "Allocations::allocations")]
+    [InlineData("part a; part b; message X from a to b;", "P::X", "Flows::messages")]
+    [InlineData("part a; part b; flow X from a to b;", "P::X", "Flows::flows")]
+    [InlineData("part a; part b; binding X bind a = b;", "P::X", "Links::selfLinks")]
     public async Task NameResolver_ImplicitSpecialization_PerKind_AddsLibraryGeneralType(
         string body, string element, string expected)
     {
@@ -566,6 +575,14 @@ public sealed class NameResolverTests
     [InlineData("requirement X;", "P::X", "assumptions", "Requirements::RequirementCheck::assumptions")]
     [InlineData("occurrence X;", "P::X", "successors", "Occurrences::Occurrence::successors")]
     [InlineData("rendering X;", "P::X", "ownedPorts", "Parts::Part::ownedPorts")]
+    [InlineData("class C { feature a; feature b; flow X from a to b; }", "P::C::X", "payload", "Transfers::Transfer::payload")]
+    [InlineData("class C { feature a; feature b; succession flow X from a to b; }", "P::C::X", "payload", "Transfers::Transfer::payload")]
+    [InlineData("part a; part b; connection X connect a to b;", "P::X", "ownedPorts", "Parts::Part::ownedPorts")]
+    [InlineData("part a; part b; interface X connect a to b;", "P::X", "ownedPorts", "Parts::Part::ownedPorts")]
+    [InlineData("part a; part b; allocation X allocate a to b;", "P::X", "ownedPorts", "Parts::Part::ownedPorts")]
+    [InlineData("part a; part b; binding X bind a = b;", "P::X", "participant", "Links::Link::participant")]
+    [InlineData("part a; part b; message X from a to b;", "P::X", "payload", "Transfers::Transfer::payload")]
+    [InlineData("part a; part b; flow X from a to b;", "P::X", "payload", "Transfers::Transfer::payload")]
     public async Task NameResolver_ImplicitSpecialization_PerKind_MemberResolves(
         string body, string element, string member, string expected)
     {

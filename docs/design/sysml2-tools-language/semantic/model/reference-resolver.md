@@ -191,8 +191,9 @@ redefinition" pass is therefore gone.
   and usage kind specializes or subsets its library type, a variant its variation, and a
   conjugated-port-typed usage its port definition), so a redefinition of a member that exists only
   on an implicit general type resolves. Implicit specializations are never `SysmlEdge`s. Not
-  modeled (unobservable or indistinguishable in the AST): the connection-like and metadata usage
-  nodes, time slices and snapshots, `individual` → `Occurrences::Life`, and viewpoint usages. The
+  modeled (unobservable or indistinguishable in the AST): the transition, satisfy, dependency and
+  metadata usage nodes, time slices and snapshots, `individual` → `Occurrences::Life`, and
+  viewpoint usages (connection-like usages are modeled; see the name resolver design). The
   remaining resolver gaps are dotted feature chains, the synthetic `$fork0`-style node names, and
   a few single-reference shapes (issue #129).
 - The layouts' `NameResolver` (public mode) does not see file-root imports; they rely on the

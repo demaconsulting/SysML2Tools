@@ -172,7 +172,33 @@ public sealed class NameResolver
         ["connector"] = ["Links::links"],
         ["binding"] = ["Links::selfLinks"],
         ["succession"] = ["Occurrences::happensBeforeLinks"],
-        ["flow"] = ["Transfers::transfers"],
+        ["flow"] = ["Transfers::flowTransfers", "Transfers::transfers"],
+        ["succession flow"] =
+        [
+            "Transfers::flowTransfersBefore", "Transfers::flowTransfers", "Transfers::transfers",
+            "Occurrences::happensBeforeLinks",
+        ],
+    };
+
+    /// <summary>
+    ///     The library features a connection-like usage (<see cref="SysmlConnectionNode"/>)
+    ///     implicitly subsets, by connection keyword. Each row starts with the specification's
+    ///     default (e.g. <c>Flows::flows</c> for a flow usage) and continues with that feature's
+    ///     own subsetted features. The library declares its connection-like features
+    ///     (<c>Connections::connections</c>, <c>Flows::flows</c>, <c>Transfers::flowTransfers</c>, ...)
+    ///     with connection syntax, which <see cref="SysmlConnectionNode"/> records without any
+    ///     supertypes or typing, so the default alone is a lookup dead end; the listed ancestors
+    ///     (<c>Parts::parts</c>, <c>Transfers::transfers</c>, <c>Actions::actions</c>, ...) are the
+    ///     nearest ones that do carry members.
+    /// </summary>
+    private static readonly Dictionary<string, string[]> ConnectionImplicitTypes = new(StringComparer.Ordinal)
+    {
+        ["connection"] = ["Connections::connections", "Parts::parts"],
+        ["interface"] = ["Interfaces::interfaces", "Connections::connections", "Parts::parts"],
+        ["allocation"] = ["Allocations::allocations", "Connections::connections", "Parts::parts"],
+        ["message"] = ["Flows::messages", "Transfers::transfers", "Actions::actions"],
+        ["flow"] = ["Flows::flows", "Flows::messages", "Transfers::flowTransfers", "Transfers::transfers", "Actions::actions"],
+        ["binding"] = ["Links::selfLinks"],
     };
 
     /// <summary>
@@ -407,6 +433,7 @@ public sealed class NameResolver
     internal static IReadOnlyCollection<string> ImplicitSpecializationTargets { get; } =
         DefinitionImplicitTypes.Values
             .Concat(FeatureImplicitTypes.Values)
+            .Concat(ConnectionImplicitTypes.Values)
             .SelectMany(targets => targets)
             .Append(UnmappedFeatureType)
             .Append(ViewImplicitType)
@@ -480,6 +507,11 @@ public sealed class NameResolver
 
             case SysmlFeatureNode feature:
                 return ImplicitFeatureGeneralTypes(typeName, feature);
+
+            case SysmlConnectionNode connection:
+                return ConnectionImplicitTypes.TryGetValue(connection.ConnectionKeyword, out var connectionTypes)
+                    ? connectionTypes
+                    : [UnmappedFeatureType];
 
             default:
                 return [];

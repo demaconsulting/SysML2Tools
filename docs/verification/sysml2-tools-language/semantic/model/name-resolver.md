@@ -22,7 +22,10 @@ created in `Path.GetTempPath()` and deleted after each test.
 - Every definition and usage kind implicitly specializes its standard library type for lookup (a
   member declared only there resolves with no explicit supertype), the implicit types are not
   declared general types or edges, explicit supertypes win name conflicts, and every table target
-  exists in the embedded standard library.
+  exists in the embedded standard library. Every keyword `AstBuilder` emits has its own row-level
+  case, including KerML `flow`, `succession` and `succession flow` and the connection, interface,
+  allocation, message, flow and binding usages; only `ref`, `subject` and `feature` use the
+  `Base::things` fallback.
 - Inherited lookup is transitive through explicit and implicit general types, protected members are
   visible to a specialization, private ones never, and a qualified name sees public members only; a
   named feature that redefines an inherited member hides it from the specialization's lookup.

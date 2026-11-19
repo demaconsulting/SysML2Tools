@@ -106,7 +106,9 @@ sections:
           (or subsetting) the standard library type its kind names — for example a part definition
           as Parts::Part, a part usage as Parts::parts, a state definition as States::StateAction,
           a variant as its owning variation, and a usage typed by a conjugated port definition as
-          that port definition — consulting these general types after the declared ones, skipping
+          that port definition (including succession flows as Transfers::flowTransfersBefore and
+          connection-like usages as their Connections/Interfaces/Allocations/Flows library
+          features) — consulting these general types after the declared ones, skipping
           any that is the element itself, already declared, or absent from the loaded declarations,
           and shall never materialize them as edges or expose them through the public
           GeneralTypes.

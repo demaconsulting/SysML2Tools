@@ -84,17 +84,35 @@ instance serves one workspace.
   - KerML usages: `step` → `Performances::performances`; `expr` → `Performances::evaluations`;
     `bool` → `Performances::booleanEvaluations`; `inv` → `Performances::trueEvaluations`;
     `connector` → `Links::links`; `binding` → `Links::selfLinks`; `succession` →
-    `Occurrences::happensBeforeLinks`; `flow` → `Transfers::transfers`.
-  - `ref`, `subject`, KerML `feature`, and any other usage keyword → `Base::things`.
+    `Occurrences::happensBeforeLinks`; `flow` → `Transfers::flowTransfers` (the library's default
+    subsetting for non-succession flows) then `Transfers::transfers`; `succession flow` →
+    `Transfers::flowTransfersBefore` (the default subsetting for succession flows) then
+    `Transfers::flowTransfers`, `Transfers::transfers` and `Occurrences::happensBeforeLinks`.
+    The library declares `flowTransfers`/`flowTransfersBefore` (and every other
+    connection-like library feature) with connection syntax, which `AstBuilder` records as a
+    `SysmlConnectionNode` carrying no supertypes or typing, so the default alone would be a
+    lookup dead end; the extra entries are the nearest ancestors that carry members.
+  - Connection-like usages (`SysmlConnectionNode`, by `ConnectionKeyword`): `connection` →
+    `Connections::connections`, `Parts::parts`; `interface` → `Interfaces::interfaces`,
+    `Connections::connections`, `Parts::parts`; `allocation` → `Allocations::allocations`,
+    `Connections::connections`, `Parts::parts`; `message` → `Flows::messages`,
+    `Transfers::transfers`, `Actions::actions`; `flow` → `Flows::flows`, `Flows::messages`,
+    `Transfers::flowTransfers`, `Transfers::transfers`, `Actions::actions`; `binding` →
+    `Links::selfLinks`. Each row starts with the specification default and continues with the
+    nearest ancestors that carry members, for the same dead-end reason.
+  - **Left on the `Base::things` fallback** (usage keywords with no row): `ref` and `subject`
+    (reference usages, whose specification default is `Base::things`) and KerML `feature`
+    (the root feature kind). No other keyword `AstBuilder` emits is without a row.
 
   Implicit specializations are **not** `SysmlEdge`s and are not part of the public `GeneralTypes`:
   they exist only as lookup input, so `ResolvedEdges`, `SemanticIndex`, `query`, `export`, every
-  layout, and the serialized standard library are unchanged by construction. Connection-like
-  nodes (`SysmlConnectionNode`, transition, satisfy, dependency, metadata usage nodes) are not
-  name-resolution namespaces, time slices and snapshots are recorded only as `occurrence`, and
-  `individual` is not refined to `Occurrences::Life`; implicit specialization of those is
-  unobservable or not distinguishable in the current AST and is not modeled. Each listed target is
-  checked to exist in the embedded standard library by a test.
+  layout, and the serialized standard library are unchanged by construction. Nodes that are not
+  name-resolution namespaces (transition, satisfy, dependency, metadata usage nodes) are not
+  modeled. `AstBuilder` produces no node at all for `perform`, `exhibit`, `include`, `assert`,
+  `frame` (other than the concern member), SysML `succession flow` usages, time slice, snapshot
+  or `individual` usages, so there is nothing to specialize for them (a time slice or snapshot is
+  recorded only as `occurrence`, and `individual` is not refined to `Occurrences::Life`). Each
+  listed target is checked to exist in the embedded standard library by a test.
 - The global namespace is every top-level declaration of every loaded root namespace, user and
   standard library alike (KerML 8.2.3.5.2).
 - *File-root imports* (resolving mode only): the imports written at the root of a source file are
