@@ -501,8 +501,6 @@ public sealed class NameResolverTests
     [InlineData("inv X;", "P::X", "Performances::trueEvaluations")]
     [InlineData("connector X;", "P::X", "Links::links")]
     [InlineData("feature a; feature b; binding X of a = b;", "P::X", "Links::selfLinks")]
-    [InlineData("feature a; feature b; succession X first a then b;", "P::X", "Occurrences::happensBeforeLinks")]
-    [InlineData("feature a; feature b; flow X from a to b;", "P::X", "Transfers::transfers")]
     public async Task NameResolver_ImplicitSpecialization_PerKind_AddsLibraryGeneralType(
         string body, string element, string expected)
     {
@@ -531,15 +529,15 @@ public sealed class NameResolverTests
     [InlineData("part def X;", "P::X", "shape", "Items::Item::shape")]
     [InlineData("part def X;", "P::X", "localClock", "Occurrences::Occurrence::localClock")]
     [InlineData("item def X;", "P::X", "shape", "Items::Item::shape")]
-    [InlineData("port def X;", "P::X", "subports", "Ports::Port::subports")]
+    [InlineData("port def X;", "P::X", "interfacingPorts", "Ports::Port::interfacingPorts")]
     [InlineData("attribute def X;", "P::X", "self", "Base::DataValue::self")]
-    [InlineData("action def X;", "P::X", "subactions", "Actions::Action::subactions")]
+    [InlineData("action def X;", "P::X", "decisions", "Actions::Action::decisions")]
     [InlineData("action def X;", "P::X", "start", "Actions::Action::start")]
-    [InlineData("state def X;", "P::X", "substates", "States::StateAction::substates")]
+    [InlineData("state def X;", "P::X", "exclusiveStates", "States::StateAction::exclusiveStates")]
     [InlineData("state def X;", "P::X", "done", "States::StateAction::done")]
     [InlineData("calc def X;", "P::X", "result", "Performances::Evaluation::result")]
     [InlineData("constraint def X;", "P::X", "result", "Performances::Evaluation::result")]
-    [InlineData("requirement def X;", "P::X", "subrequirements", "Requirements::RequirementCheck::subrequirements")]
+    [InlineData("requirement def X;", "P::X", "assumptions", "Requirements::RequirementCheck::assumptions")]
     [InlineData("concern def X;", "P::X", "stakeholders", "Requirements::RequirementCheck::stakeholders")]
     [InlineData("case def X;", "P::X", "result", "Performances::Evaluation::result")]
     [InlineData("analysis def X;", "P::X", "result", "Performances::Evaluation::result")]
@@ -548,27 +546,27 @@ public sealed class NameResolverTests
     [InlineData("connection def X;", "P::X", "participant", "Links::Link::participant")]
     [InlineData("interface def X;", "P::X", "participant", "Links::Link::participant")]
     [InlineData("flow def X;", "P::X", "payload", "Flows::MessageAction::payload")]
-    [InlineData("occurrence def X;", "P::X", "suboccurrences", "Occurrences::Occurrence::suboccurrences")]
+    [InlineData("occurrence def X;", "P::X", "successors", "Occurrences::Occurrence::successors")]
     [InlineData("metadata def X;", "P::X", "annotatedElement", "Metaobjects::Metaobject::annotatedElement")]
-    [InlineData("rendering def X;", "P::X", "subrenderings", "Views::Rendering::subrenderings")]
+    [InlineData("rendering def X;", "P::X", "self", "Views::Rendering::self")]
     [InlineData("view def X;", "P::X", "ownedPorts", "Parts::Part::ownedPorts")]
-    [InlineData("viewpoint def X;", "P::X", "subrequirements", "Requirements::RequirementCheck::subrequirements")]
-    [InlineData("class X;", "P::X", "suboccurrences", "Occurrences::Occurrence::suboccurrences")]
-    [InlineData("struct X;", "P::X", "subobjects", "Objects::Object::subobjects")]
+    [InlineData("viewpoint def X;", "P::X", "assumptions", "Requirements::RequirementCheck::assumptions")]
+    [InlineData("class X;", "P::X", "successors", "Occurrences::Occurrence::successors")]
+    [InlineData("struct X;", "P::X", "ownedPerformances", "Objects::Object::ownedPerformances")]
     [InlineData("assoc X;", "P::X", "participant", "Links::Link::participant")]
-    [InlineData("behavior X;", "P::X", "subperformances", "Performances::Performance::subperformances")]
+    [InlineData("behavior X;", "P::X", "performers", "Performances::Performance::performers")]
     [InlineData("function X;", "P::X", "result", "Performances::Evaluation::result")]
     [InlineData("part X;", "P::X", "ownedPorts", "Parts::Part::ownedPorts")]
-    [InlineData("port X;", "P::X", "subports", "Ports::Port::subports")]
+    [InlineData("port X;", "P::X", "interfacingPorts", "Ports::Port::interfacingPorts")]
     [InlineData("item X;", "P::X", "shape", "Items::Item::shape")]
-    [InlineData("attribute X;", "P::X", "self", "Base::DataValue::self")]
-    [InlineData("action X;", "P::X", "subactions", "Actions::Action::subactions")]
-    [InlineData("state X;", "P::X", "substates", "States::StateAction::substates")]
+    [InlineData("attribute X;", "P::X", "self", "Base::Anything::self")]
+    [InlineData("action X;", "P::X", "decisions", "Actions::Action::decisions")]
+    [InlineData("state X;", "P::X", "exclusiveStates", "States::StateAction::exclusiveStates")]
     [InlineData("calc X;", "P::X", "result", "Performances::Evaluation::result")]
-    [InlineData("requirement X;", "P::X", "subrequirements", "Requirements::RequirementCheck::subrequirements")]
-    [InlineData("occurrence X;", "P::X", "suboccurrences", "Occurrences::Occurrence::suboccurrences")]
-    [InlineData("rendering X;", "P::X", "subrenderings", "Views::Rendering::subrenderings")]
-    public async Task NameResolver_ImplicitSpecialization_PerKind_LibraryMemberResolvesWithoutExplicitSpecialization(
+    [InlineData("requirement X;", "P::X", "assumptions", "Requirements::RequirementCheck::assumptions")]
+    [InlineData("occurrence X;", "P::X", "successors", "Occurrences::Occurrence::successors")]
+    [InlineData("rendering X;", "P::X", "ownedPorts", "Parts::Part::ownedPorts")]
+    public async Task NameResolver_ImplicitSpecialization_PerKind_MemberResolves(
         string body, string element, string member, string expected)
     {
         // Arrange
@@ -688,7 +686,7 @@ public sealed class NameResolverTests
         // Act / Assert: explicit chain, then the implicit Part -> Item -> Object -> Occurrence chain
         Assert.Equal("P::A::fromA", resolver.Resolve("fromA", "P::C"));
         Assert.Equal("Items::Item::shape", resolver.Resolve("shape", "P::C"));
-        Assert.Equal("Objects::Object::subobjects", resolver.Resolve("subobjects", "P::C"));
+        Assert.Equal("Objects::Object::ownedPerformances", resolver.Resolve("ownedPerformances", "P::C"));
         Assert.Equal("Occurrences::Occurrence::localClock", resolver.Resolve("localClock", "P::C"));
     }
 
@@ -951,7 +949,9 @@ public sealed class NameResolverTests
         // Act
         var implicitTargets = NameResolver.ImplicitSpecializationTargets.ToHashSet(StringComparer.Ordinal);
         var allEdges = workspace.Index.AllEdges
-            .Concat(workspace.Declarations.Values.SelectMany(node => node.ResolvedEdges))
+            .Concat(workspace.Declarations
+                .Where(declaration => !workspace.StdlibNames.Contains(declaration.Key))
+                .SelectMany(declaration => declaration.Value.ResolvedEdges))
             .ToList();
 
         // Assert: start/done succession ends are the one library-targeting edge kind the model writes

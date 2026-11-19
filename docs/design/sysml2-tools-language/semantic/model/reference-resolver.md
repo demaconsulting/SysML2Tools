@@ -161,13 +161,17 @@ consulted after the owning namespaces and before the global namespace.
 
 A `redefines`/`:>>` target is resolved by `NameResolver.ResolveRedefinition(name, owningType,
 redefiningFeature, rootImports)`: per KerML 8.2.3.5.1 the basic resolution is repeated with each
-general type of the redefining feature's owning type as the local namespace, in turn. If that
+general type of the redefining feature's owning type (declared, then implicit) as the local
+namespace, in turn. If that
 yields nothing it falls back — a documented, deliberately lenient deviation — to ordinary
 resolution from the owning type, so a qualified target such as `:>> ISQ::mass` still resolves in a
 type with no resolvable general types (it remains subject to member visibility and import
 scoping). The redefining feature itself is never an acceptable target: a bare `:>> mass;` inside
 `part x` creates `x::mass`, which ordinary local resolution would otherwise find, giving a
-meaningless self-edge. A usage-level `subsets`/`:>` supertype and a definition-level supertype
+meaningless self-edge. When ordinary resolution finds only that feature, the reference is
+resolved again from the owning type's own owner, outward, so an unnamed `part :>> part1;` nested
+in a usage reaches the `part1` its enclosing usage's type declares. A usage-level `subsets`/`:>`
+supertype and a definition-level supertype
 use plain `Resolve(name, scope)`, whose local resolution in the owning namespace already includes
 the memberships the owner inherits.
 
@@ -183,10 +187,14 @@ redefinition" pass is therefore gone.
   not captured by `AstBuilder` — it records only a view's `elementFilterMember` and an import's own
   bracket filter — so they are not honored by the resolver; supporting them needs grammar/AST
   changes.
-- **Implicit specialization** (for example a feature's implicit specialization of `Base::things`)
-  is not modeled, so a redefinition of a member that exists only on an implicit general type is
-  reported as unresolved; before this unit used KerML name resolution such a redefinition silently
-  resolved to itself.
+- **Implicit specialization** is modeled by `NameResolver` for name lookup only (every definition
+  and usage kind specializes or subsets its library type, a variant its variation, and a
+  conjugated-port-typed usage its port definition), so a redefinition of a member that exists only
+  on an implicit general type resolves. Implicit specializations are never `SysmlEdge`s. Not
+  modeled (unobservable or indistinguishable in the AST): the connection-like and metadata usage
+  nodes, time slices and snapshots, `individual` → `Occurrences::Life`, and viewpoint usages. The
+  remaining resolver gaps are dotted feature chains, the synthetic `$fork0`-style node names, and
+  a few single-reference shapes (issue #129).
 - The layouts' `NameResolver` (public mode) does not see file-root imports; they rely on the
   semantic edges this unit produces, which do.
 
@@ -298,22 +306,32 @@ produced a false "Unresolved reference" diagnostic and no `Transition` edge, eve
 model is semantically valid per the SysML v2 spec (the Systems Library declares `start` and
 `done` as features of `Actions::Action`, which every action and state inherits).
 
-**Why a fallback and not implicit specialization (#93).** The spec-faithful general mechanism is
-the implicit specialization of every action to `Actions::Action` and of every state to
-`States::StateAction` (itself an `Action`), after which ordinary inherited-member lookup finds
-`start`/`done`. Modeling it is a cross-cutting change (new `Supertype` edges on every definition
-and usage, with consequences for `query hierarchy`, grid and general views, and the stdlib
-re-resolution) tracked separately as #93. The minimal change that is faithful to the spec's
-*result* is to resolve exactly those two library-defined names against `Actions::Action`, as
-below; it yields the same targets implicit specialization would, and #93 can remove the step-4
-special case later without changing any observable result.
+**Why a canonicalization and a fallback, now that implicit specialization exists (#93).** The
+spec-faithful general mechanism is the implicit specialization of every action to `Actions::Action`
+and of every state to `States::StateAction` (itself an `Action`), after which ordinary
+inherited-member lookup finds `start`/`done`. `NameResolver` now models exactly that for name
+lookup (see its design), so for a state `start` resolves through ordinary lookup to
+`States::StateAction::start` (which redefines `Actions::Action::start`). Implicit specializations
+are deliberately never `SysmlEdge`s, but the transition edges this tool exports, queries and
+renders have always targeted `Actions::Action::start`/`done`; changing them would change
+`export`/`query states` output. `ResolveTransitionEnd` therefore applies a **compatibility
+canonicalization**: when the written end is exactly `start` or `done`, the chain resolution
+succeeded, and the resolved member is a standard library symbol, the end is replaced by what
+`TryResolveInheritedActionMember` returns (the `Actions::Action` member the original design
+produced); a user-declared `start`/`done` (not a library symbol) is never replaced. Dropping the
+canonicalization and step 4 below (a one-line removal plus a refresh of the golden edge files under
+`test/SysMLModels/ExpectedEdges/`) is the library-faithful alternative and would redirect state
+transitions to `States::StateAction::start`/`done`.
 
-`TryResolveInheritedActionMember(scope, name, out resolvedName)` is tried only after
-`TryResolveFeatureChain` fails, and only for a `SysmlTransitionNode`'s `Source` or `Target`. On the
+`TryResolveInheritedActionMember(scope, name, out resolvedName)` is tried after
+`TryResolveFeatureChain` fails (and, for the canonicalization above, after it succeeds with a
+library member), and only for a `SysmlTransitionNode`'s `Source` or `Target`. On the
 `Target` side (`pseudoFeaturesOnly`) it is restricted up front to exactly the names `start`/`done`
 and only when the enclosing node is a state or action (definition or usage); no other inherited
 member is looked up for a target, and `done` in any other kind of body (for example a part
-definition) is left to ordinary name resolution. The `Source` side keeps the full sequence below:
+definition) is left to ordinary name resolution — which now finds `Parts::Part::done` through the
+part definition's implicit `Parts::Part` specialization. The `Source` side keeps the full sequence
+below:
 
 1. Looks up the enclosing node via `_symbolTable.Lookup(scope)` — since at the
    point a `SysmlTransitionNode` is visited, `scope` is the enclosing state/usage
@@ -329,9 +347,8 @@ definition) is left to ordinary name resolution. The `Source` side keeps the ful
    `"state def"`/`"action def"`), looks up the standard library's `Actions::Action` type node's
    direct children by name. This covers the common case of a `state def`/`state usage` with no
    explicit `:>` supertype clause at all — whose implicit ultimate supertype, per the SysML v2
-   standard library, is `Actions::Action` — since this codebase has no general
-   implicit-generalization/default-supertype inference mechanism (confirmed absent by inspection)
-   to derive that relationship automatically.
+   standard library, is `Actions::Action` — and keeps the produced target stable now that
+   implicit specialization is modeled only inside `NameResolver` (it never adds an edge).
 
 This fallback is **intentionally narrow and not a general inherited-member resolver**: it is
 scoped to Transition `Source` and `Target` resolution only (step 4 additionally scoped to the two
@@ -417,10 +434,9 @@ diagnostic (at the resolver's unresolved severity) at the occurrence's own `(lin
 - **Severity.** The resolver's unresolved severity (Warning by default; see "Severity and Origin").
   The standard library has no
   `ReferenceOccurrences` after deserialization (`[JsonIgnore]`); it is checked when it is
-  compiled by `StdlibGen`, which adds two justified warnings to the standard library's own
-  diagnostics: `Anything` (`Base::Anything` is a KerML declaration the SysML grammar does not
-  model, the cause of the existing `Base::Anything` warnings) and `receiver` (inherited from a
-  KerML-declared supertype; implicit specialization, #93).
+  compiled by `StdlibGen`; since the KerML library declarations are indexed (stage 1 of #129) and
+  implicit specialization is modeled for lookup (stage 2), the remaining warnings it adds to the
+  standard library's own diagnostics are dotted feature chains such as `receiver.incomingTransfersToSelf`.
 - **Not covered (follow-ups).** Value expressions (`= expr`, `:= expr`) of usages — enabling them
   reported valid OMG corpus models because of unrelated modeling gaps (a quoted name such as `'mi'`
   not matching its short name, usages declared with a metadata prefix, KerML
@@ -444,7 +460,8 @@ severity is decided by *which resolver invocation produced the diagnostic*, not 
   is reported as an error by the other commands.
 - **Standard library — always Warning.** `StdlibGen` constructs the resolver with
   `DiagnosticSeverity.Warning` explicitly, so the diagnostics produced while compiling the standard
-  library stay Warnings (the compile reports 0 errors and 65 warnings). The compiled library is a
+  library stay Warnings (the compile reports 0 errors and 45 warnings, the dotted feature chains
+  and a few library-specific names; it was 65 before implicit specialization). The compiled library is a
   pre-resolved seed symbol table that is never re-resolved at load time, so a user load produces no
   standard-library-origin diagnostics and the model, serialization, and `SysmlDiagnostic` carry no
   origin marker.
@@ -453,9 +470,11 @@ severity is decided by *which resolver invocation produced the diagnostic*, not 
   The portability Warning below is likewise always a Warning.
 
 **Unresolved-reference severity policy.** The default is Warning, not Error, because name
-resolution still has known gaps (dotted feature chains and kernel/library features), tracked by
-issue #93 and #129; promoting those to errors by default would reject
-valid models. `WorkspaceLoader.DefaultUserUnresolvedSeverity` is the single place to change the
+resolution still has known gaps (dotted feature chains, synthetic node names, and a few
+single-reference shapes), tracked by issue #129 (issue #93, implicit specialization, is modeled for
+lookup); promoting those to errors by default would reject
+valid models: the OMG corpus still reports 94 strict-mode errors in 36 of its 251 files, 66 of them dotted
+feature chains. `WorkspaceLoader.DefaultUserUnresolvedSeverity` is the single place to change the
 default. Once the OMG corpus produces close to zero strict-mode errors, the constant is flipped to
 `Error` and the `--strict-unresolved` flag is replaced (for example with an opt-out). See the
 `WorkspaceLoader` design for the full policy.

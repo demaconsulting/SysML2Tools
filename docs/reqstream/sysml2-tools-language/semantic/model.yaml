@@ -109,6 +109,8 @@ sections:
           - SysML2Tools-Language-Semantic-Model-NameResolver-LocalResolution
           - SysML2Tools-Language-Semantic-Model-NameResolver-VisibleResolution
           - SysML2Tools-Language-Semantic-Model-NameResolver-RedefinedFeature
+          - SysML2Tools-Language-Semantic-Model-NameResolver-ImplicitSpecialization
+          - SysML2Tools-Language-Semantic-Model-NameResolver-InheritedLookup
           - SysML2Tools-Language-Semantic-Model-NameResolver-ResolvingMode
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-MemberVisibility
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-FilteredImports
@@ -141,6 +143,7 @@ sections:
         children:
           - SysML2Tools-Language-Semantic-Model-SupertypeWalker-Walk
           - SysML2Tools-Language-Semantic-Model-SupertypeWalker-CyclePosition
+          - SysML2Tools-Language-Semantic-Model-SupertypeWalker-ImplicitSpecializations
         tests:
           - WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered

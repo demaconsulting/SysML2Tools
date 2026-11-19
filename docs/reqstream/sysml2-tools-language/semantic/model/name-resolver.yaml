@@ -27,8 +27,9 @@ sections:
           NameResolver's local resolution in a namespace shall consider its owned memberships,
           its imported memberships (membership and namespace imports, recursive or not, and
           filtered imports through an optional filter predicate), and — for a type — the
-          non-private memberships inherited from its general types, matching each membership's
-          name, short name, or alias name.
+          non-private memberships inherited from its general types (declared and implicit, see
+          the ImplicitSpecialization and InheritedLookup requirements), matching each
+          membership's name, short name, or alias name.
         justification: |
           KerML 8.2.3.5.3 (Local and Visible Resolution): the local resolution of a name
           includes owned, imported, and (for a Type) inherited memberships, by member name and
@@ -59,12 +60,23 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-RedefinedFeature
         title: >-
           NameResolver shall resolve a redefined-feature reference with each general type of the
-          redefining feature's owning type as the local namespace, in turn, until one resolves.
+          redefining feature's owning type (declared and implicit) as the local namespace, in
+          turn, until one resolves, without excluding members the general types' own features
+          redefine, and shall resolve an unnamed redefinition of a member of an enclosing or
+          sibling feature from the owning type's own owner when ordinary resolution finds only the
+          redefining feature itself.
         justification: |
           KerML 8.2.3.5.1: the basic resolution process is repeated against the owning type's
-          general types for a Redefinition's redefinedFeature.
+          general types for a Redefinition's redefinedFeature. A redefinition that takes its
+          redefined feature's name is owned under that name, so ordinary resolution finds only
+          itself; the member it redefines belongs to an enclosing feature or type. Library
+          associations routinely redefine a name that a general type's own feature already
+          redefined, so redefinition targets are resolved without the redefined-member exclusion.
         tests:
           - NameResolver_ResolveRedefinedFeature_ResolvesAgainstGeneralTypes
+          - NameResolver_ResolveRedefinition_UnnamedRedefinitionOfEnclosingMember_Resolves
+          - NameResolver_ResolveRedefinition_OnlySelf_StaysUnresolved
+          - NameResolver_InheritedLookup_EnclosingTypedUsage_TypeMembersResolveForNestedRedefinition
 
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-ResolvingMode
         title: >-
@@ -87,3 +99,53 @@ sections:
           - NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredDeclarations
           - NameResolver_ResolvingMode_Resolve_SuppliedFileRootImports_OverrideRegisteredByName
           - NameResolver_ResolveRedefinition_ExcludesRedefiningFeatureAndFallsBack
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-ImplicitSpecialization
+        title: >-
+          NameResolver shall treat every definition kind and usage kind as implicitly specializing
+          (or subsetting) the standard library type its kind names — for example a part definition
+          as Parts::Part, a part usage as Parts::parts, a state definition as States::StateAction,
+          a variant as its owning variation, and a usage typed by a conjugated port definition as
+          that port definition — consulting these general types after the declared ones, skipping
+          any that is the element itself, already declared, or absent from the loaded declarations,
+          and shall never materialize them as edges or expose them through the public
+          GeneralTypes.
+        justification: |
+          KerML and SysML give every element default general types (KerML 7.3.4, SysML 7.x/8.x),
+          so library members such as self, start, shape or result are visible in an element that
+          writes no supertype. Keeping them out of SysmlEdge and GeneralTypes means renderers,
+          queries and exports continue to show exactly the relationships the model declares.
+          Every table target is guarded against standard library drift.
+        tests:
+          - NameResolver_ImplicitSpecialization_PerKind_AddsLibraryGeneralType
+          - NameResolver_ImplicitSpecialization_PerKind_MemberResolves
+          - NameResolver_ImplicitSpecialization_TargetsExistInVendoredStdlib
+          - NameResolver_ImplicitSpecialization_NoStdlibSeed_NoEffect
+          - NameResolver_ImplicitSpecialization_LibraryTypeDoesNotSpecializeItself
+          - NameResolver_ImplicitSpecialization_ExplicitSupertypeWinsOverImplicit
+          - NameResolver_ImplicitSpecialization_CyclesTerminate
+          - NameResolver_ImplicitSpecialization_NotMaterialized_AsEdges
+          - NameResolver_InheritedLookup_VariantSeesVariationMembers
+          - NameResolver_InheritedLookup_ConjugatedPortTypeMembersVisible
+          - NameResolver_ResolvingMode_ImplicitSpecialization_IsOrderIndependent
+          - GeneralViewLayoutStrategy_BuildLayout_ImplicitSpecializations_DrawNoLibraryTypesOrSpecializationLines
+          - Hierarchy_ImplicitSpecializations_AreNotReported
+          - SemanticGalleryModels_Edges_MatchBaselineGolden
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-InheritedLookup
+        title: >-
+          NameResolver's inherited lookup shall be transitive through explicit and implicit general
+          types, shall admit protected and public members (not private) to a specialization and
+          public members only to a qualified name, and shall not inherit a member that a named
+          feature owned by the specializing type redefines (the name then falls through to the
+          enclosing namespace).
+        justification: |
+          KerML 8.2.3.5.3 defines a type's inherited memberships over all its general types with
+          visibility restrictions, and Type::removeRedefinedFeatures removes redefined features
+          from them. Without transitivity and the exclusion, a name would resolve to a member the
+          type has redefined away, or fail to resolve through a library ancestor.
+        tests:
+          - NameResolver_InheritedLookup_Transitive_ThroughExplicitAndImplicitGenerals
+          - NameResolver_InheritedLookup_ProtectedMemberVisibleToSpecialization_PrivateNot
+          - NameResolver_InheritedLookup_RedefinitionHidesRedefinedMember
+          - NameResolver_InheritedLookup_RedefinitionWithSameName_ResolvesOwned

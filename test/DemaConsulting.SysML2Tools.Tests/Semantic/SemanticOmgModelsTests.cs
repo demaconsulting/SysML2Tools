@@ -109,7 +109,7 @@ public sealed class SemanticOmgModelsTests
     /// <summary>
     ///     The gallery models' resolved edges are exactly the recorded baseline: implicit
     ///     specializations and inherited lookup feed name resolution only and never add, drop or
-    ///     retarget a relationship (the golden files were captured before they existed). Model 03
+    ///     redirect a relationship (the golden files were captured before they existed). Model 03
     ///     and 12 cover the legacy <c>Actions::Action::start</c>/<c>done</c> transition targets.
     /// </summary>
     /// <param name="model">The gallery model's file name without extension.</param>
@@ -156,7 +156,7 @@ public sealed class SemanticOmgModelsTests
     public async Task SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline()
     {
         // Arrange
-        const int baseline = 100;
+        const int baseline = 94;
         var modelsRoot = FindSysMLModelsRoot();
         if (modelsRoot is null)
         {

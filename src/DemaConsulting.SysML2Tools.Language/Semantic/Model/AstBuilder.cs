@@ -2305,8 +2305,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     <see cref="SysmlFeatureNode"/> outside <see cref="BuildUsageNode"/> (requirement, concern,
     ///     constraint, action, state, and the case-kind usages), so each keeps the feature typing and
     ///     multiplicity that a generic usage keeps. Redefinition and subsetting clauses are
-    ///     deliberately not captured here: resolving them needs the implicit specialization of
-    ///     actions, states and requirements that is not modeled (#93), so capturing them would only
+    ///     deliberately not captured here: <see cref="NameResolver"/> resolves implicit
+    ///     specialization (#93) for name lookup only, and capturing these clauses is deferred
+    ///     until the remaining resolver gaps (#129) are closed, so capturing them now would only
     ///     add unresolved-reference warnings for valid models.
     /// </summary>
     private static FeatureSpecialization ExtractSpecialization(
@@ -2869,9 +2870,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <summary>
     ///     The names a feature expression may use without any declaration: the features every
     ///     occurrence inherits from the kernel library (<c>self</c>, <c>that</c>) and the
-    ///     <c>start</c>/<c>done</c> pseudo-features every action and state inherits. Implicit
-    ///     specialization (#93) is not modeled, so name resolution cannot see them; reporting them
-    ///     would flag valid models.
+    ///     <c>start</c>/<c>done</c> pseudo-features every action and state inherits. They are
+    ///     recorded here as names an expression may use undeclared (the expression references are
+    ///     syntactic captures that are not name-resolved against the implicit general types);
+    ///     reporting them would flag valid models.
     /// </summary>
     private static readonly HashSet<string> ImplicitFeatureNames =
         new(StringComparer.Ordinal) { "self", "that", "start", "done" };

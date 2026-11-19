@@ -30,3 +30,17 @@ sections:
           each reference it declares, so the walker can report where the cycle is written.
         tests:
           - WorkspaceLoader_LoadAsync_CyclicSpecialization_ReportsFileAndPosition
+
+      - id: SysML2Tools-Language-Semantic-Model-SupertypeWalker-ImplicitSpecializations
+        title: >-
+          SupertypeWalker.WalkAll shall consider only the specializations a model declares: the
+          implicit specializations NameResolver applies to every element (for example a part
+          definition's Parts::Part) shall never be walked and shall never produce a
+          cyclic-specialization Warning.
+        justification: |
+          Implicit specializations target library root types and can never close a cycle among
+          relationships the author wrote, so walking them adds cost without any diagnostic value
+          and a warning about them would be a false positive. A model made only of implicit
+          specializations must load without cyclic-specialization diagnostics.
+        tests:
+          - WorkspaceLoader_LoadAsync_ImplicitSpecializationsOnly_NoCycleWarning

@@ -216,9 +216,13 @@ Without the option, gate a pipeline on them by failing the build on any `warning
 sysml2tools lint --strict-unresolved "src/**/*.sysml"
 ```
 
-Strict reporting is not the default yet because name resolution has remaining gaps: some valid OMG
-examples use dotted feature chains or kernel library features that the resolver does not model, and
-they would be reported as errors. These gaps are tracked by issues #93 and #129. The default is
+Strict reporting is not the default yet because name resolution still has gaps: some valid OMG
+examples use dotted feature chains (`a.b.c`), synthetic action-node names, and a few other
+shapes that the resolver does not model, and they would be reported as errors. The resolver does
+follow the implicit specializations of every definition and usage kind, so library members such as
+`self`, `start`, `shape`, and `annotatedElement` resolve without any explicit `:>`. On the
+bundled OMG corpus (251 files), strict mode currently reports 94 errors in 36 files, 66 of them
+dotted feature chains; the remaining gaps are tracked by issue #129. The default is
 planned to change to errors once the OMG corpus produces close to zero strict
 errors.
 

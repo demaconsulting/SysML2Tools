@@ -30,6 +30,15 @@ node (`SourceFilePath`, and `ReferencePositions` for the supertype text, falling
 `SourceLine`/`SourceColumn`). A node that was not built from a source file (for example a
 stdlib-seeded node, whose positions are not serialized) reports an empty `FilePath` and `(0,0)`.
 
+##### Implicit Specializations Are Not Walked
+
+`WalkNode` follows only the `SupertypeNames` a model declares. The implicit specializations
+`NameResolver` applies to every element (a part definition's `Parts::Part`, a part usage's
+`Parts::parts`, ...) are intentionally not walked: they are not declared, they target library root
+types, and so can never close a cycle among relationships the author wrote — a warning for one
+would be a false positive and walking them would add cost for no diagnostic value. A model made
+only of implicit specializations produces no cyclic-specialization warning (covered by a test).
+
 ##### Error Handling
 
 Cyclic specialization is detected and reported as a `Warning`-severity `SysmlDiagnostic`.

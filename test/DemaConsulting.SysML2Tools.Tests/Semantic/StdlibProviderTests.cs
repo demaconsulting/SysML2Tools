@@ -137,7 +137,7 @@ public sealed class StdlibProviderTests
     public void GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling()
     {
         // Arrange
-        const int ceiling = 50;
+        const int ceiling = 45;
 
         // Act
         var (_, diagnostics) = StdlibProvider.GetSymbolTable();

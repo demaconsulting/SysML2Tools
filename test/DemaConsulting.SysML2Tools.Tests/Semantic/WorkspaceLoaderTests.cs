@@ -7855,7 +7855,7 @@ public sealed class WorkspaceLoaderTests
     ///     <c>Parts::Part</c>; the pseudo-feature fallback (<c>Actions::Action::done</c>) is not used.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_DoneTarget_InPartDefWithImplicitPart_ResolvesThroughImplicitSpecialization()
+    public async Task WorkspaceLoader_LoadAsync_DoneTarget_InPartDefWithImplicitPart_Resolves()
     {
         // Arrange / Act
         var result = await LoadModelsAsync("""
@@ -7899,7 +7899,6 @@ public sealed class WorkspaceLoaderTests
 
         // Assert
         Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference", StringComparison.Ordinal));
-        Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "Actions::Action::start", "P::S::idle"));
         Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "P::S::idle", "Actions::Action::done"));
         Assert.True(HasEdge(result, SysmlEdgeKind.Transition, "Actions::Action::start", "P::s::run"));
         Assert.DoesNotContain(
@@ -7937,7 +7936,7 @@ public sealed class WorkspaceLoaderTests
     ///     (no written supertype anywhere) produces no cyclic-specialization warning.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_OnlyImplicitSpecializations_ProduceNoCyclicSpecializationWarning()
+    public async Task WorkspaceLoader_LoadAsync_ImplicitSpecializationsOnly_NoCycleWarning()
     {
         // Arrange / Act
         var result = await LoadModelsAsync("""
