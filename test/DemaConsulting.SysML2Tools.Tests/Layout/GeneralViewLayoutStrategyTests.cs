@@ -4379,9 +4379,9 @@ public sealed class GeneralViewLayoutStrategyTests
     ///     this model is an engine routing outcome, see the verification document.)
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_OrderFolderItemsByPartnerPosition()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeclarationOrder_DoesNotMoveBoxes()
     {
-        // Act: the declaration order that used to force the crossing, and its reverse
+        // Act: two declaration orders of the same folder contents
         var hybridLast = await LayOutUnscopedAsync(VehicleModel("part def Chassis; part def SportsChassis :> Chassis; part def Hybrid :> Powertrain::Engine;"));
         var hybridFirst = await LayOutUnscopedAsync(VehicleModel("part def Hybrid :> Powertrain::Engine; part def Chassis; part def SportsChassis :> Chassis;"));
 
@@ -4400,8 +4400,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     A folder none of whose definitions has a relationship leaving it is laid out in declaration
-    ///     order: the refinement leaves it alone (the engine stacks its unconnected definitions by the
-    ///     order they were added).
+    ///     order: the engine stacks its unconnected definitions by the order they were added.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_NoExternalEdges_KeepsDeclarationOrder()
@@ -4420,9 +4419,8 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A partner hidden inside a depth-truncated folder has no box to measure, so the definition has
-    ///     no ordering key: the layout completes, both of the folder's definitions are drawn and they keep
-    ///     their declaration order.
+    ///     A partner hidden inside a depth-truncated folder has no box to connect to: the layout
+    ///     completes, both of the folder's definitions are drawn and they keep their declaration order.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdgeToTruncatedPartner_DoesNotThrowAndKeepsOrder()
@@ -4441,49 +4439,34 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     The partner's position is measured at the level where the two meet, however deep the partner
-    ///     is nested: definitions of <c>A::B</c> that lead into <c>Lo::In</c> and <c>Hi::In</c> are
-    ///     placed in the reading order of the horizontal order of the <c>Lo</c> and <c>Hi</c> folders
-    ///     they lead to, whichever way they were declared.
+    ///     Relationships from a definition nested in <c>A::B</c> to partners in the deeply nested
+    ///     <c>Lo::In</c> and <c>Hi::In</c> folders do not cross one another, whichever way the
+    ///     definitions were declared.
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_DoNotCross()
     {
         // Arrange: the same four packages, with the definitions of A::B declared in both orders
         const string packages = "package Lo { package In { part def L; } } package Hi { package In { part def H; } }";
         var viaLowFirst = packages + " package A { package B { part def ToLo :> Lo::In::L; part def ToHi :> Hi::In::H; } }";
         var viaHighFirst = packages + " package A { package B { part def ToHi :> Hi::In::H; part def ToLo :> Lo::In::L; } }";
 
-        // Act / Assert: the reading order of the two definitions matches the left-to-right order of their partners
+        // Act / Assert: the routed relationships do not cross
         foreach (var sysml in new[] { viaLowFirst, viaHighFirst })
         {
             var layout = await LayOutUnscopedAsync(sysml);
-            var lo = FindBox(layout.Nodes, "Lo");
-            var hi = FindBox(layout.Nodes, "Hi");
-            Assert.NotEqual(lo.X + (lo.Width / 2.0), hi.X + (hi.Width / 2.0));
-            Assert.Equal(
-                (lo.X + (lo.Width / 2.0)) < (hi.X + (hi.Width / 2.0)),
-                ReadsBefore(FindBox(layout.Nodes, "ToLo"), FindBox(layout.Nodes, "ToHi")));
+            Assert.Equal(2, CollectLines(layout.Nodes).Count);
             Assert.Equal(0, CountLineCrossings(layout.Nodes));
         }
     }
 
-    /// <summary>True when <paramref name="first"/> comes before <paramref name="second"/> in reading order (top to bottom, then left to right).</summary>
-    private static bool ReadsBefore(LayoutBox first, LayoutBox second)
-    {
-        var sameRow = Math.Abs(first.Y - second.Y) < 1.0;
-        return sameRow ? first.X < second.X : first.Y < second.Y;
-    }
-
     /// <summary>
     ///     A definition that is a direct member of a package and whose partners live in different nested
-    ///     packages of that same package is ordered by where those nested packages sit, even though the
-    ///     lowest common scope of each relationship is the package's own scope: <c>ToA</c> and
-    ///     <c>ToB</c> read in the same order as the <c>A</c> and <c>B</c> folders they lead to,
-    ///     whichever way they were declared, and no lines cross.
+    ///     packages of that same package (the lowest common scope of each relationship is the package's
+    ///     own scope) is drawn without crossing lines, whichever way the definitions were declared.
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_DoNotCross()
     {
         // Arrange: the same packages, with the owner's definitions declared in both orders
         const string packages = "package A { part def X; } package B { part def Y; }";
@@ -4494,12 +4477,7 @@ public sealed class GeneralViewLayoutStrategyTests
         foreach (var sysml in new[] { toAFirst, toBFirst })
         {
             var layout = await LayOutUnscopedAsync(sysml);
-            var a = FindBox(layout.Nodes, "A");
-            var b = FindBox(layout.Nodes, "B");
-            Assert.NotEqual(a.X + (a.Width / 2.0), b.X + (b.Width / 2.0));
-            Assert.Equal(
-                (a.X + (a.Width / 2.0)) < (b.X + (b.Width / 2.0)),
-                ReadsBefore(FindBox(layout.Nodes, "ToA"), FindBox(layout.Nodes, "ToB")));
+            Assert.Equal(2, CollectLines(layout.Nodes).Count);
             Assert.Equal(0, CountLineCrossings(layout.Nodes));
         }
     }
@@ -4542,10 +4520,11 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     Builds the layered-layout graph the General view relies on for its ordering refinement: a
-    ///     <c>B</c> folder holding <c>C</c>, <c>S</c> (specializing <c>C</c>) and <c>H</c>, added in the
-    ///     given order, beside a <c>P</c> folder holding <c>E</c> and a leaf <c>K</c>, with relationships
-    ///     <c>H</c> to <c>E</c>, <c>E</c> to <c>K</c> and <c>C</c> to <c>K</c> declared at the root.
+    ///     Builds the layered-layout graph used as OTS evidence for the way the engine orders a
+    ///     container's contents: a <c>B</c> folder holding <c>C</c>, <c>S</c> (specializing <c>C</c>)
+    ///     and <c>H</c>, added in the given order, beside a <c>P</c> folder holding <c>E</c> and a leaf
+    ///     <c>K</c>, with relationships <c>H</c> to <c>E</c>, <c>E</c> to <c>K</c> and <c>C</c> to
+    ///     <c>K</c> declared at the root.
     /// </summary>
     private static LayoutTree LayOutOrderProbe(string bodyOrder)
     {
@@ -4584,20 +4563,24 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     OTS evidence for the contract the General view's ordering refinement builds on: the layered
-    ///     algorithm stacks the unconnected groups of a container's contents in the order the nodes were
-    ///     added, so adding <c>H</c> first places it above <c>C</c> and adding it last places it below.
+    ///     OTS evidence for the contract the General view builds on: the layered algorithm orders the
+    ///     contents of a container by the relationships that leave it, so the order in which the nodes
+    ///     were added (<c>H</c> first or last) does not change where they are placed and the routed
+    ///     relationships do not cross.
     /// </summary>
     [Fact]
-    public void LayeredLayoutAlgorithm_Layout_ContainerContents_StackUnconnectedGroupsByInsertionOrder()
+    public void LayeredLayoutAlgorithm_Layout_ContainerContents_OrderFollowsCrossHierarchyEdges()
     {
         // Act
         var hybridLast = LayOutOrderProbe("CSH");
         var hybridFirst = LayOutOrderProbe("HCS");
 
-        // Assert
-        Assert.True(FindBox(hybridLast.Nodes, "H").Y > FindBox(hybridLast.Nodes, "C").Y);
-        Assert.True(FindBox(hybridFirst.Nodes, "H").Y < FindBox(hybridFirst.Nodes, "C").Y);
+        // Assert: the same relative placement whichever way the nodes were added
+        Assert.Equal(
+            FindBox(hybridLast.Nodes, "H").Y > FindBox(hybridLast.Nodes, "C").Y,
+            FindBox(hybridFirst.Nodes, "H").Y > FindBox(hybridFirst.Nodes, "C").Y);
+        Assert.Equal(0, CountLineCrossings(hybridLast.Nodes));
+        Assert.Equal(0, CountLineCrossings(hybridFirst.Nodes));
     }
 
     /// <summary>

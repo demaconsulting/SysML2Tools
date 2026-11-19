@@ -176,20 +176,21 @@ sections:
               - GeneralViewLayoutStrategy_BuildLayout_TopDown_UnconnectedDefinitionsDoNotOverlap
               - GeneralViewLayoutStrategy_BuildLayout_DroneLikeModel_IsCompactAndTopDown
 
-          - id: SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion
+          - id: SysML2Tools-OTS-DemaRendering-ContainerOrderFollowsCrossHierarchyEdges
             title: >-
-              DemaConsulting.Rendering shall stack the unconnected groups of nodes inside a layered
-              container in the order the nodes were added to it.
+              DemaConsulting.Rendering shall order the contents of a layered container by the
+              relationships that leave the container, so that those relationships do not cross one
+              another whatever order the nodes were added to the container in.
             justification: |
               The General View cannot make the engine place a package folder's contents with
-              knowledge of where the folder's outgoing relationships lead, so it controls the
-              stacking by the order in which it adds the folder's definitions. That is only a sound
-              mechanism while the package keeps ordering such groups by insertion order; this
-              requirement pins the behavior so that an upgrade that changes it fails here instead of
-              silently reintroducing relationship crossings.
+              knowledge of where the folder's outgoing relationships lead, so it relies on the
+              engine to order a container's interior by its cross-hierarchy partners and to accept an
+              order only when the routed connectors cross less. Version 0.3.0-beta.5 of the package
+              family introduced that ordering; this requirement pins the behavior so that an upgrade
+              that changes it fails here instead of silently reintroducing relationship crossings.
             tags: [ots]
             tests:
-              - LayeredLayoutAlgorithm_Layout_ContainerContents_StackUnconnectedGroupsByInsertionOrder
+              - LayeredLayoutAlgorithm_Layout_ContainerContents_OrderFollowsCrossHierarchyEdges
 
           - id: SysML2Tools-OTS-DemaRendering-NotationBadges
             title: >-

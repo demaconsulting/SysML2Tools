@@ -48,10 +48,9 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// individual boxes — a truncated package folder becomes a single leaf node showing an ellipsis
 /// (<c>…</c>), and a truncated definition or usage stays a leaf box whose last compartment is a
 /// trailing untitled <c>…</c> row (the specification's marker for contents that are not shown).
-/// Because the engine places a folder's contents without knowing where
-/// the folder's external relationships lead, the items of each package folder are ordered by the
-/// horizontal position of those relationships' far ends (see <see cref="ComputeItemOrder"/>), so
-/// relationships leaving a folder do not need to cross one another.
+/// The layout engine orders a container's contents by the cross-hierarchy relationships that leave
+/// it (DemaConsulting.Rendering 0.3.0-beta.5), so the items of a package folder are added in
+/// declaration order and the strategy supplies no ordering of its own.
 /// </remarks>
 internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 {
@@ -372,19 +371,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// The result of one <see cref="BuildGraph"/> pass: the input graph together with the
-    /// bookkeeping the second, order-refining pass needs (<see cref="ComputeItemOrder"/>).
+    /// bookkeeping the decoration and unconnected-definition passes need.
     /// </summary>
     /// <param name="Graph">The root layout graph, ready to be handed to the layout engine.</param>
     /// <param name="Truncated">The depth-truncated containers to decorate once the layout is known.</param>
     /// <param name="Located">Every definition's node and directly holding scope, keyed by qualified name.</param>
-    /// <param name="Plans">The planned package folders, keyed by package qualified name.</param>
-    /// <param name="UsagesByOwner">The usage nodes placed beside their owner, keyed by the owner's qualified name.</param>
     private sealed record GraphBuild(
         LayoutGraph Graph,
         List<TruncatedContainer> Truncated,
-        IReadOnlyDictionary<string, Location> Located,
-        IReadOnlyDictionary<string, FolderPlan> Plans,
-        IReadOnlyDictionary<string, List<DefBox>> UsagesByOwner);
+        IReadOnlyDictionary<string, Location> Located);
 
     /// <summary>
     /// The planned shape of one package folder, computed before any graph node is created so the
@@ -605,7 +600,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // owner's folder), definitions and usages as leaves.
         var packageNames = CollectPackageNames(context.Workspace);
         var exposed = scope is not null ? exposedPackages : null;
-        var build = BuildGraph(groups, childrenByParent, usagesByOwner, modelEdges, theme, options.DepthLimit, exposed, packageNames, itemOrder: null);
+        var build = BuildGraph(groups, childrenByParent, usagesByOwner, modelEdges, theme, options.DepthLimit, exposed, packageNames);
 
         // Lay out the whole graph in one call, delegating root-scope algorithm selection to "auto":
         // it classifies the root's own folders/top-level definitions by connectivity, routing
@@ -614,21 +609,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // already applies per folder, just resolved automatically at the root instead of being pinned
         // to a single fixed algorithm for every root-scope node regardless of its own connectivity.
         var tree = LayOut(build.Graph);
-
-        // The engine lays out each package folder's contents without knowing where the folder's
-        // relationships to the outside lead, and stacks unconnected groups of those contents in the
-        // order they were added - so declaration order alone can force relationships that leave a
-        // folder to cross one another. Refine once: reorder each folder's items by the horizontal
-        // position (in the first layout) of the boxes their external relationships lead to, and lay
-        // out again with that order. When no folder's order changes the first layout is kept as is.
-        // NOTE: this compensates for the engine's SeparateChildren placement model and can be retired
-        // when the engine orders a container's interior by its cross-hierarchy edges.
-        var itemOrder = ComputeItemOrder(tree, build, modelEdges);
-        if (itemOrder.Count > 0)
-        {
-            build = BuildGraph(groups, childrenByParent, usagesByOwner, modelEdges, theme, options.DepthLimit, exposed, packageNames, itemOrder);
-            tree = LayOut(build.Graph);
-        }
 
         // Stamp the ellipsis ("…") label onto each truncated package folder's placed box. Every placed
         // box is paired with its graph node by identity
@@ -644,7 +624,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var tucked = TryTuckUnconnected(
             tree,
             build,
-            deferred => BuildGraph(groups, childrenByParent, usagesByOwner, modelEdges, theme, options.DepthLimit, exposed, packageNames, itemOrder.Count > 0 ? itemOrder : null, deferred),
+            deferred => BuildGraph(groups, childrenByParent, usagesByOwner, modelEdges, theme, options.DepthLimit, exposed, packageNames, deferred),
             theme);
         placed = tucked ?? placed;
 
@@ -2229,17 +2209,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="depthLimit">The nesting depth limit, or a non-positive value for none.</param>
     /// <param name="exposedPackages">The exposed packages of a scoped view, or null for an unscoped view.</param>
     /// <param name="packageNames">Every package the workspace declares, used to recognize enclosing packages.</param>
-    /// <param name="itemOrder">
-    /// Optional per-folder item order (package qualified name to the folder's definition qualified
-    /// names in the wanted order) produced by <see cref="ComputeItemOrder"/>; null keeps declaration
-    /// order. A folder or name it does not know is ignored.
-    /// </param>
     /// <param name="deferred">
     /// Optional qualified names of leaf definitions directly held by a folder (or the root) that are
     /// left out of the graph, so <see cref="TryTuckUnconnected"/> can place them in the free space
     /// of the finished drawing instead; null defers nothing.
     /// </param>
-    /// <returns>The graph and the bookkeeping for decoration and order refinement.</returns>
+    /// <returns>The graph and the bookkeeping for decoration and unconnected-definition placement.</returns>
     private static GraphBuild BuildGraph(
         IReadOnlyList<(string Package, List<DefBox> Items)> groups,
         IReadOnlyDictionary<string, List<DefBox>> childrenByParent,
@@ -2249,7 +2224,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         int depthLimit,
         IReadOnlySet<string>? exposedPackages,
         IReadOnlySet<string> packageNames,
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? itemOrder,
         IReadOnlySet<string>? deferred = null)
     {
         var graph = new LayoutGraph();
@@ -2382,7 +2356,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             folderScopes[folderKey] = folderScope;
             located[FolderKeyPrefix + folderKey] = new Location(folder, parentScope);
 
-            foreach (var def in OrderedItems(plan, itemOrder))
+            foreach (var def in plan.Items)
             {
                 if (deferred?.Contains(def.QualifiedName) == true)
                 {
@@ -2423,29 +2397,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             added.Label = edge.Label;
         }
 
-        return new GraphBuild(graph, truncated, located, plans, usagesByOwner);
-    }
-
-    /// <summary>
-    /// Returns a folder's items in the order the layout engine should receive them: the order named
-    /// by <paramref name="itemOrder"/> for the folder when one exists, otherwise declaration order.
-    /// Names the folder does not own are ignored and items the order omits keep their relative
-    /// declaration order after the named ones, so a stale or partial order can never drop a
-    /// definition from the drawing.
-    /// </summary>
-    private static IReadOnlyList<DefBox> OrderedItems(FolderPlan plan, IReadOnlyDictionary<string, IReadOnlyList<string>>? itemOrder)
-    {
-        if (itemOrder is null || !itemOrder.TryGetValue(plan.Key, out var wanted))
-        {
-            return plan.Items;
-        }
-
-        var byName = plan.Items.ToDictionary(d => d.QualifiedName, StringComparer.Ordinal);
-        var names = wanted.Where(byName.ContainsKey).Distinct(StringComparer.Ordinal).ToList();
-        var ordered = names.Select(name => byName[name]).ToList();
-        var named = names.ToHashSet(StringComparer.Ordinal);
-        ordered.AddRange(plan.Items.Where(d => !named.Contains(d.QualifiedName)));
-        return ordered;
+        return new GraphBuild(graph, truncated, located);
     }
 
     /// <summary>
@@ -3813,214 +3765,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     {
         graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId);
         return LayoutEngine.Layout(graph);
-    }
-
-    /// <summary>
-    /// Computes, for every package folder whose items should be stacked differently, the item order
-    /// that keeps relationships leaving the folder from crossing one another: the folder's items
-    /// that have external relationships are ordered by the mean horizontal center, in the first
-    /// layout (<paramref name="tree"/>), of the boxes those relationships lead to.
-    /// </summary>
-    /// <remarks>
-    /// The layered engine places a container's contents blind to the container's external edges and
-    /// stacks unconnected groups of those contents by insertion index, so it is the caller that must
-    /// supply the crossing-reducing (barycenter) order. Items without external relationships keep
-    /// their positions; the keyed items are sorted into the slots the keyed items occupied. The key
-    /// of an item aggregates the relationships of the item and of the usage nodes placed beside it.
-    /// Only package-folder items are considered, the key is horizontal only (the graph flows
-    /// top-to-bottom, so a layer is a row) and one refinement pass is made with no iteration, so the
-    /// computation always terminates and is a no-op, returning an empty result, whenever no
-    /// folder's order changes.
-    /// </remarks>
-    /// <param name="tree">The first-pass layout.</param>
-    /// <param name="build">The first-pass graph with its located nodes and folder plans.</param>
-    /// <param name="edges">The model edges the graph was built from.</param>
-    /// <returns>Folder key to wanted item qualified-name order, only for folders whose order changes.</returns>
-    private static Dictionary<string, IReadOnlyList<string>> ComputeItemOrder(
-        LayoutTree tree,
-        GraphBuild build,
-        IReadOnlyList<ModelEdge> edges)
-    {
-        var order = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
-        var centers = new Dictionary<LayoutGraphNode, double>();
-        CollectCenters(tree.Nodes, build.Graph.Nodes, centers);
-
-        foreach (var plan in build.Plans.Values)
-        {
-            if (plan.Items.Count < 2)
-            {
-                continue;
-            }
-
-            var keys = plan.Items.Select(item => ExternalPartnerKey(item.QualifiedName, build.UsagesByOwner, build.Located, edges, centers)).ToList();
-            var wanted = OrderByPartnerPosition(plan.Items, keys);
-            if (wanted is not null)
-            {
-                order[plan.Key] = wanted;
-            }
-        }
-
-        return order;
-    }
-
-    /// <summary>
-    /// Records the absolute horizontal center of every placed box against the graph node it was
-    /// placed from, recursing through container boxes. Coordinates in the layout tree are absolute,
-    /// so centers of boxes in different scopes are directly comparable.
-    /// </summary>
-    private static void CollectCenters(
-        IReadOnlyList<LayoutNode> nodes,
-        IReadOnlyList<LayoutGraphNode> graphNodes,
-        Dictionary<LayoutGraphNode, double> centers)
-    {
-        // Several nodes of one scope can share label, keyword and shape (two ports "data :
-        // SensorPort" of different owners): such a box cannot be told from its twin, so it is
-        // never used as an ordering key.
-        var signatureCounts = graphNodes
-            .GroupBy(n => (n.Label, n.Keyword, n.Shape))
-            .ToDictionary(g => g.Key, g => g.Count());
-
-        foreach (var (_, box, graphNode) in PairBoxesWithNodes(nodes, graphNodes))
-        {
-            if (signatureCounts[(graphNode.Label, graphNode.Keyword, graphNode.Shape)] == 1)
-            {
-                centers[graphNode] = box.X + (box.Width / 2.0);
-            }
-
-            if (graphNode.HasChildren && box.Children.Count > 0)
-            {
-                CollectCenters(box.Children, graphNode.Children.Nodes, centers);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Returns the mean horizontal center of the boxes the external relationships of the box
-    /// <paramref name="name"/> — and of the usage nodes placed beside it (<paramref name="beside"/>) —
-    /// lead to, or <see langword="null"/> when it has none that can be placed (no relationship
-    /// leaving its folder, or every partner is hidden by the depth limit).
-    /// </summary>
-    private static double? ExternalPartnerKey(
-        string name,
-        IReadOnlyDictionary<string, List<DefBox>> beside,
-        IReadOnlyDictionary<string, Location> located,
-        IReadOnlyList<ModelEdge> edges,
-        IReadOnlyDictionary<LayoutGraphNode, double> centers)
-    {
-        if (!located.TryGetValue(name, out var self))
-        {
-            return null;
-        }
-
-        var sum = 0.0;
-        var count = 0;
-        foreach (var member in GroupMembers(name, beside))
-        {
-            foreach (var edge in edges)
-            {
-                var partnerName = PartnerOf(edge, member);
-                if (partnerName is null || !located.TryGetValue(partnerName, out var partner))
-                {
-                    continue;
-                }
-
-                var anchor = ExternalAnchor(self.Scope, partner);
-                if (anchor is not null && centers.TryGetValue(anchor, out var center))
-                {
-                    sum += center;
-                    count++;
-                }
-            }
-        }
-
-        return count > 0 ? sum / count : null;
-    }
-
-    /// <summary>
-    /// Returns <paramref name="name"/> together with every usage node placed beside it, transitively:
-    /// the nodes that sit in the same scope as the box and move with it.
-    /// </summary>
-    private static IEnumerable<string> GroupMembers(string name, IReadOnlyDictionary<string, List<DefBox>> beside)
-    {
-        yield return name;
-        if (!beside.TryGetValue(name, out var usages))
-        {
-            yield break;
-        }
-
-        foreach (var usage in usages)
-        {
-            foreach (var member in GroupMembers(usage.QualifiedName, beside))
-            {
-                yield return member;
-            }
-        }
-    }
-
-    /// <summary>Returns the other end of <paramref name="edge"/> as seen from <paramref name="name"/>, or null when it does not touch it (or is a self-loop).</summary>
-    private static string? PartnerOf(ModelEdge edge, string name)
-    {
-        if (edge.SourceQualified == name && edge.TargetQualified != name)
-        {
-            return edge.TargetQualified;
-        }
-
-        return edge.TargetQualified == name && edge.SourceQualified != name ? edge.SourceQualified : null;
-    }
-
-    /// <summary>
-    /// Returns the node a relationship from a definition held by <paramref name="selfScope"/> to
-    /// <paramref name="partner"/> actually targets at the level where the two meet: the partner itself
-    /// when it is a direct member of the lowest common scope, otherwise the container (folder or
-    /// definition) that holds the partner and is a direct member of that scope. Returns null when the
-    /// relationship stays inside <paramref name="selfScope"/> (the scope that holds the definition):
-    /// that scope's own layout sees the edge, so it needs no ordering key.
-    /// </summary>
-    private static LayoutGraphNode? ExternalAnchor(ScopeInfo selfScope, Location partner)
-    {
-        var common = LowestCommonScope(selfScope, partner.Scope);
-        if (ReferenceEquals(common, selfScope))
-        {
-            return null;
-        }
-
-        var anchor = partner.Node;
-        for (var scope = partner.Scope; !ReferenceEquals(scope, common); scope = scope.Parent!)
-        {
-            anchor = scope.Owner ?? anchor;
-        }
-
-        return anchor;
-    }
-
-    /// <summary>
-    /// Orders the items that have a key by that key (ties keep declaration order) into the slots the
-    /// keyed items occupied, leaving the items without a key where they are. Returns null when fewer than two
-    /// items have a key or the order does not change.
-    /// </summary>
-    private static List<string>? OrderByPartnerPosition(IReadOnlyList<DefBox> items, IReadOnlyList<double?> keys)
-    {
-        var slots = Enumerable.Range(0, items.Count).Where(i => keys[i].HasValue).ToList();
-        if (slots.Count < 2)
-        {
-            return null;
-        }
-
-        // Round before comparing so sub-pixel differences between boxes that are effectively level
-        // do not reorder them (and thereby make the result depend on layout noise).
-        var sorted = slots.OrderBy(i => Math.Round(keys[i]!.Value)).ThenBy(i => i).ToList();
-        if (sorted.SequenceEqual(slots))
-        {
-            return null;
-        }
-
-        var wanted = items.Select(item => item.QualifiedName).ToList();
-        for (var k = 0; k < slots.Count; k++)
-        {
-            wanted[slots[k]] = items[sorted[k]].QualifiedName;
-        }
-
-        return wanted;
     }
 
     /// <summary>Returns the last segment of a qualified package name for use as a folder label.</summary>

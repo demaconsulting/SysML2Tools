@@ -237,13 +237,12 @@ configuration are required beyond a standard .NET SDK installation.
 - The gallery model `docs/gallery/models/11-nested-packages-general.sysml` renders `Powertrain` and
   `Body` folders inside the `Vehicle` folder with the cross-package specialization and the
   compositions into `Car` drawn in the `Vehicle` scope between the actual endpoint boxes.
-- The definitions inside a package folder are placed in the horizontal order of the boxes their
-  relationships lead to outside the folder (a definition leading to a nearer box left of one leading to
-  a farther box), independent of declaration order, with no crossing between the connectors of the
-  deep-nesting and sibling-nested-package examples; a folder with no relationship leaving it keeps
-  declaration order; a relationship to a partner hidden by the depth limit does not disturb the layout;
-  and the partner position is measured at the level where the two meet however deeply the partner is
-  nested. For the nested-package vehicle model the declaration order does not change any box position and
+- The relationships that leave a package folder are drawn without crossing one another in the
+  deep-nesting and sibling-nested-package examples, whichever way the folder's definitions were declared
+  (the layout engine orders a container's interior by its cross-hierarchy relationships); a folder with
+  no relationship leaving it keeps declaration order; and a relationship to a partner hidden by the depth
+  limit does not disturb the layout. For the nested-package vehicle model the declaration order does not
+  change any box position and
   no two definition boxes overlap; a residual crossing between its cross-folder connectors is a layout
   engine routing outcome that is not asserted by the tests and is judged in the visual verification.
 - The diagram flows top-to-bottom: the owner is placed above its owned usage, the supertype above the
@@ -283,14 +282,16 @@ the B5 threshold is 20 % of the canvas.
 
 | Image | Canvas | Leaf blocks | Largest empty square (limit) | Leaf share of canvas |
 | --- | --- | --- | --- | --- |
-| `DroneGeneralView` | 1606×1308 | 29 | 180 px (243 px) | 21.5 % |
+| `DroneGeneralView` | 1644×1330 | 29 | 220 px (243 px) | 21.2 % |
 | `BatterySubsystemView` | 423×286 | 1 and a note | 120 px (438 px) | 18.3 % (27.8 % with the note) |
-| `MissionControlGeneralView` | 500×684 | 7 | 196 px (224 px) | 19.4 % |
-| `GroundSegmentRecursiveView` | 428×344 | 6 | 96 px (236 px) | 40.8 % |
-| `VehiclePackagesGeneralView` | 576×1036 | 8 | 172 px (150 px) | 12.9 % (34.9 % with the nested frames) |
-| `DriveUnitGeneralView` | 1117×632 | 9 | 140 px (166 px) | 13.6 % |
-| `ChargerGeneralView` | 590×450 | 5 | 120 px (208 px) | 23.3 % |
-| `VehicleTypingGeneralView` | 678×610 | 7 | 120 px (150 px) | 15.5 % (42.0 % with the nested frames) |
+| `MissionControlGeneralView` | 404×588 | 7 | 160 px (224 px) | 24.2 % |
+| `GroundSegmentRecursiveView` | 372×286 | 6 | 52 px (236 px) | 48.0 % |
+| `VehiclePackagesGeneralView` | 552×939 | 8 | 116 px (150 px) | 14.8 % (36.2 % with the nested frames) |
+| `DriveUnitGeneralView` | 1076×592 | 9 | 120 px (166 px) | 15.1 % |
+| `ChargerGeneralView` | 550×410 | 5 | 100 px (208 px) | 27.4 % |
+| `VehicleTypingGeneralView` | 605×554 | 7 | 100 px (150 px) | 19.1 % (46.8 % with the nested frames) |
+
+The rows are re-measured on rendering engine 0.3.0-beta.5, which sizes containers tightly.
 
 Before the placement of the unconnected definitions, the quadcopter view was 1959×1308 px with a 460 px
 empty square and a leaf share of 17.6 %; the result above is therefore a pass of B4 and B5, checked on
@@ -311,7 +312,7 @@ every change by `GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_MeetsBl
   names in tabs, no edges.
 - `11`, `VehiclePackagesGeneralView`: nested folders, cross-package specialization, typing glyph at
   `Engine` and `Chassis`; one residual crossing: the `Hybrid` to `Engine` connector crosses the
-  `ElectricMotor` to `Engine` specialization line just below `Engine` (engine routing, not asserted).
+  `chassis` to `Chassis` typing connector just right of `Engine` (engine routing, not asserted).
 - `14`, `DriveUnitGeneralView`: square definitions, rounded usages, dashed `«ref part»`,
   `«abstract part def»` with an italic name, ◆ versus ◇ at the owner, typing, subsetting, redefinition,
   and specialization glyphs, `doc` compartment, note; every owner-end decoration has a clean approach
@@ -321,7 +322,7 @@ every change by `GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_MeetsBl
   connector crosses the `frontMotor` to `RearDrive` composition connector. The order in which the strategy
   hands the boxes and edges to the engine cannot remove them: the same ten boxes and thirteen edges laid
   out directly with the engine in 1500 random insertion orders give 3 crossings at best (3 in 620 orders,
-  4 in 687, and more in the rest), and the strategy's own order gives 3. The cause is that `frontMotor`
+  4 in 687, and more in the rest), and the engine's own ordering gives 3. The cause is that `frontMotor`
   must sit under both `motors` and `RearDrive` while `main` (with its note) lies between them.
 - `15`, `ChargerGeneralView`: `doc` compartments and the dashed comment link without arrowhead on
   nested parts; both diamonds at `Charger` have a 15 px clean approach.
@@ -331,24 +332,24 @@ every change by `GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_MeetsBl
 Owner waivers and limits. The following results do not meet the checklist and are waived explicitly, each
 caused by the layout engine and not hand-tuned (the engine items are in `ROADMAP.md`):
 
-- W1, `VehiclePackagesGeneralView`: B4 (172 px against a limit of 150 px) and one residual crossing. The
+- W1, `VehiclePackagesGeneralView`: one residual crossing (B4 is now met: 116 px against a limit of 150 px,
+  where it was 172 px before the engine sized containers tightly in 0.3.0-beta.5). The
   tall portrait follows from `Hybrid` (in `Body`) specializing `Engine` (in `Powertrain`): the engine
   places a folder's externally connected single box after the connected group whatever the declaration
   order, and ordering the folder items by the partner's vertical position does not change the picture.
   The result is far better than the 1407×398 strip of the former layout.
-- W2, `MissionControlGeneralView`: B4 is met with little margin (196 px against 224 px; the empty rectangle
-  under `SpaceSegment` is 224×488 px), because the engine packs the two top-level folders side by side.
-  The layout is smaller than before.
-- W3, B5 for the diagrams that are dominated by package frames and tiers: the leaf share is 12.9 %
-  (`VehiclePackagesGeneralView`), 15.5 % (`VehicleTypingGeneralView`), and 19.4 %
-  (`MissionControlGeneralView`) when only the leaf blocks are counted, and 34.9 %, 42.0 %, and 45.2 %
+- W2, `MissionControlGeneralView`: B4 is met (160 px against 224 px; it was 196 px before beta.5), because
+  the engine packs the two top-level folders side by side. The layout is smaller than before.
+- W3, B5 for the diagrams that are dominated by package frames and tiers: the leaf share is 14.8 %
+  (`VehiclePackagesGeneralView`) and 19.1 % (`VehicleTypingGeneralView`) when only the leaf blocks are
+  counted (`MissionControlGeneralView` is now 24.2 % and passes), and 36.2 % and 46.8 %
   when the nested package frames are counted as blocks. The package frame, its tab, the layer spacing,
-  and the room for the connector lanes are constants of the engine (`CoreOptions.LayerSpacing` is not
-  honored and `CoreOptions.NodeSpacing` is only a floor, so the strategy cannot tighten them);
-  counting the frames as blocks is the reading under which these three pass. `DriveUnitGeneralView`
-  (13.6 %) has a single package frame, so the reading does not help it: it is a wide, three-tier tree
-  of nine boxes whose spacing and lanes are the engine's, and its largest empty square (140 px against
-  166 px) passes B4.
+  and the room for the connector lanes are constants of the engine (`CoreOptions.LayerSpacing` is honored
+  only as a floor, 70 px by default, and `CoreOptions.NodeSpacing` is only a floor, so the strategy
+  cannot tighten them); counting the frames as blocks is the reading under which these two pass.
+  `DriveUnitGeneralView` (15.1 %) has a single package frame, so the reading does not help it: it is a
+  wide, three-tier tree of nine boxes whose spacing and lanes are the engine's, and its largest empty
+  square (120 px against 166 px) passes B4.
 - W5, there is no gallery model for requirements and imports (`satisfy`, `verify`, `import`, `::>`): the
   usage form of a requirement renders crossing, overlapping connectors and tangled labels and keeps no
   typing, and the definition form uses requirement definitions as `satisfy` and `verify` targets, which the
@@ -836,7 +837,7 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   The gallery model `11-nested-packages-general.sysml` draws `Powertrain` and `Body` inside `Vehicle`, the
   `Hybrid` to `Engine` specialization and both compositions into `Car` in the `Vehicle` scope between the
   endpoint boxes
-- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_OrderFolderItemsByPartnerPosition`:
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeclarationOrder_DoesNotMoveBoxes`:
   The nested-package model with `Hybrid` declared last and again first in `Body` draws every box at the
   same position in both orders and no two definition boxes overlap, so the picture does not depend on
   declaration order (a residual cross-folder connector crossing is an engine routing outcome, not asserted)
@@ -844,16 +845,15 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   A package with unconnected definitions and a specialization pair and no relationship leaving it
   keeps its declaration order (`Zeta` before `Alpha` before `Beta`)
 - `GeneralViewLayoutStrategy_BuildLayout_ExternalEdgeToTruncatedPartner_DoesNotThrowAndKeepsOrder`:
-  A relationship into a nested package collapsed by the depth limit gives the definition no ordering
-  key; the layout completes, both definitions of the folder are drawn in declaration order, and the
+  A relationship into a nested package collapsed by the depth limit has no partner box to connect to;
+  the layout completes, both definitions of the folder are drawn in declaration order, and the
   hidden partner's box is absent
-- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder`:
-  Two definitions of `A::B` leading into `Lo::In` and `Hi::In` are placed in the same horizontal order
-  as the `Lo` and `Hi` folders, for both declaration orders
-- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder`:
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_DoNotCross`:
+  Two definitions of `A::B` leading into `Lo::In` and `Hi::In` are drawn with two connectors that do
+  not cross, for both declaration orders
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_DoNotCross`:
   Two definitions of package `P` specializing definitions of sibling nested packages `A` and `B` are
-  placed in the same horizontal order as those folders, for both declaration orders, with zero crossings
-  (the relationships stay inside `P`'s scope, which the engine orders itself)
+  drawn with two connectors that do not cross, for both declaration orders
 - `GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInNestedPackage_AreNotMerged`:
   Two attribute usages of the same type, drawn as nodes under the all-usages policy, inside a nested
   package give two separate typing connectors, so parallel-edge merging stays off in nested folder scopes
