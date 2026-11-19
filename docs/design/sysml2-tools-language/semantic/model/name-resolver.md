@@ -115,6 +115,27 @@ instance serves one workspace.
   listed target is checked to exist in the embedded standard library by a test.
 - The global namespace is every top-level declaration of every loaded root namespace, user and
   standard library alike (KerML 8.2.3.5.2).
+- *Feature chains* (`a.b.c`, KerML 8.2.3.5.1): a reference containing a `.` outside single quotes
+  is split into **parts**. The first part is an ordinary (possibly qualified or `$::`-prefixed)
+  name, resolved by full resolution from the local namespace; every later part is resolved as
+  a sequence of **visible** lookups, starting in the element the previous part resolved to. That
+  lookup already has the semantics a chain needs: the feature's own inline members first, then
+  everything it inherits through its lookup general types (explicit typing, subsetting,
+  redefinition, and the implicit specializations — so `p1 :> p; p1.x` reaches the members of
+  `p`'s type, a port typed by a conjugated port definition reaches that definition's members, and
+  a member a nested usage redefines is the nested usage), transitively; only public memberships
+  are found, so a private or protected member is not reachable through a chain even by
+  subsetting, while the **first** part still sees its namespace's private members; and an alias
+  member resolves to its target. A chain resolves only when every part does; a part that does not
+  resolve leaves the whole reference unresolved. The result of a chain is the declared element of
+  the last part (`Resolve`) and, for callers that key relationships by feature instances, the
+  **instance path** (`ResolveFeatureChain`, internal): the first part's element followed by the
+  simple name of each later part's element — `P::p1::x::x1` for `p1.x.x1` although `x` is
+  declared by the type of `p`. For a reference without a chain the instance path equals the
+  element, so non-chain behavior is unchanged.
+- *Quoted names* compare equal with and without their enclosing single quotes (`'PowerTrain'` and
+  `PowerTrain` name the same element, KerML 8.2.2.2.1) in owned and imported memberships, alias
+  short names, and top-level (global) names; dots and `::` inside quotes never split a name.
 - *File-root imports* (resolving mode only): the imports written at the root of a source file are
   not part of any namespace's `Children` in the declarations, so `RegisterRootImports` records
   them against the qualified name of **every declaration the file contributes** (not merely its
@@ -131,9 +152,17 @@ instance serves one workspace.
 
 - `Resolve(reference, localNamespace)` (KerML 8.2.3.5.1): a single segment by full resolution; a
   `$::name` in the global namespace; otherwise the qualification part by this same process (it
-  must yield a namespace), then the last segment by visible resolution in that namespace. An
-  internal overload additionally accepts the file-root imports for a reference whose local
-  namespace is the file root itself.
+  must yield a namespace), then the last segment by visible resolution in that namespace. A
+  dotted reference is a **feature chain** (see Data Model): `SplitChain` splits it on `.` outside
+  quotes (a reference with no `.` takes a fast path that skips the split), the first part is
+  resolved as above, and each later part by `Lookup(segment, current, Visible)` (the cache and
+  the in-progress guard apply to every chain step). An internal overload additionally accepts the
+  file-root imports for a reference whose local namespace is the file root itself.
+- `ResolveFeatureChain(reference, localNamespace, fileRootImports)` (internal): `Resolve` that
+  also returns the instance path of a chain (`FeatureChainResolution(Element, InstancePath)`).
+  `ReferenceResolver` records relationship ends (connect, bind, transition, allocate, satisfy,
+  verify) at the instance path, which is what `GeneralViewLayoutStrategy` maps to boxes, and the
+  declared element for type-like references (supertype, typing, redefinition).
 - `ResolveRedefinedFeature(reference, owningType)` (KerML 8.2.3.5.1, Redefinition): `Resolve`
   with each lookup general type (declared, then implicit) of `owningType` as the local namespace,
   in turn. A bare name is looked up in the general type itself with the **RedefinitionTarget** scope —
@@ -141,7 +170,8 @@ instance serves one workspace.
   cannot be redefined, protected ones can) but without the redefined-member exclusion described
   below, because library associations routinely redefine a name that a general type's own
   feature already redefined; the enclosing namespaces outward from it, and qualified names,
-  resolve as in `Resolve`.
+  resolve as in `Resolve`. A redefinition target that is a chain (`:>> localClock.currentTime`)
+  resolves its first part this way and the remaining parts by visible resolution.
 - `ResolveRedefinition(reference, owningType, redefiningFeature, fileRootImports)` (internal):
   `ResolveRedefinedFeature`, then — a documented lenient deviation — ordinary `Resolve` from the
   owning type; the redefining feature itself is never an acceptable target. When ordinary
@@ -192,14 +222,22 @@ rejected match does not stop the search for a later one that satisfies the condi
 The lookup cache is keyed by (name, namespace, scope), so the implicit general types add one cached
 lookup per (name, library type) the first time a name is searched through them. Measured on the OMG
 corpus lint (251 files) the cost is about +3% CPU time (alternating runs, noisy machine), and the
-embedded standard library compiles in comparable time.
+embedded standard library compiles in comparable time. Feature chains add one cached visible
+lookup per chain part, and quote equivalence a length check and, only for names that differ in
+length by exactly two, a comparison; measured on the same corpus lint (four alternating runs
+against the previous stage on a noisy machine) the chain stage costs about +2.5% mean CPU time
+(wall time unchanged within noise).
 
 ##### Error Handling
 
-Unresolvable names return `null` (`Resolve`, `ResolveRedefinedFeature`). Imports and
-specializations may be circular (KerML 8.2.3.5.1); a lookup already
+Unresolvable names return `null` (`Resolve`, `ResolveRedefinedFeature`, `ResolveFeatureChain`).
+Imports and specializations may be circular (KerML 8.2.3.5.1); a lookup already
 in progress for the same (name, namespace, scope) contributes nothing instead of recursing, so
-resolution always terminates. Null arguments throw `ArgumentNullException`.
+resolution always terminates. A feature that specializes a chain through itself
+(`ref x : T :> x.y`) re-enters its own general types while they are being derived; the re-entry
+contributes nothing, and a lookup that missed while that happened is not cached, so the answer
+does not depend on which reference is resolved first. Null arguments throw
+`ArgumentNullException`.
 
 ##### Dependencies
 

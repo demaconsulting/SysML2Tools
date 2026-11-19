@@ -1516,11 +1516,15 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitSatisfyRequirementUsage(SysMLv2Parser.SatisfyRequirementUsageContext context)
     {
-        // Prefer the ownedReferenceSubsetting form (satisfy <ref> ...); fall back to the
-        // typed/declared name of the "REQUIREMENT usageDeclaration?" form.
+        // Prefer the ownedReferenceSubsetting form (satisfy <ref> ...). The "REQUIREMENT
+        // usageDeclaration?" form declares a requirement usage (satisfy requirement r : R by s);
+        // the name it declares is not a reference, so the requirement satisfied is the usage's
+        // typing (R) and only a declaration without typing falls back to the declared name.
+        var declaration = context.usageDeclaration();
         var requirementName = context.ownedReferenceSubsetting()?.GetText()
-            ?? GetDeclaredName(context.usageDeclaration()?.identification())
-            ?? context.usageDeclaration()?.GetText();
+            ?? ExtractFeatureTyping(declaration?.featureSpecializationPart())
+            ?? GetDeclaredName(declaration?.identification())
+            ?? declaration?.GetText();
 
         var subjectName = context.satisfactionSubjectMember()?.GetText();
 

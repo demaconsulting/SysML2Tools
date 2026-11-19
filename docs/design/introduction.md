@@ -56,9 +56,11 @@ system, subsystem, and unit levels:
         reference
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
       - **ReferenceResolver** (Unit) — resolves supertype, typing, metadata-type,
-        redefinition, import, satisfy, verify, allocate, expose, and (in a final pass) dotted
-        feature-chain connect/transition references by KerML 8.2.3.5 name resolution (delegating
-        to `NameResolver`: member visibility, filtered imports, import scoping); detects circular
+        redefinition, import, satisfy, verify, allocate, expose, and (in a final pass) connect/
+        binding/transition references — any of them possibly a dotted feature chain — by KerML
+        8.2.3.5 name resolution (delegating
+        to `NameResolver`: member visibility, filtered imports, import scoping, feature chains);
+        detects circular
         imports; returns a `SemanticIndex` of resolved edges; also resolves the references written
         inside expressions (guards, triggers, effects, `accept`/`send` payloads, constraints, `render`
         targets) and reports each unresolved one at its token position; chooses the unresolved-reference
@@ -67,7 +69,9 @@ system, subsystem, and unit levels:
         SysML2Tools extension selector
       - **NameResolver** (Unit) — public KerML 8.2.3.5 name resolver (owned, imported, inherited
         — including the implicit specializations of every element kind, which are lookup input
-        only and never edges —, aliased, and short-named memberships; full and visible resolution)
+        only and never edges —, aliased, and short-named memberships; full and visible resolution;
+        dotted feature chains resolved segment by segment through the previous feature's own and
+        inherited members)
         used by `ReferenceResolver` (in an internal resolving mode) and by layout strategies for
         references the semantic model did not resolve
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization

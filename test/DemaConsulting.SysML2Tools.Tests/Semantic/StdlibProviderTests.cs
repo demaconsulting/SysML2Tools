@@ -129,15 +129,15 @@ public sealed class StdlibProviderTests
 
     /// <summary>
     ///     The standard library compiles with no errors and no more than the recorded number of
-    ///     unresolved-reference warnings (the remaining gaps are dotted feature chains and similar,
-    ///     tracked in issue #129). Lower the ceiling whenever resolver gaps are closed and the
-    ///     library resource is regenerated.
+    ///     unresolved-reference warnings (the remaining ones name connection ends and members of
+    ///     bodies the AST does not record, tracked in issue #129). Lower the ceiling whenever
+    ///     resolver gaps are closed and the library resource is regenerated.
     /// </summary>
     [Fact]
     public void GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling()
     {
         // Arrange
-        const int ceiling = 45;
+        const int ceiling = 13;
 
         // Act
         var (_, diagnostics) = StdlibProvider.GetSymbolTable();

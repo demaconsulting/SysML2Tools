@@ -12,6 +12,32 @@ namespace DemaConsulting.SysML2Tools.Tests.Semantic;
 public sealed class SemanticOmgModelsTests
 {
     /// <summary>
+    ///     OMG corpus models (path suffixes) whose strict-mode gaps were all dotted feature chains,
+    ///     anonymous action nodes or satisfy declarations, and which therefore report no unresolved
+    ///     reference any more.
+    /// </summary>
+    private static readonly string[] ChainResolvedModels =
+    [
+        "SimpleTests/ConnectionTest.sysml",
+        "SimpleTests/AliasTest.sysml",
+        "SimpleTests/AllocationTest.sysml",
+        "SimpleTests/FeaturePathTest.sysml",
+        "SimpleTests/ActionTest.sysml",
+        "/TimeVaryingAttribute.sysml",
+        "RequirementsExamples/RequirementDerivationExample.sysml",
+        "8.4.1WheelHubAssembly/WheelPackage.sysml",
+        "8.4.1WheelHubAssembly/WheelPackage-Updated.sysml",
+        "17.Control/DecisionExample.sysml",
+        "17.Control/ForkJoinExample.sysml",
+        "19.TerminateActions/TerminateActionsExample-1.sysml",
+        "27.Occurrences/InteractionExample-1.sysml",
+        "27.Occurrences/MessagePayloadExample.sysml",
+        "32.Requirements/RequirementSatisfaction.sysml",
+        "7a1-VariantConfiguration-GeneralConcept-a.sysml",
+        "8-Requirements.sysml",
+        "13a-ModelContainment.sysml",
+    ];
+    /// <summary>
     ///     Finds the test/SysMLModels directory relative to the test assembly.
     /// </summary>
     private static string? FindSysMLModelsRoot()
@@ -156,7 +182,7 @@ public sealed class SemanticOmgModelsTests
     public async Task SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline()
     {
         // Arrange
-        const int baseline = 94;
+        const int baseline = 48;
         var modelsRoot = FindSysMLModelsRoot();
         if (modelsRoot is null)
         {
@@ -191,6 +217,15 @@ public sealed class SemanticOmgModelsTests
         Assert.True(
             unresolved.Count <= baseline,
             $"Expected at most {baseline} unresolved references in the OMG corpus but got {unresolved.Count}.");
+
+        // Assert — the models whose only gaps were dotted feature chains (and anonymous action
+        // nodes) now resolve completely
+        var stillFailing = unresolved
+            .Where(d => ChainResolvedModels.Any(
+                model => d.FilePath.Replace('\\', '/').EndsWith(model, StringComparison.OrdinalIgnoreCase)))
+            .Select(d => $"{d.FilePath}({d.Line},{d.Column}): {d.Message}")
+            .ToList();
+        Assert.True(stillFailing.Count == 0, "Unexpected unresolved references:\n" + string.Join("\n", stillFailing));
 
         // Assert — by default none of them is an Error
         Assert.DoesNotContain(

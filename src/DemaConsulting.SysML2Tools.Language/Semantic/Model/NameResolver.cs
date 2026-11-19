@@ -43,6 +43,16 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 /// </remarks>
 public sealed class NameResolver
 {
+    /// <summary>
+    ///     The outcome of resolving a (possibly dotted) feature-chain reference.
+    /// </summary>
+    /// <param name="Element">The qualified name of the declared element the last segment resolves to.</param>
+    /// <param name="InstancePath">
+    ///     The qualified name of the last feature as seen through the chain (see
+    ///     <see cref="ResolveFeatureChain"/>); equal to <paramref name="Element"/> without a chain.
+    /// </param>
+    internal readonly record struct FeatureChainResolution(string Element, string InstancePath);
+
     /// <summary>Which memberships of a namespace a lookup considers.</summary>
     private enum Scope
     {
@@ -69,6 +79,7 @@ public sealed class NameResolver
     private readonly HashSet<(string Name, string Namespace, Scope Scope)> _inProgress = new();
     private readonly Dictionary<string, IReadOnlyList<string>> _declaredGeneralTypes = new(StringComparer.Ordinal);
     private readonly HashSet<string> _declaredGeneralTypesInProgress = new(StringComparer.Ordinal);
+    private int _generalTypeReentries;
     private readonly Dictionary<string, HashSet<string>> _redefinedMembers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _redefinedMembersInProgress = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<SysmlImportNode>> _rootImportsByDeclaration = new(StringComparer.Ordinal);
@@ -286,9 +297,57 @@ public sealed class NameResolver
     ///     itself (a reference inside a top-level declaration finds them through
     ///     <see cref="RegisterRootImports"/>).
     /// </summary>
-    internal string? Resolve(string reference, string? localNamespace, IReadOnlyList<SysmlImportNode>? fileRootImports)
+    internal string? Resolve(string reference, string? localNamespace, IReadOnlyList<SysmlImportNode>? fileRootImports) =>
+        ResolveFeatureChain(reference, localNamespace, fileRootImports)?.Element;
+
+    /// <summary>
+    ///     Resolves <paramref name="reference"/> like <see cref="Resolve(string, string?, IReadOnlyList{SysmlImportNode}?)"/>
+    ///     and, for a feature chain (<c>a.b.c</c>, KerML 8.2.3.5.1: each segment after the first is
+    ///     resolved by visible resolution in the feature the previous segment resolved to, through
+    ///     its own members and everything it inherits), also reports the <em>instance path</em> of
+    ///     the chain's last feature.
+    /// </summary>
+    /// <remarks>
+    ///     The instance path is the first segment's element followed by the simple name of each
+    ///     later segment's element (<c>P::p1::x::x1</c> for <c>p1.x.x1</c> although <c>x</c> is
+    ///     declared by the type of <c>p1</c>): it names the feature as seen through the chain, which
+    ///     is what the connectors a chain end draws are keyed by. For a reference without a chain
+    ///     it equals the resolved element.
+    /// </remarks>
+    /// <param name="reference">The (possibly qualified, possibly dotted) name to resolve.</param>
+    /// <param name="localNamespace">The local namespace's qualified name, or null for a root namespace.</param>
+    /// <param name="fileRootImports">The imports at the root of the referencing file, if any.</param>
+    /// <returns>The resolution, or null when any segment does not resolve.</returns>
+    internal FeatureChainResolution? ResolveFeatureChain(
+        string reference, string? localNamespace, IReadOnlyList<SysmlImportNode>? fileRootImports)
     {
         ArgumentNullException.ThrowIfNull(reference);
+        if (reference.IndexOf('.') < 0)
+        {
+            return ResolveQualified(reference, localNamespace, fileRootImports) is { } element
+                ? new FeatureChainResolution(element, element)
+                : null;
+        }
+
+        var parts = SplitChain(reference);
+        if (parts.Count == 1)
+        {
+            return ResolveQualified(reference, localNamespace, fileRootImports) is { } single
+                ? new FeatureChainResolution(single, single)
+                : null;
+        }
+
+        return ResolveChainTail(ResolveQualified(parts[0], localNamespace, fileRootImports), parts);
+    }
+
+    /// <summary>
+    ///     Resolves a (possibly qualified, never dotted) name: a single segment by full resolution, a
+    ///     <c>$::</c>-prefixed name in the global namespace, otherwise the qualification part by this
+    ///     same process and the last segment by visible resolution in the namespace it resolves to.
+    /// </summary>
+    private string? ResolveQualified(
+        string reference, string? localNamespace, IReadOnlyList<SysmlImportNode>? fileRootImports)
+    {
         var segments = SplitSegments(reference);
         if (segments.Count == 0)
         {
@@ -306,6 +365,45 @@ public sealed class NameResolver
     }
 
     /// <summary>
+    ///     Resolves each part of a chain after the first by visible resolution in the element the
+    ///     previous part resolved to, accumulating the instance path.
+    /// </summary>
+    /// <param name="first">The first part's resolved element, or null when it did not resolve.</param>
+    /// <param name="parts">All the chain's parts (the first one already resolved as <paramref name="first"/>).</param>
+    private FeatureChainResolution? ResolveChainTail(string? first, IReadOnlyList<string> parts)
+    {
+        if (first is null)
+        {
+            return null;
+        }
+
+        var current = first;
+        var path = new System.Text.StringBuilder(first);
+        for (var i = 1; i < parts.Count; i++)
+        {
+            var segments = SplitSegments(parts[i]);
+            if (segments.Count == 0)
+            {
+                return null;
+            }
+
+            foreach (var segment in segments)
+            {
+                if (Lookup(segment, current, Scope.Visible) is not { } next)
+                {
+                    return null;
+                }
+
+                current = next;
+            }
+
+            path.Append("::").Append(SplitSegments(current)[^1]);
+        }
+
+        return new FeatureChainResolution(current, path.ToString());
+    }
+
+    /// <summary>
     ///     Resolves a redefined-feature reference per KerML 8.2.3.5.1: the basic resolution is
     ///     repeated with each general type of <paramref name="owningType"/> as the local
     ///     namespace, in turn, until one resolves. A bare name is looked up among each general
@@ -319,15 +417,18 @@ public sealed class NameResolver
     {
         ArgumentNullException.ThrowIfNull(reference);
         ArgumentNullException.ThrowIfNull(owningType);
-        var segments = SplitSegments(reference);
+        IReadOnlyList<string> parts = reference.IndexOf('.') < 0 ? new[] { reference } : SplitChain(reference);
+        var segments = SplitSegments(parts[0]);
         foreach (var general in LookupGeneralTypes(owningType))
         {
             // The redefining feature inherits from the general type, so a bare name is looked up
             // among the general type's inheritable memberships (not its private ones); the
-            // enclosing namespaces and the qualified-name segments resolve as usual.
-            var resolved = segments is [var bare] && bare != "$"
+            // enclosing namespaces and the qualified-name segments resolve as usual. For a chain
+            // this applies to its first part; the later parts resolve by visible resolution.
+            var first = segments is [var bare] && bare != "$"
                 ? FullResolve(bare, general, null, Scope.RedefinitionTarget)
-                : Resolve(reference, general);
+                : ResolveQualified(parts[0], general, null);
+            var resolved = parts.Count == 1 ? first : ResolveChainTail(first, parts)?.Element;
             if (resolved is not null)
             {
                 return resolved;
@@ -585,6 +686,7 @@ public sealed class NameResolver
 
         if (!_declaredGeneralTypesInProgress.Add(typeName))
         {
+            _generalTypeReentries++;
             return [];
         }
 
@@ -677,9 +779,18 @@ public sealed class NameResolver
             return name;
         }
 
+        // A top-level element may be written with or without enclosing quotes.
+        var otherForm = name.Length >= 2 && name[0] == '\'' && name[^1] == '\''
+            ? name[1..^1]
+            : "'" + name + "'";
+        if (_declarations.ContainsKey(otherForm))
+        {
+            return otherForm;
+        }
+
         // A top-level element may also be found by its short name.
         return _declarations
-            .Where(kvp => !kvp.Key.Contains("::", StringComparison.Ordinal) && kvp.Value.ShortName == name)
+            .Where(kvp => !kvp.Key.Contains("::", StringComparison.Ordinal) && NamesEqual(kvp.Value.ShortName, name))
             .Select(kvp => kvp.Key)
             .FirstOrDefault();
     }
@@ -706,8 +817,17 @@ public sealed class NameResolver
 
         try
         {
+            var reentriesBefore = _generalTypeReentries;
             var result = LookupUncached(name, namespaceName, scope);
-            _cache[key] = result;
+
+            // A miss computed while a type's general types were being re-entered (a feature
+            // specializing a chain through itself, `ref x : T :> x.y`) saw that type without its
+            // declared general types; it is not final, so it is not cached.
+            if (result is not null || _generalTypeReentries == reentriesBefore)
+            {
+                _cache[key] = result;
+            }
+
             return result;
         }
         finally
@@ -736,7 +856,7 @@ public sealed class NameResolver
         foreach (var child in ns.Children)
         {
             if (child is SysmlImportNode || !Admits(child.Visibility, scope) ||
-                (child.Name != name && child.ShortName != name))
+                (!NamesEqual(child.Name, name) && !NamesEqual(child.ShortName, name)))
             {
                 continue;
             }
@@ -842,9 +962,9 @@ public sealed class NameResolver
             }
 
             var lastSegment = SplitSegments(import.ImportedNamespace)[^1];
-            if (lastSegment == name ||
-                (_declarations.TryGetValue(target, out var targetNode) && targetNode.ShortName == name) ||
-                ImportedAliasShortName(import, importingNamespace) == name)
+            if (NamesEqual(lastSegment, name) ||
+                (_declarations.TryGetValue(target, out var targetNode) && NamesEqual(targetNode.ShortName, name)) ||
+                NamesEqual(ImportedAliasShortName(import, importingNamespace), name))
             {
                 found = target;
             }
@@ -889,7 +1009,7 @@ public sealed class NameResolver
 
         return ownerNode.Children
             .OfType<SysmlAliasNode>()
-            .FirstOrDefault(alias => alias.Name == segments[^1])?.ShortName;
+            .FirstOrDefault(alias => NamesEqual(alias.Name, segments[^1]))?.ShortName;
     }
 
     /// <summary>Returns whether <paramref name="candidate"/> satisfies a filtered import's conditions (always true for an unfiltered import).</summary>
@@ -949,6 +1069,62 @@ public sealed class NameResolver
         var sep = qualifiedName.LastIndexOf("::", StringComparison.Ordinal);
         return sep >= 0 ? qualifiedName[..sep] : null;
     }
+
+    /// <summary>
+    ///     Splits a feature chain into its parts on every <c>.</c> outside a quoted name, keeping
+    ///     empty parts (so a malformed chain such as <c>a.</c> cannot resolve).
+    /// </summary>
+    private static List<string> SplitChain(string reference)
+    {
+        var parts = new List<string>();
+        var start = 0;
+        var quoted = false;
+        for (var i = 0; i < reference.Length; i++)
+        {
+            if (reference[i] == '\'')
+            {
+                quoted = !quoted;
+            }
+            else if (!quoted && reference[i] == '.')
+            {
+                parts.Add(reference[start..i]);
+                start = i + 1;
+            }
+        }
+
+        parts.Add(reference[start..]);
+        return parts;
+    }
+
+    /// <summary>
+    ///     Returns whether two names are the same name: equal, or equal once one pair of enclosing
+    ///     single quotes is ignored on either side (<c>'PowerTrain'</c> and <c>PowerTrain</c> name
+    ///     the same element, KerML 8.2.2.2.1).
+    /// </summary>
+    private static bool NamesEqual(string? left, string? right)
+    {
+        if (string.Equals(left, right, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        // Two names that differ only by one pair of enclosing quotes differ in length by exactly two.
+        return (left.Length - right.Length) switch
+        {
+            2 => IsQuotedForm(left, right),
+            -2 => IsQuotedForm(right, left),
+            _ => false,
+        };
+    }
+
+    /// <summary>Returns whether <paramref name="quoted"/> is <paramref name="name"/> enclosed in single quotes.</summary>
+    private static bool IsQuotedForm(string quoted, string name) =>
+        quoted[0] == '\'' && quoted[^1] == '\'' && quoted.AsSpan(1, name.Length).SequenceEqual(name);
 
     /// <summary>Splits a qualified name into its segments, keeping <c>::</c> inside quoted names intact.</summary>
     private static List<string> SplitSegments(string reference)

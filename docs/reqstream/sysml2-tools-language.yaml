@@ -132,7 +132,10 @@ sections:
           - WorkspaceLoader_LoadAsync_SatisfyByName_RecordsSatisfyEdge
           - WorkspaceLoader_LoadAsync_SatisfyUnresolvedSubject_ProducesWarningNoEdge
           - WorkspaceLoader_LoadAsync_SatisfyUnresolvedRequirement_ProducesWarningNoEdge
-          - WorkspaceLoader_LoadAsync_SatisfyFeatureChainSubject_GracefullyUnresolved
+          - WorkspaceLoader_LoadAsync_SatisfyFeatureChainSubject_RecordsSatisfyEdge
+          - WorkspaceLoader_LoadAsync_SatisfyDeclaredRequirementUsage_ResolvesTypingNoWarning
+          - WorkspaceLoader_LoadAsync_VerifyChain_RecordsVerifyEdge
+          - WorkspaceLoader_LoadAsync_AllocateChains_RecordAllocateEdge
           - WorkspaceLoader_LoadAsync_VerifyOwnedReferenceSubsetting_RecordsVerifyEdge
           - WorkspaceLoader_LoadAsync_VerifyTypedRequirementPlaceholder_RecordsVerifyEdge
           - WorkspaceLoader_LoadAsync_VerifyNestedInObjectiveMember_RecordsVerifyEdge
@@ -149,24 +152,37 @@ sections:
       - id: SysML2Tools-Language-FeatureChainResolution
         title: >-
           The Language library shall resolve dotted feature chains (e.g. `engine.fuelPort`,
-          `rearAxle.leftHalfAxle.axleToWheelPort`) referenced by connection/message endpoints and
-          transition source/target into Connect/Transition-kind edges recorded on the semantic
-          index, walking direct-child membership first and typing/supertype-inherited membership
-          second (public members only — each segment after the first is a visible-resolution
-          lookup in the previous feature, so private and protected members never match),
-          preserving an instance-relative qualified name for the resolved endpoint even
-          when a segment resolves via the typing/supertype-inherited fallback branch, and
-          gracefully degrading to a Warning diagnostic with no edge when any side is unresolvable.
+          `rearAxle.leftHalfAxle.axleToWheelPort`, `'Solve for Pressure1'.rho`) wherever a reference
+          may be written — connection/message/binding endpoints, transition source/target,
+          supertype and subsetting targets, redefinition targets, satisfy, verify and allocate
+          ends — by resolving each segment after the first by visible resolution in the previous
+          feature, through its own inline members and everything it inherits (typing, subsetting,
+          redefinition, implicit specializations, conjugated port types, aliases; public members
+          only, so private and protected members never match), recording relationship edges
+          (Connect, Binding, Transition, Allocate, Satisfy, Verify) at an instance-relative
+          qualified name for the resolved endpoint and type-like edges (Supertype, Typing,
+          Redefinition) at the declared element, and gracefully degrading to a Warning diagnostic
+          with no edge when any side is unresolvable.
         tags: [system]
         justification: |
           Connect/Transition edges are the connector/state-topology data the forthcoming `query`
           command's uses/used-by/impact verbs need to answer "what is this port connected to" and
-          "what transitions lead to/from this state" without a separate resolution pass.
+          "what transitions lead to/from this state" without a separate resolution pass; chains
+          written as subsetting, redefinition or allocation targets would otherwise be reported as
+          unresolved although they are valid SysML.
         children:
           - SysML2Tools-Language-Semantic-LoadAsync
           - SysML2Tools-Language-Semantic-UnresolvedReference
           - SysML2Tools-Language-Semantic-Supertype
         tests:
+          - WorkspaceLoader_LoadAsync_ConnectionChainThroughSubsettingUsage_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_ConnectionChainToAlias_RecordsEdgeAtTargetInstancePath
+          - WorkspaceLoader_LoadAsync_ConnectionChainThroughConjugatedPort_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_ChainWithQuotedDottedSegment_ResolvesBind
+          - WorkspaceLoader_LoadAsync_SubsettingTargetChain_ResolvesSupertypeEdge
+          - WorkspaceLoader_LoadAsync_RedefinitionTargetChain_ResolvesRedefinitionEdge
+          - WorkspaceLoader_LoadAsync_ChainUnresolvedMiddleSegment_NoEdgeAndWarning
+          - WorkspaceLoader_LoadAsync_ChainSpecializationCycle_Terminates
           - WorkspaceLoader_LoadAsync_ConnectionSingleSegmentEndpoints_RecordsConnectEdge
           - WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaDirectChild
           - WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaTypingFallback

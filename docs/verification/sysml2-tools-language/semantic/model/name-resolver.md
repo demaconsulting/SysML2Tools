@@ -37,6 +37,15 @@ created in `Path.GetTempPath()` and deleted after each test.
   imports apply to the registered declarations (and the referencing file's own supplied imports take
   precedence over a same-named declaration's from another file), and a redefinition never resolves to the
   redefining feature itself.
+- A dotted feature chain resolves its first segment by full resolution and every later segment by
+  visible resolution in the previous feature: through a subsetting or redefining usage, an alias
+  (followed to its target), a conjugated port type, a quoted segment (a dot inside quotes does not
+  split), and a feature's own inline members before its type's; private and protected members are
+  unreachable after the first segment while the first segment sees its namespace's private members;
+  a chain with any unresolvable segment does not resolve; self-referential and mutual
+  specialization through a chain terminates; a redefinition target written as a chain resolves its
+  first segment among the general types. A quoted and an unquoted spelling of one name are the same
+  name.
 
 ##### Test Scenarios
 
@@ -76,3 +85,15 @@ created in `Path.GetTempPath()` and deleted after each test.
 | `NameResolver_InheritedLookup_EnclosingTypedUsage_TypeMembersResolveForNestedRedefinition` | Enclosing usage's type |
 | `NameResolver_ResolveRedefinition_UnnamedRedefinitionOfEnclosingMember_Resolves` | Outward retry |
 | `NameResolver_ResolveRedefinition_OnlySelf_StaysUnresolved` | Nothing but the redefining feature stays unresolved |
+| `NameResolver_FeatureChain_ThroughSubsettingUsage_ResolvesInheritedMember` | `p1 :> p; p1.x.x1` |
+| `NameResolver_FeatureChain_ThroughAlias_ResolvesAliasTarget` | Alias followed to its target; private alias hidden |
+| `NameResolver_FeatureChain_ThroughConjugatedPortType_ResolvesPortMembers` | `~PortT` and `PortT` typed ports |
+| `NameResolver_FeatureChain_QuotedSegments_SplitOnDotsOutsideQuotes` | Dots inside quotes do not split |
+| `NameResolver_FeatureChain_PrefersOwnedInlineMemberOverTypeMember` | Own members before the type's |
+| `NameResolver_FeatureChain_PrivateAndProtectedThroughSubsettingUsage_NotVisible` | Visibility through a chain |
+| `NameResolver_FeatureChain_ThreeLevels_MixedDirectTypeAndSpecialization` | Owned, typed and subsetted hops |
+| `NameResolver_FeatureChain_UnresolvedSegment_DoesNotResolve` | Missing and malformed segments |
+| `NameResolver_FeatureChain_SpecializationCycle_Terminates` | `ref x :> x.y`; mutual subsetting |
+| `NameResolver_FeatureChain_QualifiedFirstSegment_Resolves` | `P::p.x`, `$::P::p.x` |
+| `NameResolver_ResolveRedefinedFeature_Chain_ResolvesThroughFirstSegment` | `:>> clock.time` |
+| `NameResolver_Resolve_QuotedAndUnquotedSimpleName_AreEquivalent` | `'PowerTrain'` and `PowerTrain` |

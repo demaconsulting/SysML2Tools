@@ -325,7 +325,7 @@ sections:
         justification: |
           Reusing the existing connector-end extraction helper against bindingConnectorAsUsage's
           connectorEndMember() entries lets ReferenceResolver treat binding connector endpoints
-          uniformly with connect/message endpoints (the same dotted-feature-chain walk), without
+          uniformly with connect/message endpoints (the same feature-chain resolution), without
           duplicating endpoint-extraction logic. The longer bindingConnector/typeBody grammar form
           has zero corpus evidence and is an intentional, documented non-goal.
         tests:
@@ -769,3 +769,18 @@ sections:
           - KermlUnnamedMembers_AreSkippedFromTheSymbolTable
           - KermlRelationshipStatements_ParseWithoutDiagnostics
           - SysmlModel_ReferencingKermlLibraryDeclarations_ResolvesWithoutDiagnostics
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-SatisfyRequirementName
+        title: >-
+          AstBuilder shall record, for a satisfy usage that declares its own requirement usage
+          (`satisfy requirement r : R by s;`), the usage's feature typing (R) as the requirement
+          satisfied rather than the name the usage declares, falling back to the declared name only
+          for a declaration without typing, and shall prefer the referenced requirement of the
+          `satisfy <ref> by s;` form.
+        justification: |
+          The name a satisfy usage declares (`r`) is introduced by that very statement and is not
+          a reference to anything, so resolving it can only fail; the requirement the statement
+          satisfies is the requirement definition the usage is typed by.
+        tests:
+          - WorkspaceLoader_LoadAsync_SatisfyDeclaredRequirementUsage_ResolvesTypingNoWarning
+          - WorkspaceLoader_LoadAsync_SatisfyByName_RecordsSatisfyEdge

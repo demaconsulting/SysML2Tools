@@ -130,13 +130,15 @@ internal sealed class ReferenceResolver
     ///             dependency, expose) for every file root, with filtered imports honored. A
     ///             redefined or subsetted member the owner inherits resolves in this single pass,
     ///             wherever its ancestor is declared, because general types are derived from the
-    ///             types' raw references rather than from edges that may not be attached yet.
+    ///             types' raw references rather than from edges that may not be attached yet. Any
+    ///             of these references may be a dotted feature chain (<c>a.b.c</c>), which
+    ///             <see cref="NameResolver"/> resolves segment by segment.
     ///         </item>
     ///         <item>
-    ///             <b>Pass 2</b> (<see cref="ResolveFeatureChains"/>) resolves dotted feature
-    ///             chains (connection/message endpoints, transition source/target) into
-    ///             Connect/Transition edges — see that method's remarks for why it must run after
-    ///             pass 1 completes for all file roots.
+    ///             <b>Pass 2</b> (<see cref="ResolveFeatureChains"/>) resolves the ends of
+    ///             connection/message/binding connectors and of transitions and successions into
+    ///             Connect/Binding/Transition edges. It is a separate traversal only to keep each
+    ///             node's edges after its pass-1 edges — see that method's remarks.
     ///         </item>
     ///     </list>
     /// </remarks>
@@ -180,12 +182,11 @@ internal sealed class ReferenceResolver
             ResolveNode(file.Root, file, GetOrAddResolvedInFileSet(resolvedInFileByPath, file.FilePath), null, edges);
         }
 
-        // Pass 2: resolve dotted feature chains (connection/message endpoints, transition
-        // source/target) into Connect/Transition edges. This must run after pass 1 has resolved
-        // Typing/Supertype edges for ALL file roots, because a chain walk may depend on a
-        // Typing/Supertype edge belonging to a node visited later in document order within the
-        // same file, or to a node in a different file entirely (see "Feature-Chain Resolution" in
-        // the design doc for the full rationale).
+        // Pass 2: resolve the ends of connection/message/binding connectors and of transitions and
+        // successions into Connect/Binding/Transition edges. Chains themselves are resolved by
+        // NameResolver (so they no longer depend on edges attached by pass 1); this is a separate
+        // traversal only so each node's edges follow its pass-1 edges in ResolvedEdges and the
+        // aggregate list, an order layouts and the recorded golden edge files rely on.
         foreach (var file in files)
         {
             ResolveFeatureChains(file.Root, file, new HashSet<string>(), null, edges);
@@ -404,22 +405,30 @@ internal sealed class ReferenceResolver
 
     /// <summary>
     ///     Attempts to resolve a name relative to <paramref name="scope"/> by KerML name
-    ///     resolution (see <see cref="NameResolver"/>).
+    ///     resolution (see <see cref="NameResolver"/>), including a dotted feature chain.
     /// </summary>
-    /// <param name="name">The name to resolve — may be unqualified or qualified.</param>
+    /// <param name="name">The name to resolve — may be unqualified, qualified, or a dotted feature chain.</param>
     /// <param name="scope">The qualified name of the local namespace, or null at the file root.</param>
     /// <param name="rootImports">The imports written at the root of the referencing file.</param>
     /// <param name="resolvedName">
     ///     When this method returns <see langword="true"/>, the resolved element's fully-qualified
     ///     name; otherwise <see cref="string.Empty"/>.
     /// </param>
+    /// <param name="pathValued">
+    ///     <see langword="true"/> to report a feature chain's instance path (the first segment's
+    ///     element followed by the simple name of each later segment's element, which is how
+    ///     the relationship ends drawn by the general view are keyed) rather than the declared
+    ///     element of its last segment. Without a chain both are the same name.
+    /// </param>
     private bool TryResolve(
         string name,
         string? scope,
         IReadOnlyList<SysmlImportNode> rootImports,
-        out string resolvedName)
+        out string resolvedName,
+        bool pathValued = false)
     {
-        resolvedName = _resolver.Resolve(name, scope, rootImports) ?? string.Empty;
+        var resolution = _resolver.ResolveFeatureChain(name, scope, rootImports);
+        resolvedName = (pathValued ? resolution?.InstancePath : resolution?.Element) ?? string.Empty;
         return resolvedName.Length > 0;
     }
 
@@ -428,15 +437,22 @@ internal sealed class ReferenceResolver
     ///     "Unresolved reference" diagnostic (once per name per file) when it does not
     ///     resolve.
     /// </summary>
+    /// <param name="name">The name to resolve.</param>
+    /// <param name="scope">The local namespace.</param>
+    /// <param name="file">The file being resolved.</param>
+    /// <param name="resolvedInFile">The names already reported as unresolved in this file.</param>
+    /// <param name="owner">The node that declares the reference (for the diagnostic position).</param>
+    /// <param name="pathValued">Whether a feature chain resolves to its instance path (see <see cref="TryResolve"/>).</param>
     /// <returns>The resolved qualified name, or null when the name did not resolve.</returns>
     private string? ResolveOrWarn(
         string name,
         string? scope,
         LoadedFile file,
         HashSet<string> resolvedInFile,
-        SysmlNode owner)
+        SysmlNode owner,
+        bool pathValued = false)
     {
-        if (TryResolve(name, scope, file.RootImports, out var resolved))
+        if (TryResolve(name, scope, file.RootImports, out var resolved, pathValued))
         {
             return resolved;
         }
@@ -588,7 +604,7 @@ internal sealed class ReferenceResolver
         // name (the verifying case/requirement).
         foreach (var verifiedName in node.VerifiedRequirementNames)
         {
-            if (ResolveOrWarn(verifiedName, scope, file, resolvedInFile, node) is { } resolvedVerified)
+            if (ResolveOrWarn(verifiedName, scope, file, resolvedInFile, node, pathValued: true) is { } resolvedVerified)
             {
                 nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedVerified, SysmlEdgeKind.Verify) { RawReference = verifiedName });
             }
@@ -596,15 +612,15 @@ internal sealed class ReferenceResolver
 
         // Satisfy usages resolve two independent sides (subject and requirement); an edge is only
         // emitted when BOTH sides resolve (graceful degradation: partial/misleading edges are
-        // never produced). Dotted feature-chain subjects (e.g. "a.b") are out of scope for this
-        // unit and simply fail to resolve as a single symbol name, which is graceful.
+        // never produced). Either side may be a dotted feature chain (e.g. "a.b"), recorded at its
+        // instance path like the ends of connections.
         if (node is SysmlSatisfyNode satisfy)
         {
             var resolvedSubject = satisfy.SubjectName is { Length: > 0 } subjectName
-                ? ResolveOrWarn(subjectName, scope, file, resolvedInFile, node)
+                ? ResolveOrWarn(subjectName, scope, file, resolvedInFile, node, pathValued: true)
                 : null;
             var resolvedRequirement = satisfy.RequirementName is { Length: > 0 } requirementName
-                ? ResolveOrWarn(requirementName, scope, file, resolvedInFile, node)
+                ? ResolveOrWarn(requirementName, scope, file, resolvedInFile, node, pathValued: true)
                 : null;
 
             if (resolvedSubject is not null && resolvedRequirement is not null)
@@ -619,10 +635,10 @@ internal sealed class ReferenceResolver
         if (node is SysmlConnectionNode { ConnectionKeyword: "allocation" } allocation)
         {
             var resolvedA = allocation.EndpointA is { Length: > 0 } endpointA
-                ? ResolveOrWarn(endpointA, scope, file, resolvedInFile, node)
+                ? ResolveOrWarn(endpointA, scope, file, resolvedInFile, node, pathValued: true)
                 : null;
             var resolvedB = allocation.EndpointB is { Length: > 0 } endpointB
-                ? ResolveOrWarn(endpointB, scope, file, resolvedInFile, node)
+                ? ResolveOrWarn(endpointB, scope, file, resolvedInFile, node, pathValued: true)
                 : null;
 
             if (resolvedA is not null && resolvedB is not null)
@@ -767,13 +783,16 @@ internal sealed class ReferenceResolver
     }
 
     /// <summary>
-    ///     Second-pass traversal that resolves dotted feature chains (e.g. <c>engine.fuelPort</c>)
-    ///     referenced by <see cref="SysmlConnectionNode"/> (<c>"connection"</c>/<c>"message"</c>
-    ///     keyword variants only) and <see cref="SysmlTransitionNode"/> <c>Source</c>/<c>Target</c>,
-    ///     emitting a <see cref="SysmlEdgeKind.Connect"/>/<see cref="SysmlEdgeKind.Transition"/>
-    ///     edge only when both sides resolve. Must run after <see cref="ResolveNode"/> has
-    ///     completed for all file roots, since chain walking depends on the Typing/Supertype
-    ///     edges pass 1 attaches to <see cref="SysmlNode.ResolvedEdges"/>.
+    ///     Second-pass traversal that resolves the ends (possibly dotted feature chains such as
+    ///     <c>engine.fuelPort</c>) of <see cref="SysmlConnectionNode"/> (<c>"connection"</c>,
+    ///     <c>"message"</c> and <c>"binding"</c> keyword variants only) and
+    ///     <see cref="SysmlTransitionNode"/> <c>Source</c>/<c>Target</c>, emitting a
+    ///     <see cref="SysmlEdgeKind.Connect"/>/<see cref="SysmlEdgeKind.Binding"/>/
+    ///     <see cref="SysmlEdgeKind.Transition"/> edge only when both sides resolve. A chain is
+    ///     resolved by <see cref="NameResolver"/> and recorded at its instance path. This is a
+    ///     traversal of its own, rather than part of <see cref="ResolveNode"/>, only so that a
+    ///     node's chain edges follow its pass-1 edges in <see cref="SysmlNode.ResolvedEdges"/> and
+    ///     in the aggregate edge list: layouts and the recorded golden edge files see that order.
     /// </summary>
     /// <param name="node">The AST node to process.</param>
     /// <param name="file">The file being resolved (path for diagnostics, root imports).</param>
@@ -813,7 +832,7 @@ internal sealed class ReferenceResolver
         }
 
         // Binding connector endpoints ("bind A = B;", the bindingConnectorAsUsage shape only)
-        // resolve via the same dotted feature-chain walk as connection/message, for parity per
+        // resolve via the same feature-chain resolution as connection/message, for parity per
         // the corpus's frequent dotted-chain bind sides (e.g. "bind engine.fuelCmdPort=fuelCmdPort;").
         if (node is SysmlConnectionNode { ConnectionKeyword: "binding" } binding)
         {
@@ -829,7 +848,7 @@ internal sealed class ReferenceResolver
         // Transition source/target (an implied/omitted Source produces no edge — documented
         // limitation, since there is nothing to walk a chain from). Both ends additionally fall
         // back to TryResolveInheritedActionMember (see its doc comment) when the ordinary
-        // dotted-chain walk fails — these are the only reference kinds allowed that fallback,
+        // dotted-chain resolution fails — these are the only reference kinds allowed that fallback,
         // since it exists specifically to resolve the inherited `start`/`done` pseudo-features
         // (e.g. `first start then off;` and `then done;`).
         if (node is SysmlTransitionNode transition)
@@ -876,7 +895,7 @@ internal sealed class ReferenceResolver
             return null;
         }
 
-        if (TryResolveFeatureChain(side, scope, file.RootImports, out var resolved))
+        if (TryResolve(side, scope, file.RootImports, out var resolved, pathValued: true))
         {
             return resolved;
         }
@@ -888,7 +907,7 @@ internal sealed class ReferenceResolver
     /// <summary>
     ///     Resolves one end (<c>Source</c> or <c>Target</c>) of a <see cref="SysmlTransitionNode"/>.
     ///     Behaves exactly like <see cref="ResolveFeatureChainSide"/> (same diagnostic/deduplication
-    ///     behavior) except that, when the ordinary dotted-chain walk fails, it also tries
+    ///     behavior) except that, when the ordinary dotted-chain resolution fails, it also tries
     ///     <see cref="TryResolveInheritedActionMember"/> before giving up — the narrow fallback
     ///     that lets the standard <c>start</c> and <c>done</c> pseudo-features resolve on either end
     ///     of a succession or transition (<c>first start then off;</c> and
@@ -917,7 +936,7 @@ internal sealed class ReferenceResolver
             return null;
         }
 
-        if (TryResolveFeatureChain(end, scope, file.RootImports, out var resolved))
+        if (TryResolve(end, scope, file.RootImports, out var resolved, pathValued: true))
         {
             // Compatibility canonicalization: ordinary lookup now also finds the library's own
             // start/done through the implicit specialization of the enclosing state or action
@@ -938,9 +957,28 @@ internal sealed class ReferenceResolver
             return inherited;
         }
 
+        // An anonymous action node (`fork;`, `decide;`, `terminate;`, ...) is named `$keywordN`
+        // by the AST builder — a name no user identifier can have — and is not in the symbol
+        // table, so a succession end naming one cannot resolve and draws no edge; it is a
+        // reference to a node the enclosing scope owns, not an unresolved name.
+        if (end[0] == '$' && IsAnonymousActionNodeOf(scope, end))
+        {
+            return null;
+        }
+
         ReportUnresolved(end, file.FilePath, resolvedInFile, owner);
         return null;
     }
+
+    /// <summary>
+    ///     Returns whether <paramref name="name"/> names an anonymous action node owned by the
+    ///     element <paramref name="scope"/> (a child of it whose name is exactly
+    ///     <paramref name="name"/>).
+    /// </summary>
+    private bool IsAnonymousActionNodeOf(string? scope, string name) =>
+        !string.IsNullOrEmpty(scope) &&
+        _symbolTable.Lookup(scope) is { } scopeNode &&
+        scopeNode.Children.Any(child => child.Name == name);
 
     /// <summary>
     ///     Narrow fallback for resolving a Transition <c>Source</c> or <c>Target</c> that names a
@@ -1054,137 +1092,6 @@ internal sealed class ReferenceResolver
 
         resolvedName = fallbackQualifiedName;
         return true;
-    }
-
-    /// <summary>
-    ///     Resolves a dotted feature chain (e.g. <c>engine.fuelPort</c>,
-    ///     <c>rearAxle.leftHalfAxle.axleToWheelPort</c>) to an instance-relative qualified path for
-    ///     its final segment. Segment 0 is resolved via <see cref="TryResolve"/> (so it
-    ///     participates in the same scope/import resolution as any other single-name reference);
-    ///     each subsequent segment is resolved relative to the previous
-    ///     segment's node via <see cref="FindFeatureMember"/>. A single-segment "chain" (no
-    ///     <c>.</c>) is handled by the loop simply never executing, so this method also serves as
-    ///     the single-segment resolver used elsewhere.
-    ///     A parallel <c>instancePath</c> accumulator is tracked alongside the real declared node's
-    ///     qualified name (<c>current</c>, which continues to drive the next segment's
-    ///     <c>_symbolTable.Lookup</c>): while every segment so far has resolved via
-    ///     <see cref="FindFeatureMember"/>'s direct-child branch, <c>instancePath</c> is simply the
-    ///     member's own (already instance-relative) qualified name. Once any segment resolves via
-    ///     the type-hierarchy fallback branch, <c>current</c> stops referring to a real instance
-    ///     node (it becomes the type's own declared path), so every remaining segment — even one
-    ///     that is itself a "direct child" of that type-declared node — is also only reachable
-    ///     relative to the type, not the instance; the accumulator therefore latches into
-    ///     instance-relative-append mode (<c>{previous instancePath}::{segment}</c>) as soon as the
-    ///     first fallback hop occurs, and stays in that mode for every subsequent segment,
-    ///     preserving the instance-relative path rather than collapsing back to a type-declared path
-    ///     on a later direct-child hop. This is what <paramref name="resolvedName"/> ultimately
-    ///     returns.
-    /// </summary>
-    /// <param name="chain">The raw, possibly dotted, reference text.</param>
-    /// <param name="scope">The local namespace, used to resolve segment 0.</param>
-    /// <param name="rootImports">The imports written at the root of the referencing file.</param>
-    /// <param name="resolvedName">
-    ///     When this method returns <see langword="true"/>, the instance-relative qualified path of
-    ///     the chain's final segment. When this method returns <see langword="false"/>, set to
-    ///     <see cref="string.Empty"/>.
-    /// </param>
-    /// <returns>
-    ///     <see langword="true"/> if every segment of the chain resolves; <see langword="false"/>
-    ///     otherwise.
-    /// </returns>
-    private bool TryResolveFeatureChain(
-        string chain,
-        string? scope,
-        IReadOnlyList<SysmlImportNode> rootImports,
-        out string resolvedName)
-    {
-        var segments = chain.Split('.');
-
-        if (!TryResolve(segments[0], scope, rootImports, out var current))
-        {
-            resolvedName = string.Empty;
-            return false;
-        }
-
-        var instancePath = current;
-
-        // Once any segment resolves via the type-hierarchy fallback branch, `current` no longer
-        // refers to a real instance node — it is the type's own declared path. Every subsequent
-        // segment is therefore looked up *within that type's declared structure*, so even a
-        // "direct child" match at that point yields a type-declared (not instance-relative)
-        // QualifiedName. `inTypeContext` latches once fallback is hit and stays set, so the
-        // instance-relative accumulation keeps applying to every later segment too — fixing a bug
-        // where a direct-child hop occurring *after* an earlier fallback hop would incorrectly
-        // reset `instancePath` back to the type's own declared path.
-        var inTypeContext = false;
-
-        for (var i = 1; i < segments.Length; i++)
-        {
-            var currentNode = _symbolTable.Lookup(current);
-            if (currentNode is null)
-            {
-                resolvedName = string.Empty;
-                return false;
-            }
-
-            var member = FindFeatureMember(currentNode, segments[i], out var viaTypeFallback);
-            if (member?.QualifiedName is not { Length: > 0 } memberQualifiedName)
-            {
-                resolvedName = string.Empty;
-                return false;
-            }
-
-            current = memberQualifiedName;
-            inTypeContext = inTypeContext || viaTypeFallback;
-            instancePath = inTypeContext ? $"{instancePath}::{segments[i]}" : memberQualifiedName;
-        }
-
-        resolvedName = instancePath;
-        return true;
-    }
-
-    /// <summary>
-    ///     Finds a member named <paramref name="name"/> reachable from <paramref name="node"/>,
-    ///     trying <paramref name="node"/>'s own direct children first (an inline nested usage or
-    ///     redefinition shadows a same-named definition-level member — see
-    ///     <c>2c-PartsInterconnection-MultipleDecompositions.sysml</c>'s <c>port :&gt;&gt; pe =
-    ///     c1.pb</c> pattern), then falling back to the member's <see cref="SysmlEdgeKind.Typing"/>
-    ///     target's own hierarchy (direct children and supertype chain) when no direct child
-    ///     matches. Only public members are found: a feature-chain segment after the first is
-    ///     resolved by visible resolution in the previous feature (KerML 8.2.3.5), so private and
-    ///     protected members, declared or inherited, never match.
-    /// </summary>
-    /// <param name="node">The node whose members are searched.</param>
-    /// <param name="name">The member name being looked up.</param>
-    /// <param name="viaTypeFallback">
-    ///     Set to <see langword="false"/> when the returned node was found among
-    ///     <paramref name="node"/>'s own direct children (the result's <c>QualifiedName</c> is
-    ///     already instance-relative). Set to <see langword="true"/> when the returned node was
-    ///     found via the <see cref="SysmlEdgeKind.Typing"/> target's own hierarchy (the result's
-    ///     <c>QualifiedName</c> is the type's own declared path, not instance-relative — callers
-    ///     that need an instance-relative path must reconstruct it themselves).
-    /// </param>
-    private SysmlNode? FindFeatureMember(SysmlNode node, string name, out bool viaTypeFallback)
-    {
-        var direct = node.Children.FirstOrDefault(c => c.Name == name && Admits(c.Visibility, MemberAccess.Public));
-        if (direct is not null)
-        {
-            viaTypeFallback = false;
-            return direct;
-        }
-
-        viaTypeFallback = true;
-
-        var typingEdge = node.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing);
-        if (typingEdge is null)
-        {
-            return null;
-        }
-
-        var typeNode = _symbolTable.Lookup(typingEdge.TargetQualifiedName);
-        return typeNode is null
-            ? null
-            : FindMemberInTypeHierarchy(typeNode, name, MemberAccess.Public, new HashSet<string>());
     }
 
     /// <summary>Which memberships of a type a member lookup admits.</summary>
