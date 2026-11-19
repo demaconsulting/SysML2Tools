@@ -263,18 +263,54 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-BindingFeatureChain
         title: >-
           ReferenceResolver.ResolveAll shall resolve a "binding"-keyword SysmlConnectionNode's
-          EndpointA/EndpointB via the same dotted-feature-chain walk used for
+          EndpointA/EndpointB through NameResolver's feature-chain resolution, as it does
           "connection"/"message" endpoints, emitting a Binding-kind edge only when both
           endpoints resolve.
         justification: |
           A binding connector's endpoints (`bind A.x = B.y;`) are frequently dotted feature
-          chains, identical in shape to a connect/message endpoint; reusing the existing
-          feature-chain walk (rather than a separate resolution path) keeps the two-sided
-          must-both-resolve contract consistent across every dotted-endpoint edge kind.
+          chains, identical in shape to a connect/message endpoint; resolving them through the
+          same NameResolver chain resolution (rather than a separate resolution path) keeps the
+          two-sided must-both-resolve contract consistent across every dotted-endpoint edge kind.
         tests:
           - WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge
           - WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge
           - Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-InstancePathEnds
+        title: >-
+          ReferenceResolver shall record the ends of Connect, Binding, Transition, Allocate,
+          Satisfy and Verify edges that are feature chains at the chain's instance path (the first
+          segment's element followed by the simple name of each later segment's element), and the
+          targets of Supertype, Typing and Redefinition edges at the declared element, so two
+          sibling features of the same type remain distinct edge ends.
+        justification: |
+          GeneralViewLayoutStrategy maps an edge end to a box by the `::` prefixes of its qualified
+          name, and the connections query reports the ends as written; keying them by the type's
+          declaration would collapse two sibling instances of one type onto one box. Type-like
+          edges point at real declarations, which feed general-type lookup.
+        tests:
+          - WorkspaceLoader_LoadAsync_ConnectionChainThroughSubsettingUsage_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_ConnectionChainToAlias_RecordsEdgeAtTargetInstancePath
+          - WorkspaceLoader_LoadAsync_ConnectionDominantShape_ResolvesDistinctInstancePaths
+          - WorkspaceLoader_LoadAsync_ConnectionThreeSegmentChain_DirectChildAfterTypingFallbackStaysInstanceRelative
+          - WorkspaceLoader_LoadAsync_AllocateChains_RecordAllocateEdge
+          - WorkspaceLoader_LoadAsync_VerifyChain_RecordsVerifyEdge
+          - WorkspaceLoader_LoadAsync_SatisfyFeatureChainSubject_RecordsSatisfyEdge
+          - WorkspaceLoader_LoadAsync_SubsettingTargetChain_ResolvesSupertypeEdge
+          - SemanticGalleryModels_Edges_MatchBaselineGolden
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-AnonymousActionNodes
+        title: >-
+          ReferenceResolver shall not report an unresolved reference for a succession end naming an
+          anonymous action node (`$fork0`, `$decide1`, `$terminate2`, ...) owned by the enclosing
+          scope, and shall record no edge for it.
+        justification: |
+          AstBuilder names `fork;`, `join;`, `decide;`, `merge;` and `terminate;` action nodes with
+          a `$`-prefixed synthetic name no user identifier can have and keeps them out of the symbol
+          table, so a `then fork;` succession end is by design not resolvable; reporting it would be
+          a false positive on every such model.
+        tests:
+          - WorkspaceLoader_LoadAsync_AnonymousForkDecideTerminate_NoUnresolvedDiagnostic
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-InheritedTransitionSource
         title: >-
@@ -284,7 +320,7 @@ sections:
           (canonicalizing a library `start`/`done` that ordinary lookup finds through implicit
           specialization, and falling back to a narrowly-scoped inherited-action-member lookup —
           TryResolveInheritedActionMember, reusing FindMemberInAncestorChain and
-          FindMemberInTypeHierarchy — when the standard feature-chain resolution fails), while
+          FindMemberInTypeHierarchy — when ordinary resolution fails), while
           any other unresolved name still warns and a user-declared `start` is never replaced.
         justification: |
           A transition's implicit source (e.g. `first start then off;`, or the bare `start`

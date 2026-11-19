@@ -85,6 +85,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-EventOccurrences
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceOccurrences
           - SysML2Tools-Language-Semantic-Model-AstBuilder-KermlDeclarations
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-SatisfyRequirementName
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
@@ -112,6 +113,8 @@ sections:
           - SysML2Tools-Language-Semantic-Model-NameResolver-ImplicitSpecialization
           - SysML2Tools-Language-Semantic-Model-NameResolver-InheritedLookup
           - SysML2Tools-Language-Semantic-Model-NameResolver-ResolvingMode
+          - SysML2Tools-Language-Semantic-Model-NameResolver-FeatureChain
+          - SysML2Tools-Language-Semantic-Model-NameResolver-QuoteEquivalence
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-MemberVisibility
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-FilteredImports
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ImportScoping
@@ -124,6 +127,8 @@ sections:
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-RedefinitionResolution
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-DependencyCrossProduct
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-BindingFeatureChain
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-InstancePathEnds
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-AnonymousActionNodes
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-InheritedTransitionSource
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-EdgeRawReference
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-UnresolvedPositions

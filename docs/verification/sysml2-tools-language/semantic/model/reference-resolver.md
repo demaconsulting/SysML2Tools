@@ -83,22 +83,32 @@ external services or additional configuration are required beyond a standard .NE
   independently and emits one `Dependency`-kind `SysmlEdge` per resolved (from, to) pair (a
   cross product); an unresolvable name on either side produces its own Warning diagnostic
   without suppressing edges for the other resolvable names.
-- A `bind A = B;` binding connector's endpoints resolve via the same dotted-feature-chain walk
-  used for `connect`/`message`, recording a `Binding`-kind `SysmlEdge` only when both endpoints
-  resolve.
-- A dotted feature-chain endpoint (e.g. `engine.fuelPort`, `rearAxle.leftHalfAxle.axleToWheelPort`)
-  resolves segment-by-segment via `TryResolveFeatureChain`/`FindFeatureMember`, producing an
-  instance-relative qualified name for the final segment regardless of whether each segment
-  resolved via a direct-child match or the type-hierarchy fallback branch: for the dominant
-  real-world shape — two sibling features declared directly in their owning `part def`s,
-  referenced from an enclosing part via bare usages with no per-instance nested redeclaration —
-  every segment resolves via the fallback branch, and the returned qualified name is still
-  instance-relative (e.g. `Drone::controller::power`, not the shared port type's own declared
-  path), so that two structurally distinct endpoints of the same type never collapse to the same
-  resolved name. Segments after the first match public members only (visible resolution in the
+- A `bind A = B;` binding connector's endpoints resolve through the same feature-chain
+  resolution used for `connect`/`message`, recording a `Binding`-kind `SysmlEdge` only when both
+  endpoints resolve.
+- A dotted feature-chain reference (e.g. `engine.fuelPort`, `rearAxle.leftHalfAxle.axleToWheelPort`,
+  `'Solve for Pressure1'.rho`) is resolved segment by segment by `NameResolver` wherever a
+  reference may be written: connect/message/bind endpoints, transition ends, supertype and
+  subsetting targets, redefinition targets, `satisfy`, `verify` and `allocate` ends. A segment
+  may be reached through the previous feature's subsetting or redefinition, an alias, a
+  conjugated port type, or an inline member. Relationship edges (`Connect`, `Binding`,
+  `Transition`, `Allocate`, `Satisfy`, `Verify`) record the chain's instance-relative qualified
+  name — the first segment's element then the simple name of each later segment's element,
+  whether the segment was found among the feature's own members, its type's, or through
+  specialization — and the type-like edges (`Supertype`, `Redefinition`) record the declared
+  element. For the dominant real-world shape — two sibling features declared directly in their
+  owning `part def`s, referenced from an enclosing part via bare usages with no per-instance
+  nested redeclaration — the returned qualified name is still instance-relative (e.g.
+  `Drone::controller::power`, not the shared port type's own declared path), so that two
+  structurally distinct endpoints of the same type never collapse to the same resolved name.
+  Segments after the first match public members only (visible resolution in the
   previous feature): a private or protected member of the segment's type or of an inherited
   supertype, or a private inline member, gives no edge and an unresolved-reference Warning,
-  while a private feature as the *first* segment still resolves locally.
+  while a private feature as the *first* segment still resolves locally. A chain with an
+  unresolvable segment is reported once, as the whole chain text, with no edge.
+- A succession end that names an anonymous action node (`then fork;`, `decide;`, `terminate;`)
+  produces no unresolved-reference diagnostic and no `Transition` edge for that end.
+- A `satisfy requirement r : R by s;` usage satisfies `R` (its typing), not the name it declares.
 - A `SysmlTransitionNode`'s `Source` or `Target` that names an inherited pseudostate feature
   (`"start"` or `"done"`) not declared locally on the enclosing state/action resolves via the
   `TryResolveInheritedActionMember` fallback — including the narrow last-resort case where no
@@ -134,9 +144,9 @@ external services or additional configuration are required beyond a standard .NE
 | Cycle diagnostics stay Warnings | `WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings` |
 | Stdlib references, no diagnostics | `WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics` |
 | Stdlib compile stays Warning | `GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings` |
-| Stdlib compile: no errors, warnings at most 45 | `GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling` |
+| Stdlib compile: no errors, warnings at most 13 | `GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling` |
 | Valid custom and test-case models load clean | `CustomAndTestCaseModels_AllModels_LoadWithZeroDiagnostics` |
-| OMG corpus within baseline (94 errors) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
+| OMG corpus within baseline (48 errors) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
 | Selector Warning at token | `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` |
 | Standard selectors — no diagnostic | `WorkspaceLoader_LoadAsync_StandardRenderSelectors_ProduceNoDiagnostics` |
 | Selector + strict | `WorkspaceLoader_LoadAsync_ToolRenderSelectorWithStrictUnresolved_StillOnlyPortabilityWarning` |
@@ -177,6 +187,19 @@ external services or additional configuration are required beyond a standard .NE
 | Chain to private/protected member | `WorkspaceLoader_LoadAsync_FeatureChainToNonPublicMember_NoEdgeAndWarning` |
 | Chain to private inline member | `WorkspaceLoader_LoadAsync_FeatureChainToPrivateInlineMember_NoEdgeAndWarning` |
 | Chain public ok | `WorkspaceLoader_LoadAsync_FeatureChainToPublicMembersAndPrivateFirstSegment_RecordsConnectEdges` |
+| Chain via subsetting usage | `WorkspaceLoader_LoadAsync_ConnectionChainThroughSubsettingUsage_RecordsConnectEdge` |
+| Chain ending at an alias | `WorkspaceLoader_LoadAsync_ConnectionChainToAlias_RecordsEdgeAtTargetInstancePath` |
+| Chain via conjugated port | `WorkspaceLoader_LoadAsync_ConnectionChainThroughConjugatedPort_RecordsConnectEdge` |
+| Quoted segment containing a dot | `WorkspaceLoader_LoadAsync_ChainWithQuotedDottedSegment_ResolvesBind` |
+| Subsetting target is a chain | `WorkspaceLoader_LoadAsync_SubsettingTargetChain_ResolvesSupertypeEdge` |
+| Redefinition target is a chain | `WorkspaceLoader_LoadAsync_RedefinitionTargetChain_ResolvesRedefinitionEdge` |
+| Allocation ends are chains | `WorkspaceLoader_LoadAsync_AllocateChains_RecordAllocateEdge` |
+| Satisfy subject is a chain | `WorkspaceLoader_LoadAsync_SatisfyFeatureChainSubject_RecordsSatisfyEdge` |
+| Satisfy declares a usage | `WorkspaceLoader_LoadAsync_SatisfyDeclaredRequirementUsage_ResolvesTypingNoWarning` |
+| Verify reference is a chain | `WorkspaceLoader_LoadAsync_VerifyChain_RecordsVerifyEdge` |
+| Unresolvable middle segment | `WorkspaceLoader_LoadAsync_ChainUnresolvedMiddleSegment_NoEdgeAndWarning` |
+| Specialization cycle through a chain | `WorkspaceLoader_LoadAsync_ChainSpecializationCycle_Terminates` |
+| Anonymous fork/decide ends | `WorkspaceLoader_LoadAsync_AnonymousForkDecideTerminate_NoUnresolvedDiagnostic` |
 | Private qualified | `WorkspaceLoader_LoadAsync_PrivateMemberQualifiedFromOtherPackage_NoEdgeAndWarning` |
 | Private short name and alias | `WorkspaceLoader_LoadAsync_PrivateShortNameAndAlias_NotResolvableFromOtherPackage` |
 | Protected member, specialization only | `WorkspaceLoader_LoadAsync_ProtectedMember_VisibleToSpecializationOnly` |

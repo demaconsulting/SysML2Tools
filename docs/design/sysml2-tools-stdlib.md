@@ -96,9 +96,10 @@ API reference documentation and the embedded `stdlib.json.gz` resource. Consumer
    symbols in a `SymbolTable`. KerML parse errors are downgraded to Warnings.
 3. `ReferenceResolver.ResolveAll` and `SupertypeWalker.WalkAll` run on all AST roots. `StdlibGen`
    constructs the resolver with `DiagnosticSeverity.Warning` explicitly, so unresolved references
-   inside the standard library stay Warnings (the compile yields 0 errors and 45 warnings — 65
-   before implicit specialization was modeled for lookup — the remaining ones mostly dotted
-   feature chains tracked by #129)
+   inside the standard library stay Warnings (the compile yields 0 errors and 13 warnings — 65
+   before implicit specialization was modeled for lookup and 45 before feature chains were
+   resolved — the remaining ones naming connection `end` features and members of bodies the AST does not record,
+   tracked by #129)
    regardless of the user-file default. The compiled library is a
    pre-resolved seed that `WorkspaceLoader` never re-resolves, so these diagnostics never appear in a
    user load.

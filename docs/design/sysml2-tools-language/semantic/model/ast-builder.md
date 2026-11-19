@@ -201,10 +201,13 @@ presence/absence of the `FROM` keyword token itself. `ReferenceResolver` resolve
 
 `VisitSatisfyRequirementUsage` builds a `SysmlSatisfyNode` for `satisfy X by Y;` usages. The
 satisfied requirement's raw reference text is taken from `ownedReferenceSubsetting()` when the
-`satisfy <ref>` form is used, falling back to the declared/typed name of the
-`satisfy requirement <usageDeclaration>` form. The optional satisfying subject's raw reference
+`satisfy <ref>` form is used. The `satisfy requirement r : R by s;` form declares its own
+requirement usage `r`; that name is introduced by the statement and is not a reference, so the
+requirement is the usage's feature typing (`R`), falling back to the declared name only for a
+declaration without typing. The optional satisfying subject's raw reference
 text comes from `satisfactionSubjectMember()` (the `by <subject>` clause), or is `null` when
-absent.
+absent. Either reference may be a dotted feature chain (`by system.sub1`), resolved by
+`ReferenceResolver`.
 
 **KerML declarations.** The KerML library files are parsed with the same grammar (see Local
 Patch 4 in `Grammar/README.md`), so every named KerML declaration is indexed with the existing

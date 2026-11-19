@@ -21,10 +21,12 @@
    `ReferenceOccurrences` (see "Expression References" below), reporting without recording an edge;
    a view's `render` target that names a SysML2Tools extension selector gets a portability Warning
    instead (see "Tool Render Selectors (Portability Warning)" below).
-4. **Feature-chain resolution (pass 2)** — after pass 1 has completed for every file root,
-   resolves dotted feature chains (e.g. `engine.fuelPort`) referenced by `SysmlConnectionNode`
-   (`ConnectionKeyword == "connection"`, `"message"`, or `"binding"`) endpoints and
+4. **Feature-chain edge resolution (pass 2)** — after pass 1, resolves the ends of
+   `SysmlConnectionNode` (`ConnectionKeyword == "connection"`, `"message"`, or `"binding"`) and
    `SysmlTransitionNode` `Source`/`Target` into `Connect`/`Binding`/`Transition`-kind edges.
+   Dotted feature chains themselves (`engine.fuelPort`) are resolved by `NameResolver` for every
+   reference kind (pass 0, pass 1 and pass 2 alike); pass 2 is a separate traversal only to keep
+   edge order.
 
 ##### Import Graph
 
@@ -64,8 +66,10 @@ diagnostics and is unchanged.
 ##### Reference Resolution
 
 Every reference is resolved by `NameResolver` in its internal *resolving* mode (see
-`name-resolver.md`) through `TryResolve(name, scope, rootImports, out resolvedName)`, which calls
-`NameResolver.Resolve(name, scope, rootImports)` and outputs the exact qualified name that matched.
+`name-resolver.md`) through `TryResolve(name, scope, rootImports, out resolvedName, pathValued)`,
+which calls `NameResolver.ResolveFeatureChain(name, scope, rootImports)` and outputs the exact
+qualified name that matched (the declared element, or the chain's instance path when
+`pathValued`; see "Feature-Chain Resolution").
 `scope` is the **local namespace** of the reference: the qualified name of the nearest enclosing
 named package, definition, or usage (`ChildScope`; null at the file root) — for a node's own
 references that is its owning namespace, which is the local namespace KerML 8.2.3.5.2 specifies
@@ -170,8 +174,11 @@ scoping). The redefining feature itself is never an acceptable target: a bare `:
 `part x` creates `x::mass`, which ordinary local resolution would otherwise find, giving a
 meaningless self-edge. When ordinary resolution finds only that feature, the reference is
 resolved again from the owning type's own owner, outward, so an unnamed `part :>> part1;` nested
-in a usage reaches the `part1` its enclosing usage's type declares. A usage-level `subsets`/`:>`
-supertype and a definition-level supertype
+in a usage reaches the `part1` its enclosing usage's type declares. A redefinition target that is
+a feature chain (`attribute :>> localClock.currentTime;`) resolves its first segment among the
+general types as above and the remaining segments by visible resolution. A usage-level
+`subsets`/`:>` supertype (a chain such as `part c subsets b.f` included) and a definition-level
+supertype
 use plain `Resolve(name, scope)`, whose local resolution in the owning namespace already includes
 the memberships the owner inherits.
 
@@ -193,106 +200,100 @@ redefinition" pass is therefore gone.
   on an implicit general type resolves. Implicit specializations are never `SysmlEdge`s. Not
   modeled (unobservable or indistinguishable in the AST): the transition, satisfy, dependency and
   metadata usage nodes, time slices and snapshots, `individual` → `Occurrences::Life`, and
-  viewpoint usages (connection-like usages are modeled; see the name resolver design). The
-  remaining resolver gaps are dotted feature chains, the synthetic `$fork0`-style node names, and
-  a few single-reference shapes (issue #129).
+  viewpoint usages (connection-like usages are modeled; see the name resolver design). Dotted
+  feature chains and the synthetic `$fork0`-style names are resolved (see "Feature-Chain
+  Resolution"). What the OMG corpus still reports in strict mode is not a name-resolution
+  problem but members `AstBuilder` does not record (see "Severity and Origin" for the list and
+  counts) — issue #129.
 - The layouts' `NameResolver` (public mode) does not see file-root imports; they rely on the
   semantic edges this unit produces, which do.
 
 ##### Feature-Chain Resolution
 
-After pass 1 (`ResolveNode`) has run to completion over **every** file root, `ResolveAll` runs a
-second traversal, `ResolveFeatureChains`, over every file root again. This ordering is required
-because a chain walk depends on `Typing`/`Supertype` edges attached to `node.ResolvedEdges` by
-pass 1 — and a chain in file A may reference a type declared (and typed/specialized) in file B, or
-reference a node that pass 1 has not yet visited within the same file (a forward reference in
-document order). Running feature-chain resolution as a strictly later, whole-workspace second pass
-guarantees every `Typing`/`Supertype` edge needed by the walk already exists.
+A dotted feature chain (`engine.fuelPort`, `rearAxle.leftHalfAxle.axleToWheelPort`,
+`'Solve for Pressure1'.rho`) is resolved by `NameResolver` (see its design, "Feature chains"), not
+by this unit: the first segment by full resolution from the local namespace, each later segment by
+*visible* resolution in the previous segment's feature, through its own inline members and
+everything it inherits (explicit and implicit general types, transitively; aliases followed;
+conjugated port types included), public memberships only. `ReferenceResolver` only passes the
+reference text on, so a chain is accepted by **every** reference kind that goes through
+`TryResolve`/`ResolveOrWarn` — supertype and subsetting targets (`part c subsets b.f`), typing,
+redefinition targets (`:>> localClock.currentTime`), `satisfy` subjects and requirements,
+`allocate` ends, `verify` references, and the connector ends below — with no per-kind chain code.
+There is no separate walk over `ResolvedEdges` any more: the general types a chain step needs come
+from the types' raw references, so the answer does not depend on which node was visited first.
 
-`ResolveFeatureChains` computes the local namespace of each node with the same `ChildScope`
-function as `ResolveNode` (the nearest enclosing named package, definition, or usage), so that
-segment-0 resolution scope cannot silently diverge between the two passes. For each
-`SysmlConnectionNode` with `ConnectionKeyword` `"connection"`, `"message"`, or `"binding"` (the
-`"allocation"` variant is excluded — it keeps its existing, unit-3, single-segment-only
-behavior), and for each
-`SysmlTransitionNode`, both sides (`EndpointA`/`EndpointB` or `Source`/`Target`) are resolved via
-`TryResolveFeatureChain`, and a `Connect`/`Binding`/`Transition` edge is emitted only when **both**
-sides
-resolve — mirroring the existing Satisfy/Allocate both-sides-must-resolve contract. New edges are
-appended to `node.ResolvedEdges` (pass-1 edges, if any, are preserved) and to the aggregate edge
-list.
+`TryResolve`/`ResolveOrWarn` take a `pathValued` flag. By default a chain resolves to the *declared
+element* of its last segment (the right answer for supertype, typing and redefinition edges: their
+targets must be real declarations). With `pathValued: true` it resolves to the **instance path**:
+the first segment's element followed by the simple name of each later segment's element
+(`P::p1::x::x1` for `p1.x.x1`, where `x` is declared by the type of `p`). It is used for the ends
+of relationship edges — `Connect`, `Binding`, `Transition`, `Allocate`, `Satisfy` (subject and
+requirement) and `Verify` — because `GeneralViewLayoutStrategy.ResolveOwningBox` and the
+`connections` query map an edge end to a box by the `::` prefixes of that string, so two sibling
+features of the same type must not collapse onto the type's declaration. For a reference without a
+chain both forms are the same name.
+
+After pass 1 (`ResolveNode`), `ResolveAll` runs a second traversal, `ResolveFeatureChains`, over
+every file root. The traversal exists only to preserve edge order: a node's `Connect`, `Binding`
+and `Transition` edges follow its pass-1 edges in `node.ResolvedEdges` and in the aggregate list,
+which layouts and the golden edge files see. (It used to be required for correctness, because the
+old walk read `Typing`/`Supertype` edges that pass 1 had to attach first.) It computes the local
+namespace of each node with the same `ChildScope` function as `ResolveNode`. For each
+`SysmlConnectionNode` with `ConnectionKeyword` `"connection"`, `"message"`, or `"binding"`, and
+for each `SysmlTransitionNode` (successions included), both sides (`EndpointA`/`EndpointB` or
+`Source`/`Target`) are resolved with `pathValued: true`, and a `Connect`/`Binding`/`Transition`
+edge is emitted only when **both** sides resolve — mirroring the existing Satisfy/Allocate
+both-sides-must-resolve contract. New edges are appended to `node.ResolvedEdges` (pass-1 edges, if
+any, are preserved) and to the aggregate edge list. A side that does not resolve is reported once
+per name per file, as the whole chain text (`Unresolved reference: 'p.nope.x'`).
 
 For a `SysmlTransitionNode`, both the `Source` and the `Target` side are resolved via
-`ResolveTransitionEnd` rather than the plain `TryResolveFeatureChain` call: it tries
-`TryResolveFeatureChain` first, and only when that fails, falls back to
+`ResolveTransitionEnd`: it resolves the end like any other chain (instance path), then applies the
+`start`/`done` canonicalization, and only when resolution fails falls back to
 `TryResolveInheritedActionMember` (see "Inherited Pseudostate Feature Resolution" below) before
 the pair is given up on as unresolved. The fallback covers an inherited `start`/`done` on either
 end — `first start then off;` (source) and `then done;` / `transition first x then done;`
 (target) — and is not given to connection or binding endpoints or any other reference kind.
 
-`TryResolveFeatureChain(chain, scope, rootImports, out resolvedName)` splits the raw
-reference text on `.`. Segment 0 is resolved via `TryResolve` (so it
-participates in the same KerML scope/import resolution as any other single-name reference); a
-single-segment "chain" is handled by the remaining-segment loop simply never executing. Each
-subsequent segment is resolved relative to the previous segment's node (looked up via
-`SymbolTable.Lookup`) using `FindFeatureMember`. Two parallel accumulators are tracked across the
-loop: `current` (the real declared node's qualified name, which continues to drive the *next*
-segment's `SymbolTable.Lookup` — this part of the walk is unchanged) and `instancePath` (the value
-ultimately returned as `resolvedName`). For a segment resolved via `FindFeatureMember`'s
-direct-child branch, `instancePath` is simply set to the member's own (already instance-relative)
-qualified name — unchanged from before. For a segment resolved via the type-hierarchy fallback
-branch (`viaTypeFallback == true`, see `FindFeatureMember` below), `instancePath` is instead set to
-`{previous instancePath}::{raw segment text}` — preserving the instance-relative path rather than
-collapsing to the type's own declared qualified name. This distinction matters for the dominant
-real-world `connect`/`bind` shape: two sibling features (e.g. ports) declared directly in their
-owning `part def`s, referenced from an enclosing part via bare usages with no per-instance nested
-redeclaration — every such reference resolves via the fallback branch, and without this
-`instancePath` accumulator the returned qualified name would collapse to the shared port type's own
-declared path (e.g. `PowerPort`'s owning type's own `power`/`output` declaration), causing
-`GeneralViewLayoutStrategy.ResolveOwningBox` to (incorrectly) map both endpoints to the same box.
-
-`FindFeatureMember(node, name, out viaTypeFallback)` tries `node`'s own direct children first — an
-inline nested usage or redefinition shadows a same-named definition-level member (confirmed by the
-OMG fixture `2c-PartsInterconnection-MultipleDecompositions.sysml`'s `port :>> pe = c1.pb`
-pattern) — setting `viaTypeFallback = false` and returning immediately when found. Only when no
-direct child matches does it fall back to the member's `Typing`-edge target's own hierarchy,
-setting `viaTypeFallback = true` for that branch; the returned node's own `QualifiedName` in this
-case is the *type's own* declared path, not instance-relative — it is the caller
-(`TryResolveFeatureChain`) that reconstructs the instance-relative path using `viaTypeFallback`, as
-described above. Every segment after the first is a *visible resolution* in the previous feature
-(KerML 8.2.3.5), so both branches admit **public members only** (the `MemberAccess.Public` limit,
-matching `NameResolver`'s `Scope.Visible`): a private or protected child, or a private or
-protected member inherited through the type's supertypes, is never found. Segment 0 is unaffected
-(it is a local/full resolution through `TryResolve`, which sees the namespace's own private
-members).
+**Anonymous action nodes.** `AstBuilder` names an anonymous action node (`fork;`, `join;`,
+`decide;`, `merge;`, `terminate;`) `$fork0`, `$decide1`, … — a name no user identifier can have
+(`$` cannot start one) — and keeps it out of the symbol table, so a `then fork;` succession's end
+is, by design, not resolvable. `ResolveTransitionEnd` therefore treats a `$`-prefixed end that
+names a child of the enclosing scope node as a reference to that node: no diagnostic, and no
+`Transition` edge (exactly what an unresolved end produced before, minus the false report). The
+node is deliberately *not* registered as a declaration: that would change `query`, layouts, and the
+serialized standard library, and the OMG Pilot gives such elements no name at all.
 
 `FindMemberInTypeHierarchy(typeNode, name, access, visited)` finds a member in `typeNode`'s own direct
 children, or — recursively — in any `Supertype`-edge ancestor's direct children, walking the
 supertype chain until a match is found or the chain is exhausted, admitting only the memberships
-`access` allows at every level (`Public` for feature chains; `NonPrivate` — what a specialization
-inherits — for `TryResolveInheritedActionMember`). A `HashSet<string>` keyed on
+`access` allows at every level (`NonPrivate` — what a specialization inherits — for
+`TryResolveInheritedActionMember`). A `HashSet<string>` keyed on
 qualified type name guards against supertype cycles (e.g. a malformed `A :> B :> A` model), so the
 walk always terminates. `FindMemberInAncestorChain` likewise searches the enclosing node's own
-children without restriction but its ancestors only for non-private members.
+children without restriction but its ancestors only for non-private members. Both now serve only
+the `start`/`done` fallback; they are no longer part of chain resolution.
 
 ##### Scope Boundary (Feature-Chain Resolution)
 
-- **`SysmlSatisfyNode` dotted subjects remain unresolved** — unchanged from unit 3; chain
-  resolution is not currently extended to `satisfy` subjects.
-- **`"allocation"`-keyword endpoints remain single-segment-only** — unchanged from unit 3.
+- **`interface` and `flow` connection endpoints are neither resolved nor diagnosed** — they never
+  were (only `connection`, `message` and `binding` ends are, in pass 2, and `allocation` ends in
+  pass 1); extending them would add diagnostics and `Connect` edges (and so General-view
+  connectors), a separate decision.
 - **Redefinition/subsetting compatibility is not validated** — a chain segment is matched by
-  `Name` only; `:>>`/`:>`/`subsets` compatibility between the redefining and redefined feature is
-  not checked (matching by name is safe because SysML redefinitions preserve or narrow, never
-  change, the feature's identity for chain-traversal purposes).
+  name only; `:>>`/`:>`/`subsets` compatibility between the redefining and redefined feature is
+  not checked.
 - **Indexed/sequence access syntax (`#(n)`) is not supported** — a segment containing `#(...)`
-  simply fails to match any child `Name` and gracefully degrades to unresolved (diagnostic, no
+  simply fails to match any name and gracefully degrades to unresolved (diagnostic, no
   edge, no crash).
-- **Imported/wildcard-imported feature members are not merged into type member lookup** — only
-  `Children` and `Supertype`-chain `Children` are searched.
 - **An implied/omitted `SysmlTransitionNode.Source` produces no edge, except for the narrow
-  `start`/`done` inherited-pseudostate fallback described below** — there is nothing to walk a
-  chain from in the general case, so no partial/misleading edge is emitted; this remains a
+  `start`/`done` inherited-pseudostate fallback described below** — there is nothing to resolve in
+  the general case, so no partial/misleading edge is emitted; this remains a
   documented limitation for every other implicit-source shape.
+- **A chain through a member the AST does not model does not resolve.** The chain is resolved
+  against the declarations `AstBuilder` records; whatever it does not record cannot be a chain
+  segment (see "Out of Scope" for the shapes that remain in the OMG corpus).
 
 ##### Inherited Pseudostate Feature Resolution
 
@@ -301,8 +302,8 @@ enclosing state/action **inherits** from its supertype rather than declares itse
 `first start then off;` inside a `state usage : VehicleStates { ... }` with no local `start`
 feature declared, the synthesized `Source` of an attached transition following an
 `entryActionMember`, or the completion target in `then done;` and
-`transition first idle then done;`. `TryResolveFeatureChain` cannot see inherited members (it
-only resolves via namespace/import scope), so without a dedicated fallback every such transition
+`transition first idle then done;`. A pure name lookup could not see inherited members at the
+time, so without a dedicated fallback every such transition
 produced a false "Unresolved reference" diagnostic and no `Transition` edge, even though the
 model is semantically valid per the SysML v2 spec (the Systems Library declares `start` and
 `done` as features of `Actions::Action`, which every action and state inherits).
@@ -325,7 +326,7 @@ canonicalization and step 4 below (a one-line removal plus a refresh of the gold
 transitions to `States::StateAction::start`/`done`.
 
 `TryResolveInheritedActionMember(scope, name, out resolvedName)` is tried after
-`TryResolveFeatureChain` fails (and, for the canonicalization above, after it succeeds with a
+ordinary resolution fails (and, for the canonicalization above, after it succeeds with a
 library member), and only for a `SysmlTransitionNode`'s `Source` or `Target`. On the
 `Target` side (`pseudoFeaturesOnly`) it is restricted up front to exactly the names `start`/`done`
 and only when the enclosing node is a state or action (definition or usage); no other inherited
@@ -338,8 +339,7 @@ below:
    point a `SysmlTransitionNode` is visited, `scope` is the enclosing state/usage
    (transitions have no `Name` of their own to push).
 2. If the enclosing node has a resolved `Typing` edge, follows it to the type node and searches
-   via `FindMemberInTypeHierarchy` (the same supertype-chain walk `TryResolveFeatureChain`'s
-   type-fallback branch uses).
+   via `FindMemberInTypeHierarchy` (a walk of the type's own children and its `Supertype` edges).
 3. Also tries `FindMemberInAncestorChain` directly on the enclosing node itself (a walk of the
    node's own children and its `Supertype`/`Redefinition` resolved edges).
 4. **Narrow, hardcoded last resort:** only when `name` is exactly `"start"` or `"done"`, and only
@@ -369,20 +369,25 @@ unresolved-reference diagnostic and no edge):
 - **`VerifiedRequirementNames` (Verify)** — resolved via the same uniform loop pattern used for
   `SupertypeNames`/`ImportedNames`: each entry in `node.VerifiedRequirementNames` that resolves
   produces one `SysmlEdgeKind.Verify` edge sourced from `node.QualifiedName` (the verifying
-  case/requirement) to the resolved requirement; an unresolvable entry produces a diagnostic and no
+  case/requirement) to the resolved requirement (a chain such as `verify spec.r;` targets its
+  instance path); an unresolvable entry produces a diagnostic and no
   edge, independently per entry.
 - **`SysmlSatisfyNode` (Satisfy)** — resolves `SubjectName` and `RequirementName`
   independently (each optional/absent side is simply skipped). A `SysmlEdgeKind.Satisfy` edge
   (`Source` = resolved subject, `Target` = resolved requirement) is emitted **only when both
   sides resolve** — unlike the uniform loops, this is a two-sided reference, so a single
   unresolvable side suppresses the edge entirely rather than emitting a partial/misleading edge.
-  Dotted feature-chain subjects (e.g. `a.b`) are out of scope for this unit and simply fail to
-  resolve as a single symbol name, which degrades gracefully (diagnostic, no edge, no crash).
+  Either side may be a dotted feature chain (`satisfy req by container.sub;`), resolved by
+  `NameResolver` and recorded at its instance path. A satisfy usage that declares its own
+  requirement usage (`satisfy requirement req1 : Req1 by system;`) names the requirement it
+  satisfies by its typing (`Req1`): `AstBuilder` records the typing, not the name the usage
+  declares, as `RequirementName`.
 - **`SysmlConnectionNode` with `ConnectionKeyword == "allocation"` (Allocate)** — resolves
-  `EndpointA` and `EndpointB` independently, emitting a `SysmlEdgeKind.Allocate` edge (`Source`
+  `EndpointA` and `EndpointB` independently (each may be a feature chain, recorded at its instance
+  path), emitting a `SysmlEdgeKind.Allocate` edge (`Source`
   = resolved first end, `Target` = resolved second end) only when both ends resolve, using the
   identical both-sides-must-resolve contract as `Satisfy`. Regular `"connection"`/`"message"`
-  keyword variants remain intentionally unresolved (out of scope for this unit).
+  keyword variants are resolved in pass 2.
 - **`SysmlDependencyNode` (Dependency)** — resolves every entry in `FromNames` and every entry in
   `ToNames` independently (each unresolvable name produces its own diagnostic, per the
   `resolvedInFile` de-duplication rule), then emits one `SysmlEdgeKind.Dependency` edge per
@@ -436,8 +441,9 @@ diagnostic (at the resolver's unresolved severity) at the occurrence's own `(lin
   The standard library has no
   `ReferenceOccurrences` after deserialization (`[JsonIgnore]`); it is checked when it is
   compiled by `StdlibGen`; since the KerML library declarations are indexed (stage 1 of #129) and
-  implicit specialization is modeled for lookup (stage 2), the remaining warnings it adds to the
-  standard library's own diagnostics are dotted feature chains such as `receiver.incomingTransfersToSelf`.
+  implicit specialization is modeled for lookup (stage 2) and feature chains are resolved (stage 3),
+  the remaining warnings it adds to the standard library's own diagnostics name connection `end`
+  features and members of bodies the AST does not record (for example `that.edges`).
 - **Not covered (follow-ups).** Value expressions (`= expr`, `:= expr`) of usages — enabling them
   reported valid OMG corpus models because of unrelated modeling gaps (a quoted name such as `'mi'`
   not matching its short name, usages declared with a metadata prefix, KerML
@@ -461,8 +467,10 @@ severity is decided by *which resolver invocation produced the diagnostic*, not 
   is reported as an error by the other commands.
 - **Standard library — always Warning.** `StdlibGen` constructs the resolver with
   `DiagnosticSeverity.Warning` explicitly, so the diagnostics produced while compiling the standard
-  library stay Warnings (the compile reports 0 errors and 45 warnings, the dotted feature chains
-  and a few library-specific names; it was 65 before implicit specialization). The compiled library is a
+  library stay Warnings (the compile reports 0 errors and 13 warnings, naming connection `end`
+  features and members of bodies the AST does not record, such as `source`/`target` of a causation
+  connection and `that.edges`; it was 65 before implicit specialization and 45 before feature
+  chains). The compiled library is a
   pre-resolved seed symbol table that is never re-resolved at load time, so a user load produces no
   standard-library-origin diagnostics and the model, serialization, and `SysmlDiagnostic` carry no
   origin marker.
@@ -470,12 +478,35 @@ severity is decided by *which resolver invocation produced the diagnostic*, not 
   Warning of `SupertypeWalker` do not use the severity parameter and are always Warnings.
   The portability Warning below is likewise always a Warning.
 
-**Unresolved-reference severity policy.** The default is Warning, not Error, because name
-resolution still has known gaps (dotted feature chains, synthetic node names, and a few
-single-reference shapes), tracked by issue #129 (issue #93, implicit specialization, is modeled for
-lookup); promoting those to errors by default would reject
-valid models: the OMG corpus still reports 94 strict-mode errors in 36 of its 251 files, 66 of them dotted
-feature chains. `WorkspaceLoader.DefaultUserUnresolvedSeverity` is the single place to change the
+**Unresolved-reference severity policy.** The default is Warning, not Error, because the OMG
+corpus still reports strict-mode errors for valid models (issue #129; issue #93, implicit
+specialization, and feature chains are resolved). As of the feature-chain stage it reports
+48 strict-mode errors in 18 of its 251 files (94 in 36 before). None is a name-resolution gap — each
+names a member `AstBuilder` does not record, so there is nothing for a name to resolve to:
+
+- Nested bodies of action usages and of `constraint def`/`calc def` (members such as
+  `perform action producerBehavior { action publish send … }`, `calc def`/`constraint def`
+  parameters): 26 errors (`producer_2.producerBehavior.publish.sentMessage` ×12 in
+  `ServerSequence*-2`, `massAnalysis.totalMass`/`'Solve for Pressure1'.rho` ×8,
+  `'assemble vehicle'.'assemble engine into vehicle'.assembledVehicle`, `perform`-introduced
+  names such as `driver.turnVehicleOn`, `ActionTree::providePower.generateToAmplify`, and the
+  other Annex A `startVehicle` members).
+- Time slices and snapshots (`snapshot vehicle1_t0`, `assembly`/
+  `delivery`; #93 remainder): 5 errors.
+- Bare directed usages (`in scene : Scene;`) and bare features with no keyword
+  (`distancePerVolume :> scalarQuantities = …`), for which `AstBuilder` builds no node: 7 errors
+  (`focus.scene`, `shoot.picture`, `distancePerVolume`).
+- A nameless usage that owns members (`attribute :> differencesOf[1] { item :>> elements … }`),
+  which has no identity to resolve through: 2 errors (`elements`).
+- A redefinition list (`part :>> a :>> b`), of which only the first target is recorded: 3 errors
+  (`setSpeedPort`, `sensedSpeedPort`, `fuelCommandPort`).
+- A user-keyword definition (`#service def APISService`), not modeled: 2 errors (`APISService`,
+  `AHFNorway_LocalCloudDD.APISConsumer`).
+- A corpus artifact: `examples/CameraExample/Camera.sysml` declares a top-level `part def Camera`
+  that collides with `package Camera` of `training/17.Control/Camera.sysml`: 3 errors
+  (`Scene`, `Picture`, `Image`).
+
+`WorkspaceLoader.DefaultUserUnresolvedSeverity` is the single place to change the
 default. Once the OMG corpus produces close to zero strict-mode errors, the constant is flipped to
 `Error` and the `--strict-unresolved` flag is replaced (for example with an opt-out). See the
 `WorkspaceLoader` design for the full policy.
@@ -544,10 +575,10 @@ are thrown; the resolver completes even when cycles or unresolved names are pres
 ##### Dependencies
 
 - `SymbolTable` — `Symbols` is the declaration dictionary `NameResolver` resolves against;
-  `Lookup` is used by feature-chain resolution and `FindMemberInAncestorChain` to walk from a
-  resolved qualified name back to its node; also used by `TryResolveInheritedActionMember` to look
-  up the enclosing node and (in its narrow last-resort branch) the stdlib `Actions::Action` type
-  node.
+  `Lookup` is used by `TryResolveInheritedActionMember`, `IsAnonymousActionNodeOf` and
+  `FindMemberInAncestorChain` to walk from a resolved qualified name back to its node (the
+  `start`/`done` fallback looks up the enclosing node and, in its narrow last-resort branch, the
+  stdlib `Actions::Action` type node).
 - `NameResolver` — resolves every reference in its internal resolving mode (see `name-resolver.md`).
 - `FilterExpressionEvaluator.CreateImportFilter` (Language Filtering subsystem) — the predicate
   that evaluates filtered imports.
@@ -561,8 +592,8 @@ are thrown; the resolver completes even when cycles or unresolved names are pres
   `SysmlViewNode`
   (`GetExposedNames()`; `RenderTargetName`/`FilterExpressionText`/each `ExposeMember`'s
   `BracketFilterExpressionText` are never read); reads
-  `ResolvedEdges` (`Typing`/`Supertype` kinds during feature-chain resolution; `Supertype`
-  **and** `Redefinition` kinds during `FindMemberInAncestorChain`'s ancestor walk).
+  `ResolvedEdges` (`Supertype` and `Redefinition` kinds during `FindMemberInAncestorChain`'s
+  ancestor walk, `Typing`/`Supertype` kinds in the `start`/`done` fallback).
 - `SysmlEdge`, `SemanticIndex` — resolved references are recorded as `SysmlEdge` instances and
   aggregated into the returned `SemanticIndex`.
 - `SysmlDiagnostic`, `DiagnosticSeverity` — used to construct and emit diagnostics at the configured

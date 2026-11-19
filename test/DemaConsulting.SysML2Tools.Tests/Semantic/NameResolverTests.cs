@@ -979,6 +979,273 @@ public sealed class NameResolverTests
     }
 
     /// <summary>
+    ///     A chain segment after the first resolves in the previous feature's general types, so a
+    ///     usage that subsets or redefines another usage reaches the members the other one has.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_FeatureChain_ThroughSubsettingUsage_ResolvesInheritedMember()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                part def T { part x { part x1; } }
+                part p : T;
+                part p1 :> p;
+                part def Base { part x { part x1; } }
+                part def Sub1 :> Base { part y :> x; }
+                part def Sub2 :> Base { part z :>> x; }
+                part s1 : Sub1;
+                part s2 : Sub2;
+            }
+            """);
+
+        // Act / Assert: subsetting a typed usage; two hops; subsetting and redefining inside a type
+        Assert.Equal("P::T::x", resolver.Resolve("p1.x", "P"));
+        Assert.Equal("P::T::x::x1", resolver.Resolve("p1.x.x1", "P"));
+        Assert.Equal("P::Base::x::x1", resolver.Resolve("s1.y.x1", "P"));
+        Assert.Equal("P::Base::x::x1", resolver.Resolve("s2.z.x1", "P"));
+    }
+
+    /// <summary>
+    ///     A chain segment that names an alias resolves to the alias's target, found through the
+    ///     previous feature's inheritance; a private alias is not visible through the chain.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_FeatureChain_ThroughAlias_ResolvesAliasTarget()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                part def T { part dest; }
+                part p2 : T { alias pd1 for dest; private alias hid for dest; }
+            }
+            """);
+
+        // Act / Assert
+        Assert.Equal("P::T::dest", resolver.Resolve("p2.pd1", "P"));
+        Assert.Null(resolver.Resolve("p2.hid", "P"));
+        Assert.Equal("P::T::dest", resolver.Resolve("hid", "P::p2"));
+    }
+
+    /// <summary>
+    ///     A usage typed by a conjugated port definition exposes that port definition's members.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_FeatureChain_ThroughConjugatedPortType_ResolvesPortMembers()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                port def PortT { attribute x; in attribute y; }
+                part def A { port p : ~PortT; port q : PortT; }
+                part a : A;
+            }
+            """);
+
+        // Act / Assert
+        Assert.Equal("P::PortT::x", resolver.Resolve("a.p.x", "P"));
+        Assert.Equal("P::PortT::y", resolver.Resolve("a.p.y", "P"));
+        Assert.Equal("P::PortT::x", resolver.Resolve("a.q.x", "P"));
+    }
+
+    /// <summary>
+    ///     A dot inside a quoted name does not split the chain, and a quoted segment compares equal
+    ///     to its declared text.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_FeatureChain_QuotedSegments_SplitOnDotsOutsideQuotes()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                part def T { attribute rho; part 'a.b' { part c; } }
+                part 'Solve for Pressure1' : T;
+                part 'a.b' { part c; }
+                part q : T;
+            }
+            """);
+
+        // Act / Assert
+        Assert.Equal("P::T::rho", resolver.Resolve("'Solve for Pressure1'.rho", "P"));
+        Assert.Equal("P::'a.b'::c", resolver.Resolve("'a.b'.c", "P"));
+        Assert.Equal("P::T::'a.b'::c", resolver.Resolve("q.'a.b'.c", "P"));
+        Assert.Null(resolver.Resolve("'a.b'.rho", "P"));
+    }
+
+    /// <summary>
+    ///     A feature's own inline members are found before the members of its types.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_FeatureChain_PrefersOwnedInlineMemberOverTypeMember()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                part def Assembly { part element; part other; }
+                part def Sys { part assembly : Assembly { part :>> element { part own; } } }
+                part s : Sys;
+            }
+            """);
+
+        // Act / Assert
+        Assert.Equal("P::Sys::assembly::element", resolver.Resolve("s.assembly.element", "P"));
+        Assert.Equal("P::Sys::assembly::element::own", resolver.Resolve("s.assembly.element.own", "P"));
+        Assert.Equal("P::Assembly::other", resolver.Resolve("s.assembly.other", "P"));
+    }
+
+    /// <summary>
+    ///     Private and protected members are not visible through a chain, even through a subsetting
+    ///     usage or an alias, while the first segment sees its namespace's private members.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_FeatureChain_PrivateAndProtectedThroughSubsettingUsage_NotVisible()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                part def T { private part hid; protected part prot; part pub; }
+                part p : T;
+                part p1 :> p;
+                private part sec : T;
+            }
+            """);
+
+        // Act / Assert
+        Assert.Equal("P::T::pub", resolver.Resolve("p1.pub", "P"));
+        Assert.Null(resolver.Resolve("p1.hid", "P"));
+        Assert.Null(resolver.Resolve("p1.prot", "P"));
+        Assert.Equal("P::T::pub", resolver.Resolve("sec.pub", "P"));
+    }
+
+    /// <summary>
+    ///     A three-level chain mixes owned, typed and subsetted hops.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_FeatureChain_ThreeLevels_MixedDirectTypeAndSpecialization()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                part def Wheel { port hub; }
+                part def Axle { part wheel : Wheel; }
+                part def Car { part axle : Axle { part inner; } }
+                part car : Car;
+                part car2 :> car;
+            }
+            """);
+
+        // Act / Assert
+        Assert.Equal("P::Wheel::hub", resolver.Resolve("car.axle.wheel.hub", "P"));
+        Assert.Equal("P::Wheel::hub", resolver.Resolve("car2.axle.wheel.hub", "P"));
+        Assert.Equal("P::Car::axle::inner", resolver.Resolve("car2.axle.inner", "P"));
+    }
+
+    /// <summary>
+    ///     A chain whose middle segment does not resolve, or whose later segment does not exist,
+    ///     does not resolve at all.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_FeatureChain_UnresolvedSegment_DoesNotResolve()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P { part def T { part x; } part p : T; }
+            """);
+
+        // Act / Assert
+        Assert.Null(resolver.Resolve("p.nope", "P"));
+        Assert.Null(resolver.Resolve("nope.x", "P"));
+        Assert.Null(resolver.Resolve("p.nope.x", "P"));
+        Assert.Null(resolver.Resolve("p.x.nope", "P"));
+        Assert.Null(resolver.Resolve("p.", "P"));
+    }
+
+    /// <summary>
+    ///     Self-referential and mutually referential specializations that go through chains
+    ///     terminate.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_FeatureChain_SpecializationCycle_Terminates()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                part def T { part y; }
+                ref x : T :> x.y;
+                part a :> b;
+                part b :> a;
+            }
+            """);
+
+        // Act / Assert
+        Assert.Equal("P::T::y", resolver.Resolve("x.y", "P"));
+        Assert.Null(resolver.Resolve("a.nope", "P"));
+        Assert.Null(resolver.Resolve("b.nope", "P"));
+    }
+
+    /// <summary>
+    ///     A chain whose first segment is written with a qualified name or global prefix resolves
+    ///     the first segment as that qualified name.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_FeatureChain_QualifiedFirstSegment_Resolves()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P { part def T { part x; } part p : T; }
+            package Q { }
+            """);
+
+        // Act / Assert
+        Assert.Equal("P::T::x", resolver.Resolve("P::p.x", "Q"));
+        Assert.Equal("P::T::x", resolver.Resolve("$::P::p.x", "Q"));
+    }
+
+    /// <summary>
+    ///     A redefinition target written as a chain (<c>:&gt;&gt; clock.time</c>) resolves its first
+    ///     segment among the general types of the owning type and the rest by visible resolution.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolveRedefinedFeature_Chain_ResolvesThroughFirstSegment()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                part def Clock { attribute time; }
+                part def Base { part clock : Clock; }
+                part def Derived :> Base;
+            }
+            """);
+
+        // Act / Assert
+        Assert.Equal("P::Clock::time", resolver.ResolveRedefinedFeature("clock.time", "P::Derived"));
+        Assert.Null(resolver.ResolveRedefinedFeature("clock.nope", "P::Derived"));
+    }
+
+    /// <summary>
+    ///     A quoted and an unquoted spelling of the same simple name are the same name, in
+    ///     qualified names and in imports.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_Resolve_QuotedAndUnquotedSimpleName_AreEquivalent()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package PowerTrain { part def Engine; }
+            package 'Quoted' { part def Gear; }
+            package User { private import 'PowerTrain'::*; private import Quoted::Gear; part e : Engine; part g : Gear; }
+            """);
+
+        // Act / Assert (a quoted declaration keeps its quotes in its qualified name)
+        Assert.Equal("PowerTrain::Engine", resolver.Resolve("'PowerTrain'::Engine", null));
+        Assert.Equal("PowerTrain::Engine", resolver.Resolve("Engine", "User"));
+        Assert.Equal("'Quoted'::Gear", resolver.Resolve("Quoted::Gear", null));
+        Assert.Equal("'Quoted'::Gear", resolver.Resolve("'Quoted'::'Gear'", null));
+        Assert.Equal("'Quoted'::Gear", resolver.Resolve("Gear", "User"));
+        Assert.Equal("PowerTrain", resolver.Resolve("'PowerTrain'", null));
+    }
+
+    /// <summary>
     ///     Loads <paramref name="sysml"/> (with the standard library) and returns the workspace.
     /// </summary>
     private static async Task<SysmlWorkspace> LoadWorkspaceAsync(string sysml)

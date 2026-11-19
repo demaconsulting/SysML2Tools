@@ -2204,12 +2204,11 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     A <c>satisfy</c> usage whose subject is a dotted feature chain (e.g. <c>a.b</c>) should
-    ///     gracefully fail to resolve (no crash, Warning diagnostic, no edge) rather than crashing —
-    ///     dotted feature-chain resolution is out of scope for this unit.
+    ///     A <c>satisfy</c> usage whose subject is a dotted feature chain (e.g. <c>a.b</c>)
+    ///     resolves through the chain and records the Satisfy edge at the subject's instance path.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_SatisfyFeatureChainSubject_GracefullyUnresolved()
+    public async Task WorkspaceLoader_LoadAsync_SatisfyFeatureChainSubject_RecordsSatisfyEdge()
     {
         // Arrange
         var tempFile = Path.GetTempFileName() + ".sysml";
@@ -2231,13 +2230,13 @@ public sealed class WorkspaceLoaderTests
             var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
-            // Assert — graceful: no crash, a Warning diagnostic, and no Satisfy edge
+            // Assert — no diagnostics and a Satisfy edge from the subject's instance path
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Diagnostics,
-                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
-                     d.Message.Contains("container.sub"));
-            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
-                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Satisfy);
+            Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+            Assert.Contains(result.Workspace.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Satisfy &&
+                     e.SourceQualifiedName == "P::container::sub" &&
+                     e.TargetQualifiedName == "P::req");
         }
         finally
         {
@@ -6600,6 +6599,290 @@ public sealed class WorkspaceLoaderTests
             e => e.Kind == SysmlEdgeKind.Connect &&
                  e.SourceQualifiedName == "P::Sys::inner::open" &&
                  e.TargetQualifiedName == "P::Sys::other::baseOpen");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     A connection chain through a usage that subsets another usage reaches the subsetted
+    ///     usage's members (and their nested members), recorded at the instance path.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionChainThroughSubsettingUsage_RecordsConnectEdge()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part p { part x { part x1; } }
+                part def Q {
+                    part y;
+                    part p1 :> p;
+                    connect p1.x to y;
+                    connect p1.x.x1 to y;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Connect, "P::Q::p1::x", "P::Q::y"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Connect, "P::Q::p1::x::x1", "P::Q::y"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     A connection chain whose last segment is an alias is recorded at the instance path of the
+    ///     alias's target.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionChainToAlias_RecordsEdgeAtTargetInstancePath()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def P1 { port orig1; alias po1 for orig1; }
+                part p1 : P1 { port po1 :>> po1; }
+                part p2 : P1 { port dest; alias pd1 for dest; }
+                connect p1.po1 to p2.dest;
+                connect p1.po1 to p2.pd1;
+            }
+            """);
+
+        // Assert
+        Assert.Contains(result.Workspace!.Index.AllEdges, e =>
+            e.Kind == SysmlEdgeKind.Connect && e.TargetQualifiedName == "P::p2::dest");
+        Assert.Equal(
+            2,
+            result.Workspace.Index.AllEdges.Count(e =>
+                e.Kind == SysmlEdgeKind.Connect && e.SourceQualifiedName == "P::p1::po1" &&
+                e.TargetQualifiedName == "P::p2::dest"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     A connection chain through a conjugated port type reaches the port definition's members.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionChainThroughConjugatedPort_RecordsConnectEdge()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                port def PortT { attribute x; }
+                part def A { port p : ~PortT; }
+                part a : A;
+                part b : A;
+                connect a.p.x to b.p.x;
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Connect, "P::a::p::x", "P::b::p::x"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     A quoted segment containing a dot is one segment of a message-endpoint chain.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ChainWithQuotedDottedSegment_ResolvesBind()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def T { attribute rho; }
+                part 'Solve for Pressure1' : T;
+                attribute density;
+                bind 'Solve for Pressure1'.rho = density;
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Binding, "P::'Solve for Pressure1'::rho", "P::density"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     A subsetting target written as a chain resolves to the member's declaration.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SubsettingTargetChain_ResolvesSupertypeEdge()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def A { part a1; }
+                part def B { part f : A; }
+                part b : B;
+                part c subsets b.f { part aa subsets a1; }
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "P::c", "P::B::f"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "P::c::aa", "P::A::a1"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     A redefinition target written as a chain resolves to the member of the first segment's type.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RedefinitionTargetChain_ResolvesRedefinitionEdge()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Clock { attribute currentTime; }
+                part def Base { part localClock : Clock; }
+                part def Transport :> Base { attribute :>> localClock.currentTime; }
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "P::Transport::currentTime", "P::Clock::currentTime"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     Allocation ends written as chains resolve at instance paths, including an end that is an
+    ///     inline nested member of the allocating usage.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_AllocateChains_RecordAllocateEdge()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Logical { part component; }
+                part def Physical { part assembly { part element; } }
+                part l : Logical { part :>> component; }
+                part p : Physical {
+                    part :>> assembly { part :>> element; }
+                    allocate l.component to assembly.element;
+                }
+                allocate l.component to p.assembly.element;
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Allocate, "P::l::component", "P::p::assembly::element"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     A <c>verify</c> chain resolves its requirement at the instance path.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_VerifyChain_RecordsVerifyEdge()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                requirement def R;
+                part def Spec { requirement r : R; }
+                part spec : Spec;
+                requirement tr : R { verify spec.r; }
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Verify, "P::tr", "P::spec::r"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     A chain whose middle segment does not exist produces one warning naming the whole chain
+    ///     and no edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ChainUnresolvedMiddleSegment_NoEdgeAndWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def T { part x; }
+                part p : T;
+                part y;
+                connect p.nope.x to y;
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(result.Workspace!.Index.AllEdges, e => e.Kind == SysmlEdgeKind.Connect);
+        Assert.True(HasUnresolvedWarning(result, "p.nope.x"));
+    }
+
+    /// <summary>
+    ///     A self-referential chain in a specialization terminates and the model still loads.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ChainSpecializationCycle_Terminates()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def T { part y; }
+                ref x : T :> x.y;
+                part a :> b;
+                part b :> a;
+                part z;
+                connect a.nope to z;
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(result.Workspace!.Index.AllEdges, e => e.Kind == SysmlEdgeKind.Connect);
+        Assert.True(HasUnresolvedWarning(result, "a.nope"));
+    }
+
+    /// <summary>
+    ///     Anonymous action nodes (<c>fork;</c>, <c>decide;</c>, <c>terminate;</c>) used as the ends
+    ///     of successions are not unresolved references and add no transition edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_AnonymousForkDecideTerminate_NoUnresolvedDiagnostic()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def A {
+                    first start;
+                    then fork;
+                        then a1;
+                        then a2;
+                    action a1;
+                    action a2;
+                    then decide;
+                        if true then b1;
+                    action b1;
+                    then terminate;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference: '$"));
+    }
+
+    /// <summary>
+    ///     A satisfy usage that declares its own requirement usage (<c>satisfy requirement r : R by s</c>)
+    ///     satisfies the declared requirement's type, not its own (unresolvable) name.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SatisfyDeclaredRequirementUsage_ResolvesTypingNoWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                requirement def Req1;
+                part system { part sub1; }
+                satisfy requirement req1 : Req1 by system;
+                satisfy requirement req2 : Req1 by system.sub1;
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Satisfy, "P::system", "P::Req1"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Satisfy, "P::system::sub1", "P::Req1"));
         Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
     }
 

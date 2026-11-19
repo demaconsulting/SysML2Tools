@@ -151,3 +151,46 @@ sections:
           - NameResolver_InheritedLookup_ProtectedMemberVisibleToSpecialization_PrivateNot
           - NameResolver_InheritedLookup_RedefinitionHidesRedefinedMember
           - NameResolver_InheritedLookup_RedefinitionWithSameName_ResolvesOwned
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-FeatureChain
+        title: >-
+          NameResolver shall resolve a dotted feature chain (a.b.c) by resolving its first segment
+          by full resolution from the local namespace and each later segment by visible resolution
+          in the previous segment's feature — through the feature's own inline members first and
+          then everything it inherits (explicit and implicit general types, transitively, including
+          a usage's subsetting and redefinition, the members of a conjugated port type, and aliases
+          followed to their targets) — admitting public members only after the first segment,
+          splitting only on dots outside single quotes, resolving a redefinition target written as a
+          chain the same way, reporting the chain's instance path (the first segment's element then
+          the simple name of each later segment's element) for callers that key relationships by
+          feature instance, resolving no part of a chain when any segment fails, and terminating on
+          specialization cycles that run through a chain.
+        justification: |
+          KerML 8.2.3.5.1 (Feature Chain resolution): a feature chain is resolved segment by
+          segment, each later segment by visible resolution in the feature of the previous one,
+          which inherits through its types. The OMG corpus connects, binds, allocates, satisfies and
+          subsets through such chains. The instance path keeps general-view connectors and the
+          connections query keyed by the feature as written, not by the type that declares it.
+        tests:
+          - NameResolver_FeatureChain_ThroughSubsettingUsage_ResolvesInheritedMember
+          - NameResolver_FeatureChain_ThroughAlias_ResolvesAliasTarget
+          - NameResolver_FeatureChain_ThroughConjugatedPortType_ResolvesPortMembers
+          - NameResolver_FeatureChain_QuotedSegments_SplitOnDotsOutsideQuotes
+          - NameResolver_FeatureChain_PrefersOwnedInlineMemberOverTypeMember
+          - NameResolver_FeatureChain_PrivateAndProtectedThroughSubsettingUsage_NotVisible
+          - NameResolver_FeatureChain_ThreeLevels_MixedDirectTypeAndSpecialization
+          - NameResolver_FeatureChain_UnresolvedSegment_DoesNotResolve
+          - NameResolver_FeatureChain_SpecializationCycle_Terminates
+          - NameResolver_FeatureChain_QualifiedFirstSegment_Resolves
+          - NameResolver_ResolveRedefinedFeature_Chain_ResolvesThroughFirstSegment
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-QuoteEquivalence
+        title: >-
+          NameResolver shall treat a name written with its enclosing single quotes and the same
+          name written without them as the same name when matching owned and imported memberships,
+          alias short names, and top-level declarations.
+        justification: |
+          KerML 8.2.2.2.1: a quoted name denotes the same name as its unquoted form. A model that
+          declares package PowerTrain and imports 'PowerTrain' is valid.
+        tests:
+          - NameResolver_Resolve_QuotedAndUnquotedSimpleName_AreEquivalent
