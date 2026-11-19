@@ -26,8 +26,9 @@ top-to-bottom flow, cascaded to every nested container scope), pack container re
 connectors around the boxes it places, and render a layout tree to both SVG and PNG. It also relies
 on the following features introduced by version 0.3.0-beta.3 of the family, in addition to the
 cross-hierarchy edges of version 0.3.0-beta.2 (an edge declared on an ancestor graph scope is routed
-between the nested endpoint nodes themselves) and the insertion-order stacking of the unconnected
-groups of a layered container's contents:
+between the nested endpoint nodes themselves), and the cross-hierarchy ordering of version 0.3.0-beta.5
+(the contents of a layered container are ordered by the relationships that leave it, accepted only when
+the routed connectors cross less):
 
 - the per-node `BoxAppearance` (outline style, name style, folder-title placement) carried from the
   graph node to the placed box and drawn by both renderers (dashed reference usages, italic abstract
@@ -48,13 +49,20 @@ box (`BoxCornerIcon`), obstacle-aware connector label placement (`ConnectorLabel
 rounded, keyword-carrying lifeline header (`LayoutLifeline.Keyword`, `HeaderShape`, and `HeaderAppearance`,
 with `BoxMetrics.LifelineHeaderHeight`) that the Sequence view relies on.
 
-Version 0.3.0-beta.4 of the family (the minimum version SysML2Tools builds against) adds the SysML v2
+Version 0.3.0-beta.4 of the family adds the SysML v2
 port and connector end notation that the Interconnection view relies on: the
 `PortAppearance` of a graph port (direction arrow, outlined glyph, dashed reference outline, and outward
 `name : Type` label placement) and `LineEndLabel` end labels (role name above and multiplicity below the
 line end) on graph edges and layout lines. It also
 aligns the ports that several edges share on one box face straight, so the connectors between such
 boxes no longer end with a small bend.
+
+Version 0.3.0-beta.5 of the family (the minimum version SysML2Tools builds against) improves layout
+quality without changing the API SysML2Tools drives: it orders a container's interior by its
+cross-hierarchy partners (so the General View no longer orders a folder's items itself), honors
+`CoreOptions.LayerSpacing` as the corridor floor (default 70 px, the value the engine used before),
+sizes containers tightly, packs isolated nodes into free space under the automatic algorithm, and keeps
+at least 16 px between port anchors when it re-routes a connector.
 
 ### Verification Approach
 
@@ -221,17 +229,18 @@ the nested definition's box to the owner's definition box.
 
 **Requirement coverage**: `SysML2Tools-OTS-DemaRendering-CrossHierarchyEdges`.
 
-#### LayeredLayoutAlgorithm_Layout_ContainerContents_StackUnconnectedGroupsByInsertionOrder
+#### LayeredLayoutAlgorithm_Layout_ContainerContents_OrderFollowsCrossHierarchyEdges
 
 **Scenario**: A layered package-folder container holds a specialization pair (`S` specializing `C`)
 and an otherwise unconnected node `H`, and has relationships leaving it at the root scope. The nodes are
 added to the container in the order `C`, `S`, `H` in one run and `H`, `C`, `S` in another.
 
-**Expected**: The package stacks the unconnected group in insertion order: `H` is placed below `C` in the
-first run and above `C` in the second. This is the behavior the General View's ordering refinement
-relies on; an upgrade that changes it fails this scenario.
+**Expected**: The package orders the container's contents by the relationships that leave it, so `H` has
+the same position relative to `C` in both runs and the routed relationships do not cross in either run.
+This is the behavior the General View relies on instead of ordering a folder's items itself; an upgrade
+that changes it fails this scenario.
 
-**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion`.
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-ContainerOrderFollowsCrossHierarchyEdges`.
 
 #### ActionFlowView_BuildLayout_ForkAndJoin_RenderThickBarBadges_WithoutLabel
 

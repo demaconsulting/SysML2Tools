@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1411.28" height="424.40" viewBox="0 0 1411.28 424.40">
+<svg xmlns="http://www.w3.org/2000/svg" width="1393.28" height="424.40" viewBox="0 0 1393.28 424.40">
   <defs>
     <marker id="line-end-open-chevron" markerWidth="10.165175" markerHeight="7" refX="10.165175" refY="3.5" orient="auto">
       <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
@@ -30,73 +30,73 @@
       <feComposite in="SourceGraphic" operator="over"/>
     </filter>
   </defs>
-  <rect x="0.00" y="0.00" width="1411.28" height="424.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <text x="705.64" y="12.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="705.64" y="31.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">MotorRig</text>
-  <line x1="0.00" y1="44.00" x2="1411.28" y2="44.00" stroke="#000000" stroke-width="1.00"/>
-  <text x="705.64" y="56.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">interconnection</text>
+  <rect x="0.00" y="0.00" width="1393.28" height="424.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="696.64" y="12.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="696.64" y="31.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">MotorRig</text>
+  <line x1="0.00" y1="44.00" x2="1393.28" y2="44.00" stroke="#000000" stroke-width="1.00"/>
+  <text x="696.64" y="56.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">interconnection</text>
   <rect x="32.00" y="106.00" width="211.64" height="286.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
   <text x="137.82" y="118.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
   <text x="137.82" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">controller : Controller</text>
-  <rect x="689.76" y="106.00" width="124.84" height="286.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
-  <text x="752.18" y="118.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="752.18" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">motor : Motor</text>
-  <rect x="1269.28" y="189.59" width="110.00" height="119.20" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
-  <text x="1324.28" y="201.59" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="1324.28" y="220.59" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">load : Load</text>
-  <path d="M 243.64 200.40 L 689.76 200.40" fill="none" stroke="#000000" stroke-width="1.00"/>
-  <path d="M 689.76 277.20 L 243.64 277.20" fill="none" stroke="#000000" stroke-width="1.00"/>
-  <path d="M 689.76 354.00 L 243.64 354.00" fill="none" stroke="#000000" stroke-width="1.00"/>
-  <path d="M 814.60 255.59 L 1263.28 255.59" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-arrow)"/>
-  <path d="M 814.60 334.80 L 944.32 334.80 A 4.00 4.00 0 0 0 948.32 330.80 L 948.32 296.99 A 4.00 4.00 0 0 1 952.32 292.99 L 1269.28 292.99" fill="none" stroke="#000000" stroke-width="1.00"/>
+  <rect x="671.76" y="106.00" width="124.84" height="286.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
+  <text x="734.18" y="118.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="734.18" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">motor : Motor</text>
+  <rect x="1251.28" y="189.59" width="110.00" height="119.20" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
+  <text x="1306.28" y="201.59" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="1306.28" y="220.59" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">load : Load</text>
+  <path d="M 243.64 200.40 L 671.76 200.40" fill="none" stroke="#000000" stroke-width="1.00"/>
+  <path d="M 671.76 277.20 L 243.64 277.20" fill="none" stroke="#000000" stroke-width="1.00"/>
+  <path d="M 671.76 354.00 L 243.64 354.00" fill="none" stroke="#000000" stroke-width="1.00"/>
+  <path d="M 796.60 255.59 L 1245.28 255.59" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-arrow)"/>
+  <path d="M 796.60 334.80 L 926.32 334.80 A 4.00 4.00 0 0 0 930.32 330.80 L 930.32 296.99 A 4.00 4.00 0 0 1 934.32 292.99 L 1251.28 292.99" fill="none" stroke="#000000" stroke-width="1.00"/>
   <rect x="237.64" y="194.40" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <polyline points="246.64,200.40 240.64,200.40" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
   <polyline points="244.64,198.40 246.64,200.40 244.64,202.40" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
   <text x="255.64" y="184.60" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">power : PowerPort</text>
-  <rect x="683.76" y="194.40" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <polyline points="686.76,200.40 692.76,200.40" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="690.76,202.40 692.76,200.40 690.76,198.40" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="677.76" y="184.60" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">powerIn : ~PowerPort</text>
-  <rect x="683.76" y="271.20" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <polyline points="686.76,277.20 692.76,277.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="688.76,279.20 686.76,277.20 688.76,275.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="677.76" y="261.40" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">encoderOut : EncoderPort</text>
+  <rect x="665.76" y="194.40" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <polyline points="668.76,200.40 674.76,200.40" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="672.76,202.40 674.76,200.40 672.76,198.40" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="659.76" y="184.60" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">powerIn : ~PowerPort</text>
+  <rect x="665.76" y="271.20" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <polyline points="668.76,277.20 674.76,277.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="670.76,279.20 668.76,277.20 670.76,275.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="659.76" y="261.40" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">encoderOut : EncoderPort</text>
   <rect x="237.64" y="271.20" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <polyline points="246.64,277.20 240.64,277.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
   <polyline points="242.64,275.20 240.64,277.20 242.64,279.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
   <text x="255.64" y="261.40" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">encoderFeedback : EncoderPort</text>
-  <rect x="683.76" y="348.00" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <polyline points="686.76,354.00 692.76,354.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="688.76,356.00 686.76,354.00 688.76,352.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="677.76" y="338.20" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">thermalOut : ThermalPort</text>
+  <rect x="665.76" y="348.00" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <polyline points="668.76,354.00 674.76,354.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="670.76,356.00 668.76,354.00 670.76,352.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="659.76" y="338.20" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">thermalOut : ThermalPort</text>
   <rect x="237.64" y="348.00" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <polyline points="246.64,354.00 240.64,354.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
   <polyline points="242.64,352.00 240.64,354.00 242.64,356.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
   <text x="255.64" y="338.20" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">thermalSense : ThermalPort</text>
-  <rect x="808.60" y="249.59" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <polyline points="817.60,255.59 811.60,255.59" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="815.60,253.59 817.60,255.59 815.60,257.59" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="826.60" y="239.79" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">shaft : ShaftPort</text>
-  <rect x="1263.28" y="249.59" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <polyline points="1266.28,255.59 1272.28,255.59" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="1270.28,257.59 1272.28,255.59 1270.28,253.59" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="1257.28" y="239.79" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">shaftIn : ShaftPort</text>
-  <rect x="808.60" y="328.80" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
-  <text x="826.60" y="319.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">mount : MountPort</text>
-  <rect x="1263.28" y="286.99" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-  <polyline points="1266.28,292.99 1272.28,292.99" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="1270.28,294.99 1272.28,292.99 1270.28,290.99" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="1268.28,294.99 1266.28,292.99 1268.28,290.99" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="1257.28" y="277.19" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">base : MountPort</text>
+  <rect x="790.60" y="249.59" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <polyline points="799.60,255.59 793.60,255.59" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="797.60,253.59 799.60,255.59 797.60,257.59" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="808.60" y="239.79" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">shaft : ShaftPort</text>
+  <rect x="1245.28" y="249.59" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <polyline points="1248.28,255.59 1254.28,255.59" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="1252.28,257.59 1254.28,255.59 1252.28,253.59" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1239.28" y="239.79" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">shaftIn : ShaftPort</text>
+  <rect x="790.60" y="328.80" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
+  <text x="808.60" y="319.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">mount : MountPort</text>
+  <rect x="1245.28" y="286.99" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <polyline points="1248.28,292.99 1254.28,292.99" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="1252.28,294.99 1254.28,292.99 1252.28,290.99" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="1250.28,294.99 1248.28,292.99 1250.28,290.99" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1239.28" y="277.19" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">base : MountPort</text>
   <rect x="237.64" y="151.00" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <polyline points="246.64,157.00 240.64,157.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
   <polyline points="244.64,155.00 246.64,157.00 244.64,159.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
   <text x="255.64" y="141.20" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">status : StatusPort</text>
-  <text x="466.70" y="354.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">=</text>
-  <text x="1041.94" y="255.59" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">«flow» of Torque</text>
-  <text x="1108.80" y="292.99" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">«interface»</text>
+  <text x="457.70" y="354.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">=</text>
+  <text x="1023.94" y="255.59" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">«flow» of Torque</text>
+  <text x="1090.80" y="292.99" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">«interface»</text>
   <text x="390.58" y="188.60" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">supply</text>
   <text x="266.76" y="212.20" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">[1]</text>
-  <text x="525.36" y="188.60" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">drive</text>
-  <text x="666.64" y="212.20" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">[1]</text>
+  <text x="507.36" y="188.60" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">drive</text>
+  <text x="648.64" y="212.20" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">[1]</text>
 </svg>

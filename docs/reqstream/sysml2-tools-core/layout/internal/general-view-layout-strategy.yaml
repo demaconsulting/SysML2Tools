@@ -987,8 +987,8 @@ sections:
           sibling packages, a part typed by a definition of a nested package) are core model
           structure. Declaring each in the lowest common ancestor scope lets the layout engine
           route it to the actual endpoint boxes instead of dropping it or stopping at a package
-          border; a relationship to a hidden definition has no box to connect to. The connector
-          order is then refined so that the connectors do not cross (see ExternalEdgeOrdering).
+          border; a relationship to a hidden definition has no box to connect to. The connectors
+          then do not cross (see ExternalEdgesDoNotCross).
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingPackages_DeclaredAtRootAndRoutedToNestedBoxes
           - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_NestedVersusOuter_DeclaredInOuterScope
@@ -1000,26 +1000,23 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInDefinitionContainer_AreNotMerged
           - GeneralViewLayoutStrategy_BuildLayout_NestedPackagesGalleryModel_RendersFoldersNestedAndCrossPackageEdges
 
-      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExternalEdgeOrdering
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExternalEdgesDoNotCross
         title: >-
-          GeneralViewLayoutStrategy shall order the definitions inside a package folder by the
-          horizontal position of the boxes their relationships lead to outside that folder, so that
-          relationships leaving the folder do not need to cross one another and the picture does
-          not depend on the order the definitions were declared in.
+          GeneralViewLayoutStrategy shall draw the relationships that leave a package folder
+          without crossing one another, whatever order the folder's definitions were declared in.
         justification: |
-          The layout engine places a container's contents without knowing where that container's
-          outgoing relationships lead, and stacks unconnected groups of those contents in the order
-          they were added. Adding definitions in declaration order therefore lets an arbitrary
-          declaration order force relationship crossings. Ordering them by their relationships'
-          targets is the standard crossing-reduction (barycenter) heuristic. A definition without
-          external relationships, a folder without any, and a relationship to a hidden definition
-          leave the order untouched.
+          The layout engine places a container's contents knowing where that container's outgoing
+          relationships lead and orders them so the routed connectors cross as little as possible
+          (see SysML2Tools-OTS-DemaRendering-ContainerOrderFollowsCrossHierarchyEdges), so the
+          strategy adds the folder's definitions in declaration order and an arbitrary declaration
+          order must not force relationship crossings. A definition without external relationships,
+          a folder without any, and a relationship to a hidden definition leave the order untouched.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_OrderFolderItemsByPartnerPosition
+          - GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeclarationOrder_DoesNotMoveBoxes
           - GeneralViewLayoutStrategy_BuildLayout_NoExternalEdges_KeepsDeclarationOrder
           - GeneralViewLayoutStrategy_BuildLayout_ExternalEdgeToTruncatedPartner_DoesNotThrowAndKeepsOrder
-          - GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder
-          - GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder
+          - GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_DoNotCross
+          - GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_DoNotCross
           - GeneralViewLayoutStrategy_BuildLayout_NestedPackagesGalleryModel_RendersFoldersNestedAndCrossPackageEdges
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-TruncatedContainerDecoration

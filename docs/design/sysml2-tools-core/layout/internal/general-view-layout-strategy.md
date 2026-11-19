@@ -32,10 +32,8 @@ every folder classify their contents by connectivity, routing connected groups t
 layered algorithm (`LayeredLayoutAlgorithm`) and packing disconnected or singleton nodes by reading
 order (`ContainmentLayoutAlgorithm`). The graph flows top-to-bottom (`LayoutFlowDirection.Down`), with
 the owner and the general element on top, as in the Pilot implementation; see *Direction and edge
-orientation* below. Because the engine places a folder's contents without knowing where the folder's
-relationships to the outside lead, the strategy orders each folder's definitions by the horizontal
-position of those relationships' far ends in a first layout and lays out once more (see
-`ComputeItemOrder`), so relationships leaving a folder are not forced to cross by declaration order.
+orientation* below. The engine orders a folder's contents by the relationships that leave the folder, so
+relationships leaving a folder are not forced to cross by declaration order.
 All box sizing (title bands, compartment rows) remains this strategy's responsibility, since the layout
 stage in `DemaConsulting.Rendering.Layout` is theme-agnostic; box title and folder-tab geometry come
 from `BoxMetrics` in `DemaConsulting.Rendering.Abstractions`.
@@ -165,17 +163,16 @@ being rendered a second time as a duplicate sibling folder.
 The relationships are resolved into qualified-name edges (plus dropped-edge diagnostics) with
 `BuildModelEdges`, the single `LayoutGraph` is built with `BuildGraph`, and the whole graph is placed
 with one `LayoutEngine.Layout(graph)` call (the `LayOut` helper, which first sets
-`CoreOptions.Algorithm` to `"auto"`). The engine stacks the unconnected groups of a folder's contents
-by the order they were added, so `ComputeItemOrder` is called on the first layout; when it reports a
-different item order for any folder, the graph is built a second time with that order and laid out
-again. The refinement is a single pass, so termination is guaranteed, and a no-op when no folder's
-order changes. A third, conditional layout then places the definitions that nothing refers to in the
+`CoreOptions.Algorithm` to `"auto"`). The engine orders a folder's contents by the relationships that
+leave the folder (cross-hierarchy crossing minimization, accepted only when the routed connectors cross
+less), so no caller-side ordering pass is needed. A second, conditional layout then places the
+definitions that nothing refers to in the
 free space of the drawing (`TryTuckUnconnected`, see below); it only runs when such definitions
 exist next to connected content.
 
 The placed tree is then post-processed in a fixed sequence: `DecorateTruncated` stamps the bare `…`
 label onto each truncated folder's box; `TryTuckUnconnected` replaces the tree by the tucked one when it
-accepts (it decorates its own third layout the same way); `FitConnectorsToCanvas` grows and shifts the
+accepts (it decorates its own second layout the same way); `FitConnectorsToCanvas` grows and shifts the
 canvas so every connector lies inside it (see below); `OrientEdges` turns back the connectors that
 were declared reversed (see *Direction and edge orientation*); and `ClearEndDecorations` moves the bends
 of the oriented connectors whose end decoration would reach into their last bend (see below). Finally the
@@ -380,11 +377,10 @@ one part) — a rarer, legitimately self-referential shape.
 
 Builds the single input `LayoutGraph` and returns it as a `GraphBuild`. Its remaining parameters are
 `exposedPackages` (the exposed packages of a scoped view), `packageNames` (every package of the
-workspace), `itemOrder`, and the optional `deferred` set. The optional `itemOrder`
-(folder key to item qualified names, produced by `ComputeItemOrder`) sets the order in which a folder's
-own boxes are placed (`OrderedItems`); without it, or for a folder it does not name, declaration order
-is used, names the folder does not own are ignored, and any item the order omits follows the named
-ones, so a stale or partial order can never drop a box. The optional `deferred` set (qualified names)
+workspace), and the optional `deferred` set. A folder's own boxes are added in declaration order: the
+engine orders a container's interior by its cross-hierarchy relationships (see
+`SysML2Tools-OTS-DemaRendering-ContainerOrderFollowsCrossHierarchyEdges`), so the strategy supplies no
+order of its own. The optional `deferred` set (qualified names)
 names leaf definitions held directly by a folder or the root that are left out of the graph; it is
 used only by `TryTuckUnconnected`.
 
@@ -497,9 +493,9 @@ was 1959×1308 px with a 460 px empty square and 17.6 % of the canvas covered by
    content. A scope of isolated boxes only keeps the engine's packing.
 2. The graph is built again through `rebuild` with these names deferred (`BuildGraph(…, deferred)`) and
    laid out again, so the connected part keeps the engine's placement and the folder and the canvas
-   shrink to it. The result is decorated like the second layout. If its canvas is not strictly smaller
-   than the canvas of the second layout the method returns null.
-3. For each scope, `TuckScope` takes the deferred boxes from the second layout (with their compartments
+   shrink to it. The result is decorated like the first layout. If its canvas is not strictly smaller
+   than the canvas of the first layout the method returns null.
+3. For each scope, `TuckScope` takes the deferred boxes from the first layout (with their compartments
    and appearance) and calls `PlaceInFreeSpace` with the content bounds of the scope in the new layout
    (the bounds of its boxes and connector waypoints, so no folder is resized) and the obstacles: the
    boxes placed directly in the scope, every connector segment of the tree, and every connector label
@@ -653,41 +649,6 @@ drawn either (the specification permits a dashed link from a note to the row; se
 Comment keyword, name, locale, and `about` are not shown, because
 `SysmlAnnotation` carries only the kind and the text.
 
-###### `ComputeItemOrder(tree, build, edges)`
-
-Decides, from the first-pass layout, how each package folder's definitions should be ordered so that
-relationships leaving the folder do not have to cross one another. The layered engine lays out a
-container's contents independently of the container's external edges and orders the unconnected groups
-of those contents by their lowest insertion index, so declaration order alone can force a crossing. This
-unit applies the standard barycenter heuristic across the container boundary, which the engine leaves
-to the caller:
-
-1. `CollectCenters` records the absolute **horizontal** center of every placed box against the graph
-   node it was placed from (tree coordinates are absolute, so centers in different scopes compare
-   directly). A box whose label, keyword, and shape signature is not unique within its scope cannot be
-   told from its twin by `PairBoxesWithNodes` (for example identical `data : SensorPort` nodes of
-   different owners) and is never used as an ordering key.
-2. For every folder plan with at least two items, `ExternalPartnerKey` computes each item's key: the
-   mean center of the boxes its *external* relationships lead to, aggregated over the item and the usage
-   nodes placed beside it (`GroupMembers`, since they move together). For each model edge touching a
-   member (`PartnerOf`), `ExternalAnchor` takes the lowest common scope of the member's scope and the
-   partner's scope; when that is the member's own holding scope the relationship stays inside the folder
-   and contributes nothing. Otherwise the partner is walked up through `ScopeInfo.Owner`/`Parent` until
-   the common scope is reached, and the node reached is the *anchor* — the direct member of the common
-   scope that contains the partner. Anchors are container boxes at the common scope, so the key does not
-   depend on the partner folder's interior order, which changes between passes. A partner without a node
-   (hidden by the depth limit) adds nothing.
-3. `OrderByPartnerPosition` sorts the items that have a key by the rounded key (ties keep declaration
-   order) into the slots those items occupied; items without a key stay where they are. It returns null
-   when fewer than two items have a key or the order is unchanged.
-
-The result maps each folder whose order changes to its wanted item order; an empty result means the
-first layout stands. Scope limits, deliberately not addressed: only package-folder items are reordered;
-the key is horizontal only, matching the top-to-bottom flow in which a layer is a row; and a single
-refinement pass is made. The heuristic is a crossing-reduction mitigation, not a guarantee, and it
-relies on the engine's insertion-order behavior, pinned by the OTS requirement
-`SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion`.
-
 ###### `DecorateTruncated(tree, graph, truncated, theme)`
 
 Replaces each truncated package folder's placed box with one carrying a bare ellipsis (`…`) label,
@@ -697,7 +658,7 @@ reserves. A recursive worker overload walks the tree scope by scope: at every co
 the engine emits one box per node of that scope, possibly interleaved with the lines of the scope's own
 routed edges, and not necessarily in node order. `LayoutBox` carries no `Id`, so each placed box is
 paired with the graph node of that same scope it came from — by the shared `PairBoxesWithNodes`
-enumerator, which `ComputeItemOrder`'s `CollectCenters` also uses — through the identity signature the
+enumerator — through the identity signature the
 strategy itself set on the node and the engine copies onto the box: `Label`, `Keyword`, and `Shape`. Each
 box takes the first not-yet-paired node with an equal signature, so the pairing does not depend on box
 order; a box with no signature match falls back to the first unpaired node. The worker decorates any box

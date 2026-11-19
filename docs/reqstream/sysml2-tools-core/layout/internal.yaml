@@ -63,7 +63,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposedPackageNodes
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NestedPackageFolders
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CrossContainerEdges
-          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExternalEdgeOrdering
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExternalEdgesDoNotCross
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-TruncatedContainerDecoration
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-SameNamedDefinitions
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RequirementConstraintCompartments

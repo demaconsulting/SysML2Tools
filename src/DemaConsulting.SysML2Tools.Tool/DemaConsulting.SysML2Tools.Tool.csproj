@@ -87,8 +87,8 @@
 
   <!-- Rendering output packages: the SVG renderer and the CanvasNet raster renderer -->
   <ItemGroup>
-    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.3.0-beta.4" />
-    <PackageReference Include="DemaConsulting.Rendering.CanvasNet" Version="0.3.0-beta.4" />
+    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.3.0-beta.5" />
+    <PackageReference Include="DemaConsulting.Rendering.CanvasNet" Version="0.3.0-beta.5" />
   </ItemGroup>
 
   <ItemGroup>

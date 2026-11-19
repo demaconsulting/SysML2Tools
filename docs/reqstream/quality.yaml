@@ -124,7 +124,7 @@ sections:
           - SysML2Tools-OTS-DemaRendering-RenderSvg
           - SysML2Tools-OTS-DemaRendering-RenderPng
           - SysML2Tools-OTS-DemaRendering-CrossHierarchyEdges
-          - SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion
+          - SysML2Tools-OTS-DemaRendering-ContainerOrderFollowsCrossHierarchyEdges
           - SysML2Tools-OTS-DemaRendering-NotationBadges
           - SysML2Tools-OTS-DemaRendering-BoxCornerIcon
           - SysML2Tools-OTS-DemaRendering-LabelAvoidance
