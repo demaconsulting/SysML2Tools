@@ -1,5 +1,7 @@
 ### WorkspaceLoader
 
+![Language Semantic Structure](LanguageSemanticView.svg)
+
 #### Purpose
 
 `WorkspaceLoader` is the public entry point for the Semantic subsystem. It orchestrates parsing,

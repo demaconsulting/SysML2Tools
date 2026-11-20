@@ -1,5 +1,7 @@
 ## Lint
 
+![Tool Lint Structure](ToolLintView.svg)
+
 ### Overview
 
 The `Lint` subsystem implements the `lint` subcommand of the `DemaConsulting.SysML2Tools.Tool`

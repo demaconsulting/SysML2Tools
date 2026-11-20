@@ -1,5 +1,7 @@
 #### DynamicViewSynthesizer
 
+![Core Rendering Internal Structure](CoreRenderingInternalView.svg)
+
 ##### Purpose
 
 `DynamicViewSynthesizer` builds an in-memory `SysmlViewNode` targeting any resolvable,

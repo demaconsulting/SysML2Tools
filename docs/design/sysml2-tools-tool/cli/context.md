@@ -1,5 +1,7 @@
 ### Context
 
+![Tool Cli Structure](ToolCliView.svg)
+
 #### Purpose
 
 `Context` handles command-line argument parsing and program output for one tool invocation. Its

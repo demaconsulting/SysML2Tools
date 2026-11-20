@@ -1,5 +1,7 @@
 #### SequenceViewLayoutStrategy
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 ##### Purpose
 
 `SequenceViewLayoutStrategy` lays out a Sequence View: it renders the interaction described by a

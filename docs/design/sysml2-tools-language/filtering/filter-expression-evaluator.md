@@ -2,6 +2,8 @@
 
 ### FilterExpressionEvaluator
 
+![Language Filtering Structure](LanguageFilteringView.svg)
+
 #### Purpose
 
 `FilterExpressionEvaluator` implements the Phase 1 standalone view-filter capability end to end:

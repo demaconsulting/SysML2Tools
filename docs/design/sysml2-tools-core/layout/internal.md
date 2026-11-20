@@ -1,5 +1,7 @@
 ### Layout Internal Subsystem
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 #### Overview
 
 The Internal subsystem provides the per-view layout strategies — the implementations of

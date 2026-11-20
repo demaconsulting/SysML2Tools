@@ -1,5 +1,7 @@
 ## DemaConsulting.SysML2Tools — Layout Subsystem
 
+![Core Layout Structure](CoreLayoutView.svg)
+
 ### Overview
 
 The Layout subsystem maps the SysML semantic model onto the intermediate representation consumed

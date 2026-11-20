@@ -1,5 +1,7 @@
 #### SysmlAnnotation
 
+![Language Semantic Model Structure](LanguageSemanticModelView.svg)
+
 ##### Overview
 
 `SysmlAnnotation` and `SysmlAnnotationKind` model a single captured `comment` or `doc`

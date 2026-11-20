@@ -1,5 +1,7 @@
 #### SymbolTable
 
+![Language Semantic Model Structure](LanguageSemanticModelView.svg)
+
 ##### Overview
 
 `SymbolTable` is a registry mapping fully-qualified SysML/KerML names to their `SysmlNode`

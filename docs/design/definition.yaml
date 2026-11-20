@@ -94,6 +94,7 @@ input-files:
   - docs/design/ots/reviewmark.md
   - docs/design/ots/sarifmark.md
   - docs/design/ots/sonarmark.md
+  - docs/design/ots/sysml2tools.md
   - docs/design/ots/versionmark.md
   - docs/design/ots/weasyprint.md
   - docs/design/ots/xunit.md

@@ -1,5 +1,7 @@
 ## DemaConsulting.SysML2Tools — Semantic Subsystem
 
+![Language Semantic Structure](LanguageSemanticView.svg)
+
 ### Overview
 
 The Semantic subsystem builds a semantic workspace from the parsed SysML/KerML source files. It

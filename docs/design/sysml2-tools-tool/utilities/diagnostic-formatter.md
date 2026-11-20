@@ -1,5 +1,7 @@
 ### DiagnosticFormatter
 
+![Tool Utilities Structure](ToolUtilitiesView.svg)
+
 #### Purpose
 
 `DiagnosticFormatter` is a static utility class that formats a `SysmlDiagnostic` as a single

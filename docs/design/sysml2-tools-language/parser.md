@@ -1,5 +1,7 @@
 ## Parser
 
+![Language Parser Structure](LanguageParserView.svg)
+
 ### Overview
 
 The Parser subsystem provides syntax-level parsing of SysML v2 source text. It transforms UTF-8

@@ -1,5 +1,7 @@
 ### WorkspaceParser
 
+![Language Parser Structure](LanguageParserView.svg)
+
 #### Purpose
 
 `WorkspaceParser` is the public API of the Parser subsystem. It parses SysML v2 source text into

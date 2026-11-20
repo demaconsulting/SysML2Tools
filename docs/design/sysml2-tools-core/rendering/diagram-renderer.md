@@ -1,5 +1,7 @@
 ### DiagramRenderer
 
+![Core Rendering Structure](CoreRenderingView.svg)
+
 #### Purpose
 
 `DiagramRenderer` is the high-level rendering orchestrator and the single entry point for the

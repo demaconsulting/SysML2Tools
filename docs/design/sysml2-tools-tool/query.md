@@ -1,5 +1,7 @@
 ## DemaConsulting.SysML2Tools.Tool — Query Subsystem
 
+![Tool Query Structure](ToolQueryView.svg)
+
 ### Overview
 
 The Tool Query subsystem is now a thin CLI adapter over Core's public Query API. It owns only

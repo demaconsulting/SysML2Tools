@@ -1,5 +1,7 @@
 #### SemanticIndex
 
+![Language Semantic Model Structure](LanguageSemanticModelView.svg)
+
 ##### Overview
 
 `SemanticIndex` is a reverse-lookup index over the resolved `SysmlEdge` collection produced

@@ -2,6 +2,8 @@
 
 ## DemaConsulting.SysML2Tools.Language — Filtering Subsystem
 
+![Language Filtering Structure](LanguageFilteringView.svg)
+
 ### Overview
 
 The Filtering subsystem parses and evaluates the Phase 1 subset of standalone view

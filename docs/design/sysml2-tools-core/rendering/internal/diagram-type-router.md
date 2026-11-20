@@ -1,5 +1,7 @@
 #### DiagramTypeRouter
 
+![Core Rendering Internal Structure](CoreRenderingInternalView.svg)
+
 ##### Purpose
 
 `DiagramTypeRouter` selects the `ILayoutStrategy` to use for a given view, so the renderer can

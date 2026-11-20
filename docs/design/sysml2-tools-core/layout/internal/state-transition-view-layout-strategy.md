@@ -1,5 +1,7 @@
 #### StateTransitionViewLayoutStrategy
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 ##### Purpose
 
 `StateTransitionViewLayoutStrategy` implements `ILayoutStrategy` to produce a State Transition

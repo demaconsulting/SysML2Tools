@@ -1,5 +1,7 @@
 # DemaConsulting.SysML2Tools.Tool
 
+![Tool Structure](ToolView.svg)
+
 ## Architecture
 
 The `DemaConsulting.SysML2Tools.Tool` is a command-line application built on .NET. It is structured as one

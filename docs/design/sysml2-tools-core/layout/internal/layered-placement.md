@@ -1,5 +1,7 @@
 #### LayeredPlacement
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 ##### Purpose
 
 `LayeredPlacement` adapts the `DemaConsulting.Rendering.Layout` off-the-shelf package's public

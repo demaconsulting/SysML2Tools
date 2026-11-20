@@ -1,5 +1,7 @@
 ### Validation
 
+![Tool Self Test Structure](ToolSelfTestView.svg)
+
 #### Purpose
 
 `Validation` orchestrates the self-validation test suite. Its single responsibility is to run a

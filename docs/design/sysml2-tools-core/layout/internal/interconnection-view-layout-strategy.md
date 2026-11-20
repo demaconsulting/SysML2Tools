@@ -1,5 +1,7 @@
 #### InterconnectionViewLayoutStrategy
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 ##### Purpose
 
 `InterconnectionViewLayoutStrategy` implements `ILayoutStrategy` to produce an Interconnection
