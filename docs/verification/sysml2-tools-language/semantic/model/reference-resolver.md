@@ -153,7 +153,7 @@ external services or additional configuration are required beyond a standard .NE
 | Stdlib compile stays Warning | `GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings` |
 | Stdlib compile: no errors, warnings at most 13 | `GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling` |
 | Valid custom and test-case models load clean | `CustomAndTestCaseModels_AllModels_LoadWithZeroDiagnostics` |
-| OMG corpus within baseline (48 errors) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
+| OMG corpus within baseline (8 errors) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
 | Selector Warning at token | `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` |
 | Standard selectors — no diagnostic | `WorkspaceLoader_LoadAsync_StandardRenderSelectors_ProduceNoDiagnostics` |
 | Selector + strict | `WorkspaceLoader_LoadAsync_ToolRenderSelectorWithStrictUnresolved_StillOnlyPortabilityWarning` |
@@ -264,3 +264,4 @@ external services or additional configuration are required beyond a standard .NE
 | Anonymous owner scope | `AstBuilder_AnonymousSubsettingOwner_ResolvesRedefinedMember` |
 | OMG corpus strict baseline and explained errors | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
 | `Camera` package resolves in isolation | `SemanticOmgModels_CameraPackage_ResolvesInIsolation` |
+| Corpus diagnostics independent of file order | `SemanticOmgModels_StrictUnresolved_IndependentOfFileOrder` |

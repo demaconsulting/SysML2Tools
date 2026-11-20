@@ -301,9 +301,10 @@ public sealed class SemanticOmgModelsTests
     /// <summary>
     ///     The training <c>Camera</c> package resolves completely on its own (with the package it
     ///     imports), and its three strict-mode errors in the whole corpus come back exactly when the
-    ///     example whose root-level <c>part def Camera</c> shares its name is loaded too (first, as the
-    ///     corpus lists <c>examples</c> before <c>training</c>; the first declaration of a name wins): the
-    ///     remaining <c>Camera</c> errors are a name collision between two corpus files, not a gap.
+    ///     example whose root-level <c>part def Camera</c> shares its name is loaded too: the loader
+    ///     processes files in canonical path order (<c>examples</c> before <c>training</c>) whatever
+    ///     order they are supplied in, and the first declaration of a name wins, so the remaining
+    ///     <c>Camera</c> errors are a name collision between two corpus files, not a gap.
     /// </summary>
     [Fact]
     public async Task SemanticOmgModels_CameraPackage_ResolvesInIsolation()
@@ -331,6 +332,8 @@ public sealed class SemanticOmgModelsTests
         var alone = await WorkspaceLoader.LoadAsync([package, imported], stdlibTable, strictUnresolved: true);
         var together = await WorkspaceLoader.LoadAsync(
             [collidingPartDef, collidingImport, package, imported], stdlibTable, strictUnresolved: true);
+        var togetherReversed = await WorkspaceLoader.LoadAsync(
+            [imported, package, collidingImport, collidingPartDef], stdlibTable, strictUnresolved: true);
 
         // Assert
         Assert.Empty(alone.Diagnostics);
@@ -340,5 +343,51 @@ public sealed class SemanticOmgModelsTests
                 .Select(d => d.Message["Unresolved reference: '".Length..^1])
                 .Order(StringComparer.Ordinal));
         Assert.All(together.Diagnostics, d => Assert.EndsWith("Camera.sysml", d.FilePath, StringComparison.Ordinal));
+        Assert.Equal(
+            together.Diagnostics.Select(d => d.ToString()),
+            togetherReversed.Diagnostics.Select(d => d.ToString()));
+    }
+
+    /// <summary>
+    ///     The corpus diagnostics do not depend on the order the files are supplied in (or on the
+    ///     platform's directory enumeration order): loading the whole corpus in ordinal order and in
+    ///     reverse order produces the same diagnostics.
+    /// </summary>
+    [Fact]
+    public async Task SemanticOmgModels_StrictUnresolved_IndependentOfFileOrder()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var omgRoot = Path.Combine(modelsRoot, "OMG");
+        if (!Directory.Exists(omgRoot))
+        {
+            return;
+        }
+
+        var forward = Directory.GetFiles(omgRoot, "*.sysml", SearchOption.AllDirectories)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        if (forward.Count == 0)
+        {
+            return;
+        }
+
+        var reversed = Enumerable.Reverse(forward).ToList();
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+
+        // Act
+        var forwardResult = await WorkspaceLoader.LoadAsync(forward, stdlibTable, strictUnresolved: true);
+        var reversedResult = await WorkspaceLoader.LoadAsync(reversed, stdlibTable, strictUnresolved: true);
+
+        // Assert
+        Assert.Equal(
+            forwardResult.Diagnostics.Select(d => d.ToString()),
+            reversedResult.Diagnostics.Select(d => d.ToString()));
+        Assert.Equal(forwardResult.Workspace!.Files, reversedResult.Workspace!.Files);
     }
 }

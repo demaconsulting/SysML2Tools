@@ -464,8 +464,10 @@ sections:
           The corpus is the evidence that the AST covers the constructs real models use; the
           baseline is lowered whenever a gap is closed, so a regression is caught, and each
           remaining reference is explained so that strict reporting can later become the default.
+          The count is deterministic because the loader processes files in canonical path order.
         tests:
           - SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline
+          - SemanticOmgModels_StrictUnresolved_IndependentOfFileOrder
           - SemanticOmgModels_CameraPackage_ResolvesInIsolation
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ToolRenderSelectorPortability

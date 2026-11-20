@@ -514,7 +514,8 @@ names a member `AstBuilder` does not record, so there is nothing for a name to r
   `AHFNorway_LocalCloudDD.APISConsumer`).
 - A corpus artifact: `examples/CameraExample/Camera.sysml` declares a top-level `part def Camera`
   that collides with `package Camera` of `training/17.Control/Camera.sysml`: 3 errors
-  (`Scene`, `Picture`, `Image`).
+  (`Scene`, `Picture`, `Image`). The loader processes files in canonical path order, so the first
+  file's declaration (`examples/…`) wins on every platform.
 
 `WorkspaceLoader.DefaultUserUnresolvedSeverity` is the single place to change the
 default. Once the OMG corpus produces close to zero strict-mode errors, the constant is flipped to

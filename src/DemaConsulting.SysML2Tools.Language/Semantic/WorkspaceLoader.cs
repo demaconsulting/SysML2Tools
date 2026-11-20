@@ -109,7 +109,16 @@ public static class WorkspaceLoader
         // Parse user files in parallel
         var paths = filePaths.ToList();
         var parseTasks = paths.Select(ParseUserFileAsync).ToList();
-        var parseResults = await Task.WhenAll(parseTasks).ConfigureAwait(false);
+        var unorderedResults = await Task.WhenAll(parseTasks).ConfigureAwait(false);
+
+        // Process the files in a canonical order, independent of the caller's order and of the
+        // platform: when several files declare the same top-level name, the symbol table keeps
+        // the first registration (KerML leaves which duplicate wins unspecified), so the
+        // registration order must be stable. The sort is stable, so repeated paths keep their
+        // relative order.
+        var parseResults = unorderedResults
+            .OrderBy(result => CanonicalPathKey(result.Path), StringComparer.Ordinal)
+            .ToList();
 
         // Register user file ASTs
         var userAstRoots = new List<(string Path, SysmlNode? Root)>();
@@ -144,6 +153,23 @@ public static class WorkspaceLoader
         };
 
         return new SysmlLoadResult(workspace, allDiagnostics);
+    }
+
+    /// <summary>
+    ///     Returns the key that orders a user file canonically: its full path with directory
+    ///     separators normalized to '/', compared ordinally, so the order is the same on every
+    ///     platform. A path that cannot be made absolute is used as written.
+    /// </summary>
+    private static string CanonicalPathKey(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path).Replace('\\', '/');
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return path.Replace('\\', '/');
+        }
     }
 
     /// <summary>

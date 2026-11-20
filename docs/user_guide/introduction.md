@@ -223,7 +223,9 @@ OMG corpus (251 files) strict mode now reports 8 errors in 4 files (it was 48 in
 - `17.Control/Camera.sysml` (3 errors, `Scene`, `Picture`, `Image`) is a name collision between two
   corpus files, not a gap in the tool: the corpus is loaded as one workspace, and the root-level
   `part def Camera` of `CameraExample/Camera.sysml` has the same name as this file's root-level
-  `package Camera`, so `Camera::Scene` is looked up in the part definition. Each file is valid on its
+  `package Camera`, so `Camera::Scene` is looked up in the part definition (when two files declare
+  the same top-level name, the one in the first file in path order wins, on every platform and
+  whatever order the files are given in). Each file is valid on its
   own — loading just this file and the package it imports reports nothing.
 - `AHFNorwayTopics.sysml`, `AHFSequences.sysml` (1 error each) and `14c-LanguageExtensions.sysml`
   (3 errors) use user-defined keywords (`#service def`, `#cloud X`, `#cause occurrence`) whose
