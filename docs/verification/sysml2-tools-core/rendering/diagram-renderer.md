@@ -47,6 +47,7 @@ external services are required.
 | `DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput` | The PNG output carries the PNG signature |
 | `DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList` | A view-free workspace yields an empty result |
 | `DiagramRenderer_RenderWorkspace_WidePngView_ScalesToFitAndWarns` | Wide PNG scaled to fit; one warning |
+| `DiagramRenderer_RenderWorkspace_PngOverhang_RetriesAndWarns` | Rejected surface is retried; warning reports it |
 | `DiagramRenderer_RenderWorkspace_NarrowPngView_ReportsNoScalingWarning` | A PNG that fits is not scaled or reported |
 | `DiagramRenderer_RenderWorkspace_WideSvgView_ReportsNoScalingWarning` | A wide SVG is not scaled or reported |
 | `DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_RendersPackageNodeWithInfoHint` | Package node + info hint |
