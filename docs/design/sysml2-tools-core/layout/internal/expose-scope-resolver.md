@@ -25,8 +25,12 @@ parameters, and resolution output is returned as three internal record types:
   definitions-only, see below) — matched by a successfully-evaluated bracket filter — exact
   matches only, not their own nested members unless those also match. A settable `Failures`
   init-property (default empty) carries any bracket filters that failed to parse or evaluate.
-- `ExposeSubject(string QualifiedName, ExposeRecursionKind Recursion)` — one resolved `expose`
-  subject qualified name paired with the recursion kind governing how it matches candidates.
+- `ExposeSubject(string QualifiedName, ExposeRecursionKind Recursion, bool IsTypingTarget = false)` — one
+  resolved `expose` subject qualified name paired with the recursion kind governing how it matches
+  candidates. `IsTypingTarget` is `true` only for the subject `AddSubject` adds for an exposed usage's
+  typing target (see the usage-to-type fallback below): it matches candidates exactly like any other
+  subject (so membership, recursion and annotation checks behave the same), but a consumer that needs
+  what the view itself exposes — the General View's part-tree rule — filters it out.
 - `BracketFilterFailure(string ExpressionText, string? Reason)` — one failed bracket-filter
   expression's raw source text plus a short human-readable reason, feeding
   `LayoutWarnings.ForUnevaluatedExposeBracketFilter`.
@@ -66,7 +70,7 @@ When an exposed target resolves to a `SysmlFeatureNode` (a usage, e.g.
 `part myVehicle : Vehicle;`) rather than a `SysmlDefinitionNode`, the usage's own containment
 subtree is typically empty — the real content lives under its type's subtree. To avoid silently
 scoping to nothing, `AddSubject` also resolves the usage's own `Typing`-kind `ResolvedEdges` entry
-(if any) and adds that type's qualified name as an `ExposeSubject`, **using the same recursion
+(if any) and adds that type's qualified name as an `ExposeSubject` flagged `IsTypingTarget`, **using the same recursion
 kind** as the usage's own subject — so a non-recursive (`MembershipExact`) usage expose adds the
 type exact-match only, not its subtree, while a recursive usage expose adds the type with
 whole-subtree matching, same as before this fix. This expansion only applies to `Subjects` — a

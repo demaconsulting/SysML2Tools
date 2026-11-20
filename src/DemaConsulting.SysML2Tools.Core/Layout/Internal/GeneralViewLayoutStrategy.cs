@@ -761,8 +761,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         // The owner-exposure rule is driven by the expose *subjects* only: a bracket-filter match
         // (ExplicitMembers) is a precise selection of that one element, so it never pulls its
-        // owned usages in (they stay rows of the selected element).
-        var subjectsOnly = scope is null ? null : new ExposedScope(scope.Subjects, []);
+        // owned usages in (they stay rows of the selected element). A typing target that the
+        // resolver added for an exposed usage (`expose myVehicle;` adds Vehicle) is included as a
+        // box but is not itself exposed, so it does not own part-tree nodes either.
+        var subjectsOnly = scope is null
+            ? null
+            : new ExposedScope(scope.Subjects.Where(s => !s.IsTypingTarget).ToList(), []);
 
         // Visits one declaration (and, recursively, the usages nested in its Children): a real
         // workspace registers every nested declaration under its own qualified name in
@@ -1741,10 +1745,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // considered for `dropped` (LayoutWarnings.ForDroppedRelationshipEdges) — see RecordDrop.
         var dropped = new List<DroppedRelationshipEdge>();
 
-        // The declared names of the named dependencies, by (client, supplier) pair, so each
-        // dependency edge below is labeled with its own name (see DependencyLabel).
-        var dependencyNames = CollectDependencyNames(workspace);
-
         void RecordDrop(string kind, string source0, string target0, string? source, string? target)
         {
             // A genuine self-loop (both endpoints resolved, to the same box) is always reported.
@@ -1806,7 +1806,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         if (source is not null && target is not null && source != target)
                         {
                             edges.Add(new ModelEdge(
-                                source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency, DependencyLabel(dependencyNames, sourceRef, edge.TargetQualifiedName)));
+                                source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency, DependencyLabel(edge)));
                         }
                         else
                         {
@@ -1886,63 +1886,20 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private const string DependencyKeywordLabel = "«depend»";
 
     /// <summary>
-    /// Collects the declared names of the named, non-stdlib <c>dependency</c> declarations, keyed by
-    /// the (client, supplier) qualified-name pair of each edge they resolved to, in resolution order.
+    /// Returns the label of a dependency edge: the declared name of the dependency the edge came from
+    /// when it is named, else the <c>«depend»</c> keyword label. The choice is this single expression,
+    /// so a different rule (for example showing both) is a one-line change.
     /// </summary>
     /// <remarks>
-    /// A dependency edge in the semantic index carries no reference to the declaration it came
-    /// from, so the declared name is recovered from the declaration's own resolved edges. A
-    /// dependency without a name is not registered as a declaration and so has no entry; its edges
-    /// fall back to the keyword label (see <see cref="DependencyLabel"/>).
+    /// The name travels on the semantic edge itself (<see cref="SysmlEdge.DeclaredName"/>), so two
+    /// dependencies between the same client and supplier — one named, one not, in either declaration
+    /// order — each keep their own label; no matching by endpoints is involved. An edge with no
+    /// declared name (an unnamed dependency, or an edge in a hand-built workspace) shows the keyword.
     /// </remarks>
-    /// <param name="workspace">The workspace whose named dependencies are collected.</param>
-    /// <returns>The queue of declared names, per (client, supplier) pair, in declaration order.</returns>
-    private static Dictionary<(string Source, string Target), Queue<string>> CollectDependencyNames(SysmlWorkspace workspace)
-    {
-        var names = new Dictionary<(string Source, string Target), Queue<string>>();
-        foreach (var (qualifiedName, declaration) in workspace.Declarations)
-        {
-            if (declaration is not SysmlDependencyNode { Name: { Length: > 0 } name } ||
-                StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
-            {
-                continue;
-            }
-
-            foreach (var resolved in declaration.ResolvedEdges.Where(e => e.Kind == SysmlEdgeKind.Dependency))
-            {
-                var key = (resolved.SourceQualifiedName ?? string.Empty, resolved.TargetQualifiedName);
-                if (!names.TryGetValue(key, out var queue))
-                {
-                    queue = new Queue<string>();
-                    names[key] = queue;
-                }
-
-                queue.Enqueue(name);
-            }
-        }
-
-        return names;
-    }
-
-    /// <summary>
-    /// Returns the label of a dependency edge: the declared name of the dependency when it is named,
-    /// else the <c>«depend»</c> keyword label. The choice is this single expression, so a different
-    /// rule (for example showing both) is a one-line change.
-    /// </summary>
-    /// <remarks>
-    /// Consumes the next name recorded for the (client, supplier) pair, so two named dependencies
-    /// between the same boxes each show their own name, and an edge with no recorded name (an
-    /// unnamed dependency, or an edge in a hand-built workspace) shows the keyword.
-    /// </remarks>
-    /// <param name="names">The declared names collected by <see cref="CollectDependencyNames"/>; consumed by this call.</param>
-    /// <param name="source">The edge's client qualified name.</param>
-    /// <param name="target">The edge's supplier qualified name.</param>
+    /// <param name="edge">The dependency edge.</param>
     /// <returns>The edge label.</returns>
-    private static string DependencyLabel(
-        Dictionary<(string Source, string Target), Queue<string>> names, string source, string target) =>
-        names.TryGetValue((source, target), out var queue) && queue.Count > 0
-            ? queue.Dequeue()
-            : DependencyKeywordLabel;
+    private static string DependencyLabel(SysmlEdge edge) =>
+        edge.DeclaredName is { Length: > 0 } name ? name : DependencyKeywordLabel;
 
     /// <summary>
     /// Resolves the rendered box nearest to <paramref name="qualifiedName"/>: the name itself when it

@@ -2696,6 +2696,29 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A named and an unnamed dependency between the same client and supplier each keep their own
+    ///     label, whichever is declared first: the layout lists the edges in declaration order, so the
+    ///     labels read <c>«depend»</c> then <c>link</c> when the unnamed one comes first, and the reverse
+    ///     when the named one does.
+    /// </summary>
+    [Theory]
+    [InlineData("dependency A to B; dependency link from A to B;", new[] { "«depend»", "link" })]
+    [InlineData("dependency link from A to B; dependency A to B;", new[] { "link", "«depend»" })]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Dependency_NamedAndUnnamedSameEnds_KeepOwnLabels(
+        string dependencies, string[] expectedLabels)
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync($"package P {{ part def A; part def B; {dependencies} }}");
+
+        // Assert
+        var labels = CollectLines(layout.Nodes)
+            .Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed)
+            .Select(l => l.MidpointLabel)
+            .ToList();
+        Assert.Equal(expectedLabels, labels);
+    }
+
+    /// <summary>
     ///     A resolved <see cref="SysmlEdgeKind.Binding"/> edge between two dotted feature chains
     ///     resolves through <c>ResolveOwningBox</c> the same way <c>Connect</c> does, and emits a
     ///     solid, unmarked edge carrying the <c>=</c> midpoint label distinguishing it from Connect.
@@ -5362,6 +5385,35 @@ public sealed class GeneralViewLayoutStrategyTests
         }
 
         Assert.DoesNotContain(car.Compartments, c => c.Title == "parts");
+    }
+
+    /// <summary>
+    ///     Exposing a usage (<c>expose myVehicle;</c>) also draws its typing definition, but only as a
+    ///     box: the definition is not itself exposed, so the parts it owns stay <c>parts</c> rows, while
+    ///     the parts the exposed usage owns are drawn as nodes.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_TypingDefinitionIsBoxWithoutPartTree()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync("""
+            part def Wheel;
+            part def Vehicle { part wheel : Wheel; part engine; }
+            part myVehicle : Vehicle { part body; }
+            package Diagrams { view Tree { expose myVehicle; } }
+            """, "Tree");
+
+        // Assert: the typing definition and the usage are boxes; the usage's own part is a node
+        var vehicle = FindBox(layout.Nodes, "Vehicle");
+        var myVehicle = FindBox(layout.Nodes, "myVehicle");
+        var body = FindBox(layout.Nodes, "body");
+        Assert.Contains(
+            CollectLines(layout.Nodes),
+            l => l.TargetEnd == EndMarkerStyle.FilledDiamond && RunsBetween(l, body, myVehicle));
+
+        // Assert: the definition's own parts are rows of it, not nodes of the diagram
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "wheel") || IsNamed(b, "engine") || b.Label == "Wheel");
+        Assert.Contains(vehicle.Compartments, c => c.Title == "parts" && c.Rows.Contains("wheel : Wheel") && c.Rows.Contains("engine"));
     }
 
     /// <summary>

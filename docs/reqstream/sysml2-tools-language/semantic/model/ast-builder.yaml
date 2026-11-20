@@ -319,6 +319,7 @@ sections:
           - WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges
           - WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge
           - WorkspaceLoader_LoadAsync_DependencyNamed_RecordsDeclaredName
+          - WorkspaceLoader_LoadAsync_DependencyEdges_CarryOwnDeclaredName
           - Dependency_OmgCorpusFixtures_ResolveExpectedEdges
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-BindingConnector

@@ -2653,6 +2653,44 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     Each <c>Dependency</c> edge carries the declared name of the dependency it came from, so a
+    ///     named and an unnamed dependency between the same client and supplier are told apart by the
+    ///     edges themselves (<see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdge.DeclaredName"/>),
+    ///     whichever is declared first; an unnamed dependency's edge carries no name.
+    /// </summary>
+    [Theory]
+    [InlineData("dependency a to b; dependency link from a to b;", new[] { "", "link" })]
+    [InlineData("dependency link from a to b; dependency a to b;", new[] { "link", "" })]
+    public async Task WorkspaceLoader_LoadAsync_DependencyEdges_CarryOwnDeclaredName(string dependencies, string[] expectedNames)
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(
+                tempFile,
+                "package P { part def Q {} part a : Q; part b : Q; " + dependencies + " }",
+                TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var names = result.Workspace.Index.AllEdges
+                .Where(e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency)
+                .Select(e => e.DeclaredName ?? string.Empty)
+                .ToList();
+            Assert.Equal(expectedNames, names);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A <c>dependency</c> declaration with an unresolvable end should produce a Warning
     ///     diagnostic and must not produce a <c>Dependency</c> edge (no partial edge, no crash).
     /// </summary>

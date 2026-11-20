@@ -210,6 +210,7 @@ external services or additional configuration are required beyond a standard .NE
 | Dependency comma-list cross product | `WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges` |
 | Dependency unresolved end | `WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge` |
 | Dependency declared name | `WorkspaceLoader_LoadAsync_DependencyNamed_RecordsDeclaredName` |
+| Dependency edges carry their own declared name | `WorkspaceLoader_LoadAsync_DependencyEdges_CarryOwnDeclaredName` |
 | Dependency OMG corpus fixtures | `Dependency_OmgCorpusFixtures_ResolveExpectedEdges` |
 | Binding dotted-chain resolution | `WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge` |
 | Binding unresolved end | `WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge` |

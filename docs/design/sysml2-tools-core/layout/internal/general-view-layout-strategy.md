@@ -224,6 +224,10 @@ owner reaches it later: the result does not depend on the order of `Declarations
 - *Bracket filters select, they do not widen.* The test of "in scope through a subject" ignores
   `ExposedScope.ExplicitMembers` (it uses a copy of the scope that has only the subjects), so a
   definition selected by `expose P::**[expr];` keeps its usages as rows.
+- *A typing target is not exposed.* `expose myVehicle;` also puts `Vehicle` in scope (the resolver adds
+  the usage's typing target as an `ExposeSubject` with `IsTypingTarget`), so the definition is drawn as a
+  box; the copy of the scope used for the owner test leaves those subjects out, so `Vehicle`'s own parts
+  stay rows. Only what the view wrote in an `expose` statement owns part-tree nodes.
 - *Later narrowing still applies.* The standalone view `filter` conditions and the depth limit run
   after admission. A usage node that fails a condition is removed, and `RemoveRowUsages` and
   `FinalizeBoxes` then list it as a row of its owner; the depth limit applies to part trees exactly as
@@ -348,12 +352,12 @@ Then `workspace.Index.AllEdges` is walked once:
   reported.
 - A `Dependency` edge is labeled by `DependencyLabel`: the declared name of the dependency when it is
   named (`dependency link from A to B;` shows `link`), else the keyword label `«depend»` — one
-  expression, so showing both or only the keyword is a one-line change. The edge in the semantic index
-  does not point back at the declaration it came from, so `CollectDependencyNames` recovers the names
-  from the named `SysmlDependencyNode` declarations (an unnamed dependency is not a declaration) and
-  records each name per (client, supplier) pair in declaration order; `DependencyLabel` consumes the next
-  recorded name of the edge's pair. A pair with no recorded name — an unnamed dependency, or an edge of a
-  hand-built workspace whose `Declarations` hold no dependency — gets `«depend»`. The name replaces the
+  expression, so showing both or only the keyword is a one-line change. The label comes from the edge
+  itself: `ReferenceResolver` records the declaration's name on each `Dependency` edge it creates
+  (`SysmlEdge.DeclaredName`), so no matching by client and supplier is involved and a named and an
+  unnamed dependency between the same two elements each keep their own label in either declaration
+  order. An edge with no declared name — an unnamed dependency, or an edge of a hand-built workspace —
+  gets `«depend»`. The name replaces the
   keyword rather than accompanying it, and the keyword spelling follows the OMG Pilot.
 - `Satisfy` and `Verify` map each endpoint to the *nearest rendered box* with `ResolveNearestBox`
   (the name itself, else the longest rendered `::` prefix), because the relating element is often a

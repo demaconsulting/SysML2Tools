@@ -458,6 +458,9 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   no part also as a row
 - `GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_DrawsOwnedPartsAsNodes`:
   An exposed part usage draws the parts it owns as nodes
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_TypingDefinitionIsBoxWithoutPartTree`:
+  `expose myVehicle;` draws the typing definition as a box whose own parts stay `parts` rows, while the
+  parts the exposed usage owns are nodes
 - `GeneralViewLayoutStrategy_BuildLayout_BracketFilteredExpose_KeepsUnselectedUsagesAsRows`:
   A bracket-filtered expose selects the definition but leaves its parts as `parts` rows
 - `GeneralViewLayoutStrategy_BuildLayout_DepthLimit_ExposedDefWithUsageNodes_TruncatesToEllipsisThenDrawsNodes`:
@@ -673,6 +676,9 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   Loaded from text, a named dependency (`dependency link from A to B;`) is labeled with its name, an
   unnamed one keeps `«depend»`, and two named dependencies between the same boxes each show their own
   name
+- `GeneralViewLayoutStrategy_BuildLayout_Dependency_NamedAndUnnamedSameEnds_KeepOwnLabels`:
+  A named and an unnamed dependency between the same two boxes each keep their own label, with the
+  unnamed one declared first and with the named one declared first (the edges appear in declaration order)
 - `GeneralViewLayoutStrategy_BuildLayout_Binding_ProducesSolidEdgeWithEqualsLabel`:
   A `Binding` edge produces a solid line with no end marker and an `=` midpoint label
 - `GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesSolidHollowTriangleUsageEdge`:

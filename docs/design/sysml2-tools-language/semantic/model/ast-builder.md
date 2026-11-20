@@ -211,8 +211,9 @@ presence/absence of the `FROM` keyword token itself. `ReferenceResolver` resolve
 `FromNames` entry against every `ToNames` entry (a cross product), emitting one
 `SysmlEdgeKind.Dependency` edge per resolved pair. The optional declared name of the dependency
 (`dependency link from A to B;`, in either grammar alternative's `identification`) is captured as the
-node's `Name` and `QualifiedName` (and short name), so a named dependency is a registered symbol that the
-General view can label its edge with; an unnamed dependency stays anonymous.
+node's `Name` and `QualifiedName` (and short name), so a named dependency is a registered symbol; the
+resolved edges carry that name (`SysmlEdge.DeclaredName`) so the General view can label them. An unnamed
+dependency stays anonymous.
 
 `VisitSatisfyRequirementUsage` builds a `SysmlSatisfyNode` for `satisfy X by Y;` usages. The
 satisfied requirement's raw reference text is taken from `ownedReferenceSubsetting()` when the

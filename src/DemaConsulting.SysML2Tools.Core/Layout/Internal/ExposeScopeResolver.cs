@@ -67,7 +67,14 @@ internal sealed record FilteredExpose(string QualifiedName, FilterExpression Fil
 /// The recursion kind (exact, direct-children-only, or whole-subtree) governing how this subject
 /// matches candidate qualified names — see <see cref="ExposeScopeResolver.IsInSubjectScope"/>.
 /// </param>
-internal sealed record ExposeSubject(string QualifiedName, ExposeRecursionKind Recursion);
+/// <param name="IsTypingTarget">
+/// <see langword="true"/> when the subject was not written in an <c>expose</c> statement but added
+/// by <see cref="ExposeScopeResolver.ResolveExposedScope"/> as the typing target of an exposed usage
+/// (<c>expose myVehicle;</c> adds <c>Vehicle</c>). It matches candidates exactly like an expose
+/// subject, but a consumer that must know what the view itself exposes — for example the General
+/// View's part-tree rule — ignores it. <see langword="false"/> for every written expose entry.
+/// </param>
+internal sealed record ExposeSubject(string QualifiedName, ExposeRecursionKind Recursion, bool IsTypingTarget = false);
 
 /// <summary>
 /// A single <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c> bracket-filter expression that failed to
@@ -286,7 +293,7 @@ internal static class ExposeScopeResolver
                 ?.TargetQualifiedName;
             if (typeTarget is not null)
             {
-                subjects.Add(new ExposeSubject(typeTarget, kind));
+                subjects.Add(new ExposeSubject(typeTarget, kind, IsTypingTarget: true));
             }
         }
     }

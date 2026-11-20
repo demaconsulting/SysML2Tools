@@ -677,7 +677,7 @@ internal sealed class ReferenceResolver
             {
                 foreach (var to in resolvedTo)
                 {
-                    nodeEdges.Add(new SysmlEdge(from, to, SysmlEdgeKind.Dependency));
+                    nodeEdges.Add(new SysmlEdge(from, to, SysmlEdgeKind.Dependency) { DeclaredName = dependency.Name });
                 }
             }
         }
