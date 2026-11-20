@@ -21,6 +21,9 @@ external services are required.
 - All `RenderIntegrationTests` pass with zero failures across all target frameworks.
 - Rendering a workspace with views produces one output per view, containing the rendered elements.
 - The same workspace renders successfully with both the SVG and PNG renderers.
+- A PNG view wider than the raster backend's 8192 px limit renders successfully, scaled down to fit
+  (the PNG header's width and height are within the limit), with exactly one warning that names the
+  view and the scaled size; a PNG that fits and the same wide view as SVG carry no such warning.
 - A workspace with no views produces an empty result.
 - Every node name in every view kind is drawn in regular weight (the SVG text carries no
   `font-weight`), an abstract definition's name stays italic, and the keyword line stays italic.
@@ -43,6 +46,9 @@ external services are required.
 | `DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames` | The SVG output contains element names |
 | `DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput` | The PNG output carries the PNG signature |
 | `DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList` | A view-free workspace yields an empty result |
+| `DiagramRenderer_RenderWorkspace_WidePngView_ScalesToFitAndWarns` | Wide PNG scaled to fit; one warning |
+| `DiagramRenderer_RenderWorkspace_NarrowPngView_ReportsNoScalingWarning` | A PNG that fits is not scaled or reported |
+| `DiagramRenderer_RenderWorkspace_WideSvgView_ReportsNoScalingWarning` | A wide SVG is not scaled or reported |
 | `DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_RendersPackageNodeWithInfoHint` | Package node + info hint |
 | `DiagramRenderer_RenderWorkspace_NonGeneralViewExposesBarePackage_ReportsNoHint` | No hint without package node |
 | `DiagramRenderer_RenderWorkspace_ViewWithNothingRenderable_ReportsEmptyViewWarning` | Empty view warning |

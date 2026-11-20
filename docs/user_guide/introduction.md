@@ -950,6 +950,19 @@ sysml2tools render model.sysml --output out --walk-depth 3
 PNG output uses an embedded Noto Sans font to guarantee pixel-identical output across
 Windows, Linux, and macOS.
 
+The PNG backend cannot draw an image wider or taller than 8192 pixels. When a diagram would exceed
+that size (for example a General View of a model with many sibling parts), `render` does not fail:
+it scales the whole image down uniformly so its longest side fits, writes the PNG, and prints a
+warning that names the view and both sizes:
+
+```text
+  warning: Diagram 'SoftwareStructureView' (11577×2380 px) exceeds the 8192 px PNG limit; scaled to 8192×1684 px. Use SVG or narrow the view.
+```
+
+The scaled image is smaller, so its text is smaller too. For a full-size diagram use `--format svg`
+(which has no size limit) or narrow the view with `expose` or `--view-target`. The warning does not
+change the exit code.
+
 # Querying
 
 The `query` command loads a workspace, resolves the semantic model, and answers

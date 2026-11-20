@@ -36,6 +36,7 @@ sections:
           - SysML2Tools-Tool-Render-UnresolvedReferenceDiagnostic
           - SysML2Tools-Tool-Render-LoadDiagnosticFormat
           - SysML2Tools-Tool-Render-UnresolvedReferenceSeverity
+          - SysML2Tools-Tool-Render-PngScaledToFit
         tests:
           - RenderSubsystem_NoFiles_ReportsError
           - RenderSubsystem_GlobPattern_ResolvesMultipleFiles
@@ -247,6 +248,20 @@ sections:
           warnings never fail the run.
         tests:
           - RenderSubsystem_ViewExposingBarePackage_PrintsInfoHint
+
+      - id: SysML2Tools-Tool-Render-PngScaledToFit
+        title: >-
+          When a diagram rendered with `--format png` is larger than the raster backend's maximum
+          dimension (8192 px), the render command shall write the PNG scaled down to fit, print a
+          `warning:` line naming the view, its original and scaled sizes, and suggesting SVG or a
+          narrower view, and succeed with exit code 0.
+        justification: |
+          A generated diagram wider than the raster backend accepts (for example a General View of a
+          model with many sibling parts) previously aborted the whole render with an unhelpful
+          argument error. Scaling the image to fit and warning keeps bulk exports working and tells
+          the user how to get a full-size diagram. Warnings never fail the run.
+        tests:
+          - RenderSubsystem_FormatPng_WideDiagram_ScalesToFitAndWarns
 
       - id: SysML2Tools-Tool-Render-UnresolvedReferenceDiagnostic
         title: >-

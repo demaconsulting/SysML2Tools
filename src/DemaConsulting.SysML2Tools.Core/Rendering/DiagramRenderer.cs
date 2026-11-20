@@ -30,6 +30,18 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// </remarks>
 public sealed class DiagramRenderer
 {
+    /// <summary>Media type of the PNG renderer, the only raster format the tool offers.</summary>
+    private const string PngMediaType = "image/png";
+
+    /// <summary>The raster backend's maximum surface width and height, in pixels.</summary>
+    private const int MaxPngDimension = 8192;
+
+    /// <summary>The number of times a rejected PNG scale is tightened and retried.</summary>
+    private const int MaxFitAttempts = 3;
+
+    /// <summary>Slack applied when tightening the scale so integer rounding cannot exceed the limit.</summary>
+    private const double FitSlack = 0.999;
+
     /// <summary>
     /// Initializes a new <see cref="DiagramRenderer"/> instance. The renderer is stateless; a
     /// single instance may be reused across multiple <see cref="RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/> calls.
@@ -147,7 +159,11 @@ public sealed class DiagramRenderer
     /// Renders every view in the workspace and returns a collection of output streams,
     /// one per view.
     /// </summary>
-    /// <remarks>Equivalent to the four-argument overload, additionally collecting view-level diagnostics.</remarks>
+    /// <remarks>Equivalent to the four-argument overload, additionally collecting view-level diagnostics.
+    /// When <paramref name="renderer"/> is a PNG renderer and a view's diagram is larger than the raster
+    /// backend's 8192 px maximum, the image is scaled down uniformly to fit (through
+    /// <see cref="RenderOptions.Scale"/>) and a warning naming the view and both sizes is added to that
+    /// output's <see cref="RenderOutput.Warnings"/>; the render does not fail.</remarks>
     /// <param name="workspace">The SysML workspace whose view declarations are rendered.</param>
     /// <param name="renderer">The format-specific renderer used to write each view.</param>
     /// <param name="options">Render options supplying theme, scale, and depth-limit settings.</param>
@@ -249,18 +265,113 @@ public sealed class DiagramRenderer
                 diagnostics.Add(diagnostic);
             }
 
-            // Render the layout tree to an in-memory stream
-            var stream = new MemoryStream();
-            renderer.Render(layout, options, stream);
-            stream.Position = 0;
+            // Render the layout tree to an in-memory stream; a PNG too large for the raster
+            // backend is scaled down uniformly to fit, and the scaling is reported as a warning.
+            var (stream, scaleWarning) = RenderToStream(viewName, layout, renderer, options);
 
             // Derive a safe file name from the view name and add to results
             var fileName = SanitizeFileName(viewName) + renderer.DefaultExtension;
-            results.Add(new RenderOutput(fileName, renderer.MediaType, stream) { Warnings = layout.Warnings });
+            IReadOnlyList<string> warnings = scaleWarning is null ? layout.Warnings : [.. layout.Warnings, scaleWarning];
+            results.Add(new RenderOutput(fileName, renderer.MediaType, stream) { Warnings = warnings });
         }
 
         return results;
     }
+
+    /// <summary>
+    /// Renders a laid-out view to an in-memory stream, scaling a PNG that would exceed the raster
+    /// backend's maximum dimension down uniformly (through <see cref="RenderOptions.Scale"/>) so it fits.
+    /// </summary>
+    /// <remarks>
+    /// The PNG surface size is not known to the caller beyond <see cref="LayoutTree.Width"/> and
+    /// <see cref="LayoutTree.Height"/> (connector labels can extend it slightly), so the scale is
+    /// first derived from the layout size and, should the backend still reject the resulting
+    /// surface, tightened from the size the backend reports and retried a few times. Non-PNG
+    /// renderers (SVG is vector) are never scaled.
+    /// </remarks>
+    /// <param name="viewName">The view's display name, used in the scaling warning.</param>
+    /// <param name="layout">The laid-out view.</param>
+    /// <param name="renderer">The format renderer.</param>
+    /// <param name="options">The caller's render options.</param>
+    /// <returns>The rendered stream (positioned at its start) and the scaling warning, or null when none applies.</returns>
+    private static (MemoryStream Stream, string? Warning) RenderToStream(
+        string viewName, LayoutTree layout, IRenderer renderer, RenderOptions options)
+    {
+        var stream = new MemoryStream();
+        if (!string.Equals(renderer.MediaType, PngMediaType, StringComparison.OrdinalIgnoreCase))
+        {
+            renderer.Render(layout, options, stream);
+            stream.Position = 0;
+            return (stream, null);
+        }
+
+        // Fit the layout's longest side to the backend limit before the first attempt
+        var scale = options.Scale;
+        var longestSide = Math.Max(layout.Width, layout.Height) * scale;
+        if (longestSide > MaxPngDimension)
+        {
+            scale *= MaxPngDimension / longestSide;
+        }
+
+        for (var attempt = 1; attempt <= MaxFitAttempts + 1; attempt++)
+        {
+            try
+            {
+                stream.SetLength(0);
+                renderer.Render(layout, options with { Scale = scale }, stream);
+                break;
+            }
+            catch (ArgumentOutOfRangeException ex) when (
+                attempt <= MaxFitAttempts &&
+                ex.ParamName is "width" or "height" &&
+                ex.ActualValue is int actual &&
+                actual > MaxPngDimension)
+            {
+                // Label overhang made the surface slightly larger than the layout; tighten the scale
+                scale *= (double)MaxPngDimension / actual * FitSlack;
+            }
+        }
+
+        stream.Position = 0;
+        if (scale >= options.Scale)
+        {
+            return (stream, null);
+        }
+
+        // Report the original and the actual scaled size (read from the PNG header, falling back to
+        // the computed size)
+        var originalWidth = (int)Math.Ceiling(layout.Width * options.Scale);
+        var originalHeight = (int)Math.Ceiling(layout.Height * options.Scale);
+        var (scaledWidth, scaledHeight) = ReadPngSize(stream)
+            ?? ((int)Math.Ceiling(layout.Width * scale), (int)Math.Ceiling(layout.Height * scale));
+        var warning =
+            $"Diagram '{viewName}' ({originalWidth}×{originalHeight} px) exceeds the {MaxPngDimension} px PNG limit; " +
+            $"scaled to {scaledWidth}×{scaledHeight} px. Use SVG or narrow the view.";
+        return (stream, warning);
+    }
+
+    /// <summary>Reads the pixel size from the header chunk of a PNG stream.</summary>
+    /// <param name="stream">The stream holding the encoded PNG.</param>
+    /// <returns>The width and height, or null when the stream is too short to hold a PNG header.</returns>
+    private static (int Width, int Height)? ReadPngSize(MemoryStream stream)
+    {
+        // Signature (8) + chunk length (4) + chunk type (4), then big-endian width and height
+        const int widthOffset = 16;
+        if (stream.Length < widthOffset + 8)
+        {
+            return null;
+        }
+
+        var bytes = stream.GetBuffer();
+        return (ReadBigEndianInt32(bytes, widthOffset), ReadBigEndianInt32(bytes, widthOffset + 4));
+    }
+
+    /// <summary>Reads a big-endian 32-bit integer.</summary>
+    /// <param name="bytes">The buffer.</param>
+    /// <param name="offset">The offset of the first byte.</param>
+    /// <returns>The value.</returns>
+    private static int ReadBigEndianInt32(byte[] bytes, int offset) =>
+        (bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3];
 
     /// <summary>
     /// Synthesizes a <see cref="SysmlViewNode"/> that targets the most representative

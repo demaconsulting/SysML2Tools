@@ -97,7 +97,10 @@ Entry point for the render command. Steps:
 10. Writes a "No views found" message and returns when `outputs` is empty.
 11. Resolves the output directory (defaults to `Directory.GetCurrentDirectory()`), creates
     it via `Directory.CreateDirectory`, and writes each `RenderOutput.Data` stream to a
-    file named `RenderOutput.SuggestedFileName`, followed by that output's layout warnings.
+    file named `RenderOutput.SuggestedFileName`, followed by that output's warnings as
+    `  warning: <text>` lines: the layout warnings and, for a PNG larger than the raster backend's
+    8192 px limit, the scale-to-fit warning `DiagramRenderer` adds (see its design doc) — the render
+    still succeeds with exit code 0.
 12. Prints each collected view-level diagnostic (an empty-view `warning` or a lone-package
     `info` hint) via `context.WriteLine`, formatted by `DiagnosticFormatter.Format` — the same
     `file(line,col): severity: message` form the
@@ -201,5 +204,6 @@ future-locale story, which applies identically here.
 | SysML2Tools-Tool-Render-FileNameCollision | Output file name collision guard in `RunAsync` |
 | SysML2Tools-Tool-Render-DynamicView | `TryProcessDynamicView` helper, called from `RunAsync` |
 | SysML2Tools-Tool-Render-EmptyViewWarning | Empty-view diagnostics printed in `RunAsync` |
+| SysML2Tools-Tool-Render-PngScaledToFit | Output warnings printed in `RunAsync` (scaling done by `DiagramRenderer`) |
 | SysML2Tools-Tool-Render-UnresolvedReferenceDiagnostic | Load-diagnostic reporting (step 4) in `RunAsync` |
 | SysML2Tools-Tool-Render-LoadDiagnosticFormat | Load-diagnostic reporting (step 4) in `RunAsync` |

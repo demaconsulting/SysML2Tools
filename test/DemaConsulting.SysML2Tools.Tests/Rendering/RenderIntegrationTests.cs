@@ -185,6 +185,135 @@ public sealed class RenderIntegrationTests
     }
 
     /// <summary>
+    ///     Inline SysML source whose part tree is wider than the PNG backend's 8192 px limit: one
+    ///     part definition with 60 sibling part usages, exposed recursively in a general view.
+    /// </summary>
+    private static readonly string WidePartTreeSysml =
+        "package WideTest {\n" +
+        "    private import StandardViewDefinitions::*;\n" +
+        "    part def Leaf {}\n" +
+        "    part def Root {\n" +
+        string.Concat(Enumerable.Range(1, 60).Select(i => $"        part p{i} : Leaf;\n")) +
+        "    }\n" +
+        "    view WideView : GeneralView { expose WideTest::Root::**; expose WideTest::Root; }\n" +
+        "}\n";
+
+    /// <summary>
+    ///     Reads the pixel size from the header chunk of an encoded PNG (big-endian width then height
+    ///     at byte offsets 16 and 20).
+    /// </summary>
+    /// <param name="stream">The rendered PNG output stream.</param>
+    /// <returns>The image width and height in pixels.</returns>
+    private static (int Width, int Height) ReadPngSize(Stream stream)
+    {
+        var bytes = ((MemoryStream)stream).ToArray();
+        return (
+            (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19],
+            (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23]);
+    }
+
+    /// <summary>
+    ///     A diagram wider than the PNG backend's 8192 px limit is scaled down uniformly to fit, so
+    ///     the PNG renders instead of failing, and the output carries a warning naming the view and
+    ///     both sizes.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_WidePngView_ScalesToFitAndWarns()
+    {
+        // Arrange: write the wide inline model to a temp file and load the workspace
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, WidePartTreeSysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+            var diagramRenderer = new DiagramRenderer();
+            var options = new RenderOptions(Themes.Light);
+
+            // Act: render the workspace to PNG
+            var outputs = diagramRenderer.RenderWorkspace(result.Workspace, new PngRenderer(), options);
+
+            // Assert: one PNG whose size is within the limit, and a single scaling warning
+            var output = Assert.Single(outputs);
+            var (width, height) = ReadPngSize(output.Data);
+            Assert.InRange(width, 1, 8192);
+            Assert.InRange(height, 1, 8192);
+            var warning = Assert.Single(output.Warnings);
+            Assert.Contains("Diagram 'WideView'", warning);
+            Assert.Contains("exceeds the 8192 px PNG limit", warning);
+            Assert.Contains($"scaled to {width}×{height} px", warning);
+            Assert.Contains("Use SVG or narrow the view.", warning);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     The same wide diagram rendered as SVG (a vector format) is not scaled and reports no
+    ///     scaling warning.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_WideSvgView_ReportsNoScalingWarning()
+    {
+        // Arrange: write the wide inline model to a temp file and load the workspace
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, WidePartTreeSysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+            var diagramRenderer = new DiagramRenderer();
+            var options = new RenderOptions(Themes.Light);
+
+            // Act: render the workspace to SVG
+            var outputs = diagramRenderer.RenderWorkspace(result.Workspace, new SvgRenderer(), options);
+
+            // Assert: the output carries no warning about scaling
+            var output = Assert.Single(outputs);
+            Assert.DoesNotContain(output.Warnings, w => w.Contains("PNG limit"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A PNG diagram that fits within the backend limit is rendered at full size and reports no
+    ///     scaling warning.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_NarrowPngView_ReportsNoScalingWarning()
+    {
+        // Arrange: write the small inline model to a temp file and load the workspace
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, GeneralViewSysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+            var diagramRenderer = new DiagramRenderer();
+            var options = new RenderOptions(Themes.Light);
+
+            // Act: render the workspace to PNG
+            var outputs = diagramRenderer.RenderWorkspace(result.Workspace, new PngRenderer(), options);
+
+            // Assert: no scaling warning
+            var output = Assert.Single(outputs);
+            Assert.DoesNotContain(output.Warnings, w => w.Contains("PNG limit"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     Path to the safety-metadata-filter test fixture: a package with a <c>metadata def</c>,
     ///     part definitions carrying <c>@Safety</c> annotations, two views whose <c>filter</c>
     ///     statements exercise Phase 1 filter-expression evaluation end-to-end, and (Phase 2a) a

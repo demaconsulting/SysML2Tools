@@ -64,6 +64,23 @@ node, so they get no hint. The view is always rendered and returned, so callers 
 write files keep them current. The empty check is strategy-agnostic because it inspects only the
 produced `LayoutTree`.
 
+**PNG size limit.** The raster backend (`DemaConsulting.Rendering.CanvasNet`) rejects a surface wider
+or taller than 8192 px, and a generated diagram such as a part tree with many siblings can exceed it.
+`RenderWorkspace` therefore renders through `RenderToStream`, which applies only to a renderer whose
+`MediaType` is `image/png` (SVG is vector and is never scaled). From the `LayoutTree`'s `Width` and
+`Height` times the caller's `RenderOptions.Scale` it computes the longest side; when that exceeds 8192
+it multiplies the scale by `8192 / longest` and renders with the public `RenderOptions.Scale`, so the
+diagram itself is unchanged and is scaled uniformly. The backend sizes its surface from the layout plus
+connector-label overhang that only it can measure, so if it still rejects the surface (an
+`ArgumentOutOfRangeException` for `width` or `height` carrying the actual size) the scale is tightened
+from that size, with a small slack for integer rounding, and the render is retried up to three times
+before the exception is allowed to propagate. When the scale was reduced, a warning is appended to the
+output's `Warnings`: `Diagram '<view>' (<W>×<H> px) exceeds the 8192 px PNG limit; scaled to <w>×<h>
+px. Use SVG or narrow the view.` The original size is the layout size at the caller's scale; the scaled
+size is read from the PNG header of the stream actually produced. `RenderCommand` prints
+output warnings as `  warning: <text>` lines, so the render succeeds and the exit code is
+unaffected.
+
 ##### `GetViewNames(workspace)`
 
 Returns the display names of all renderable user-defined views, mirroring the filtering applied by
@@ -133,3 +150,4 @@ workspace.
 | SysML2Tools-Core-Rendering-DiagramRenderer-SynthesizeDynamicView | `SynthesizeDynamicView` delegation |
 | SysML2Tools-Core-Rendering-DiagramRenderer-EmptyViewWarning | `BuildViewDiagnostic` warning / info hint |
 | SysML2Tools-Core-Rendering-DiagramRenderer-RegularNameWeight | `ApplyNameStyleDefault` regular name style |
+| SysML2Tools-Core-Rendering-DiagramRenderer-PngFitsBackendLimit | `RenderToStream` scale-to-fit and warning |
