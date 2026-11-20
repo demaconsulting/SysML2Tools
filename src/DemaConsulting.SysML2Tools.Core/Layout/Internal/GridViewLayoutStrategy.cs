@@ -116,7 +116,7 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            if (workspace.Declarations[qn] is SysmlDefinitionNode def)
+            if (workspace.Declarations[qn] is SysmlDefinitionNode { IsExcludedFromDiagrams: false } def)
             {
                 all.Add(new DefRow(qn, def.Name ?? qn, ResolveSupertypes(qn, def, resolver)));
             }

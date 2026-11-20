@@ -80,6 +80,7 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
         // Deterministic order: sort qualified names so parents precede children.
         var names = workspace.Declarations.Keys
             .Where(qn => !StdlibFilter.IsStdlibElement(qn, workspace.StdlibNames))
+            .Where(qn => !workspace.Declarations[qn].IsExcludedFromDiagrams)
             .Where(qn => scope is null || ExposeScopeResolver.IsInSubjectScope(qn, scope))
             .OrderBy(qn => qn, StringComparer.Ordinal)
             .ToList();

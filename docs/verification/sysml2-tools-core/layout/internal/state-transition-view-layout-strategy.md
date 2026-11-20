@@ -122,3 +122,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_ElevatorGalleryModel_ShowsCompartmentsLabelsAndFinal` | Gallery notation |
 | `LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges` | Edge end decoration reaches the engine |
 | `LayeredPlacement_Place_DefaultEdgeTargetEnd_PreservesBehavior` | Default placement unchanged |
+| `StateTransitionView_BuildLayout_ExcludedTransitions_RenderIdenticallyToWorkspaceWithout` | Hidden not drawn |

@@ -43,3 +43,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `BrowserView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged` | Null `ViewNode` renders full forest unchanged |
 | `BrowserView_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree` | Usage resolves via `Typing` |
 | `BrowserView_BuildLayout_ExposeMultipleTargets_UnionsBothSubtrees` | Two `expose` targets union both subtrees |
+| `BrowserView_BuildLayout_ExcludedMembers_RenderIdenticallyToWorkspaceWithout` | Hidden declarations not listed |

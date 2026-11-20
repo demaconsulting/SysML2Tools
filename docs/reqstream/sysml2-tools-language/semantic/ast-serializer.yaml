@@ -62,3 +62,4 @@ sections:
           - Serialize_NewModifierProperties_RoundTrip
           - Serialize_DefaultModifierProperties_AreOmittedFromJson
           - Serialize_Direction_WrittenAsString
+          - Serialize_AdditionalRedefinitionsAndExcludedFlag_RoundTrip

@@ -54,6 +54,12 @@ All nodes carry:
   property since resolution runs after the AST is built and the symbol table is fully populated.
   Empty for stdlib-only nodes, which are registered but never passed through
   `ReferenceResolver.ResolveAll`.
+- `IsExcludedFromDiagrams` — the member is modeled for name resolution, `query` and `export` only;
+  every diagram strategy skips it and everything nested in it (`DiagramChildren` is `Children`
+  without the flagged ones). Built by `AstBuilder` for bare parameters, portion usages,
+  `perform`/`exhibit`/`include`/`assert` usages, a transition's `effect`, and the bodies of action,
+  calculation, constraint and case usages and definitions; never set on a member built before issue
+  #137. `[JsonIgnore(WhenWritingDefault)]`, so it is written only when `true`.
 - `Annotations` — captured `comment`/`doc` annotating-element text, in source order; populated
   by `AstBuilder` from annotations lexically nested directly in this element's body. An
   explicit `about X` target is not resolved — the annotation is attached to the lexically
@@ -285,14 +291,23 @@ and data written before the members existed deserializes with all of them at the
 | `IsParallel` | definition, feature | `state def`/`state` declared `parallel` |
 | `Trigger`, `Effect` | transition | verbatim trigger and effect text |
 | `IsElse` | transition | succession declared with `else` |
+| `AdditionalRedefinedFeatureNames` | feature | raw targets of a multiple redefinition after the first; null if none |
+| `IsExcludedFromDiagrams` | any node | modeled for name resolution only; diagrams skip it (see Properties) |
 | `EndpointAName`, `EndpointBName` | connection | role name of a connector end (`name ::> reference`) |
 | `EndpointAMultiplicity`, `EndpointBMultiplicity` | connection | cross multiplicity text of a connector end |
 | `PayloadText` | connection | payload clause of a flow or message |
 
 `ReferenceSubsettingName` and `ConjugatedFeatureTyping` are deliberately **not** merged into
 `SupertypeNames` or `FeatureTyping`: doing so would add `Supertype`/`Typing` edges and change
-diagnostics and layout. Bare direction-only parameters (`in x : T;`) are not AST nodes today, so
-they carry no direction; `derived`/`constant`/`end`/`readonly` and modifiers on view, viewpoint, and
+diagnostics and layout (`NameResolver` does read `ReferenceSubsettingName` as a general type for
+member lookup, which adds no edge). A bare direction-only parameter (`in x : T;`) is a feature with
+the keyword `ref` and carries its direction; the other feature keywords beyond the grammar's usage
+keywords are `timeslice`, `snapshot`, `perform`, `exhibit`, `include` and `assert constraint`. A
+`perform`, `include` or `assert` usage written only as a reference is named by the referenced
+feature's simple name and has a synthetic qualified-name segment (`$perform<n>`); an anonymous usage
+with a body has `Name` null and a `$anon<n>` qualified-name segment. `SupertypeNames` and
+`RedefinedFeatureName` are settable so that `AstBuilder` can record them centrally for every usage kind.
+`derived`/`constant`/`end`/`readonly` and modifiers on view, viewpoint, and
 connection nodes are not captured.
 
 ##### Error Handling

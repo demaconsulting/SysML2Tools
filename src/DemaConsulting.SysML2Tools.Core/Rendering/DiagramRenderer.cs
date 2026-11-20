@@ -303,7 +303,7 @@ public sealed class DiagramRenderer
             }
 
             // Consider only definition nodes (part def, attribute def, etc.)
-            if (node is not SysmlDefinitionNode defNode)
+            if (node is not SysmlDefinitionNode defNode || defNode.IsExcludedFromDiagrams)
             {
                 continue;
             }
@@ -313,7 +313,7 @@ public sealed class DiagramRenderer
 
             // Prefer a part def, and among part defs prefer the one with the most direct children
             if (string.Equals(defNode.DefinitionKeyword, "part def", StringComparison.Ordinal) &&
-                (bestPartDef is null || defNode.Children.Count > bestPartDef.Children.Count))
+                (bestPartDef is null || defNode.DiagramChildren.Count() > bestPartDef.DiagramChildren.Count()))
             {
                 bestPartDef = defNode;
             }

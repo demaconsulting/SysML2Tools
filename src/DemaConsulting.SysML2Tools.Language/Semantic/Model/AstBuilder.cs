@@ -186,7 +186,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         return node switch
         {
-            SysmlFeatureNode feature => texts.Append(feature.FeatureTyping).Append(feature.RedefinedFeatureName),
+            SysmlFeatureNode feature => texts
+                .Append(feature.FeatureTyping)
+                .Append(feature.RedefinedFeatureName)
+                .Concat(feature.AdditionalRedefinedFeatureNames ?? []),
             SysmlMetadataNode metadata => texts.Append(metadata.TypeReference),
             SysmlViewNode view => texts.Concat(view.ExposeMembers.Select(m => m.QualifiedName)).Append(view.ViewDefinitionName),
             SysmlConnectionNode connection => texts.Append(connection.EndpointA).Append(connection.EndpointB),
@@ -559,6 +562,27 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     private int _anonymousNodeCounter;
 
     /// <summary>
+    ///     The nesting depth of the member bodies being built only for name resolution (see
+    ///     <see cref="SysmlNode.IsExcludedFromDiagrams"/>); positive while one is collected.
+    /// </summary>
+    private int _excludedBodyDepth;
+
+    /// <summary>
+    ///     Counter for the synthetic names of the anonymous action nodes inside such bodies. It is
+    ///     kept apart from <see cref="_anonymousNodeCounter"/> so that building those bodies never
+    ///     shifts the names (<c>$terminate0</c>, ...) of the nodes diagrams draw.
+    /// </summary>
+    private int _excludedNodeCounter;
+
+    /// <summary>
+    ///     Counter for the synthetic scope segments (<c>$anon&lt;n&gt;</c> for an anonymous usage
+    ///     with a body, <c>$perform&lt;n&gt;</c> and its siblings for a usage named only by the
+    ///     feature it references). Kept apart from <see cref="_anonymousNodeCounter"/> so that
+    ///     adding scopes never shifts the names of the anonymous action nodes.
+    /// </summary>
+    private int _syntheticScopeCounter;
+
+    /// <summary>
     ///     Tracks the name of the most recently established "flow position" while
     ///     <see cref="CollectActionBodyChildren"/> iterates an action body's <c>actionBodyItem</c>s
     ///     in source order, so <see cref="VisitActionBodyItem"/> can resolve the implicit
@@ -772,6 +796,13 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         var declaration = context.actionUsageDeclaration();
         var specialization = ExtractSpecialization(declaration?.usageDeclaration()?.featureSpecializationPart());
+
+        // The nested action body (parameters, nested actions, successions) is built so the names
+        // it declares resolve, but kept out of diagrams until its notation is drawn.
+        _namespaceStack.Add(name);
+        var (children, _) = CollectActionBodyChildren(context.actionBody()?.actionBodyItem() ?? [], excluded: true);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
         return ApplyFeatureNotation(
             new SysmlFeatureNode
             {
@@ -780,6 +811,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 FeatureKeyword = "action",
                 FeatureTyping = specialization.Typing,
                 Multiplicity = specialization.Multiplicity,
+                Children = Excluded(children),
             },
             declaration?.usageDeclaration(),
             declaration?.valuePart());
@@ -1056,7 +1088,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         string? actionText = null)
     {
         var declaredName = GetDeclaredName(decl?.identification());
-        var name = declaredName ?? $"${keyword}{_anonymousNodeCounter++}";
+        var name = declaredName ?? $"${keyword}{(_excludedBodyDepth > 0 ? _excludedNodeCounter++ : _anonymousNodeCounter++)}";
 
         return ApplyFeatureNotation(
             new SysmlFeatureNode
@@ -1105,7 +1137,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitCalculationDefinition(SysMLv2Parser.CalculationDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "calc def");
+        return BuildDefinitionFromDeclaration(
+            context.definitionDeclaration(), "calc def", bodyCollector: () => CollectCalculationBodyChildren(context.calculationBody()));
     }
 
     /// <inheritdoc/>
@@ -1128,17 +1161,23 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         // compartment, rather than adding a second, definition-level-only expression-text field
         // and a matching special-cased rendering path.
         var expressionText = context.calculationBody()?.GetText();
-        IReadOnlyList<SysmlNode> children = expressionText is null
-            ? Array.Empty<SysmlNode>()
-            :
-            [
-                new SysmlFeatureNode
-                {
-                    FeatureKeyword = "constraint",
-                    ExpressionText = expressionText,
-                    ReferenceOccurrences = ConstraintBodyOccurrences(context.calculationBody()),
-                },
-            ];
+        List<SysmlNode> children = [];
+        if (expressionText is not null)
+        {
+            children.Add(new SysmlFeatureNode
+            {
+                FeatureKeyword = "constraint",
+                ExpressionText = expressionText,
+                ReferenceOccurrences = ConstraintBodyOccurrences(context.calculationBody()),
+            });
+        }
+
+        // The members the body declares (parameters such as `in totalMass : MassValue;`, nested
+        // usages) follow the expression; they are built so that references to them resolve, but
+        // kept out of diagrams, which draw only the expression.
+        _namespaceStack.Add(name);
+        children.AddRange(Excluded(CollectCalculationBodyChildren(context.calculationBody())));
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
         return new SysmlDefinitionNode
         {
@@ -1229,49 +1268,53 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitCaseDefinition(SysMLv2Parser.CaseDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "case def", context.caseBody());
+        return BuildDefinitionFromDeclaration(
+            context.definitionDeclaration(), "case def", context.caseBody(), () => CollectCaseBodyChildren(context.caseBody()));
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitAnalysisCaseDefinition(SysMLv2Parser.AnalysisCaseDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "analysis def", context.caseBody());
+        return BuildDefinitionFromDeclaration(
+            context.definitionDeclaration(), "analysis def", context.caseBody(), () => CollectCaseBodyChildren(context.caseBody()));
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitVerificationCaseDefinition(SysMLv2Parser.VerificationCaseDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "verification def", context.caseBody());
+        return BuildDefinitionFromDeclaration(
+            context.definitionDeclaration(), "verification def", context.caseBody(), () => CollectCaseBodyChildren(context.caseBody()));
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitUseCaseDefinition(SysMLv2Parser.UseCaseDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "use case def");
+        return BuildDefinitionFromDeclaration(
+            context.definitionDeclaration(), "use case def", bodyCollector: () => CollectCaseBodyChildren(context.caseBody()));
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitCaseUsage(SysMLv2Parser.CaseUsageContext context)
     {
-        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "case", context.caseBody());
+        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "case", context.caseBody(), context.caseBody());
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitAnalysisCaseUsage(SysMLv2Parser.AnalysisCaseUsageContext context)
     {
-        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "analysis", context.caseBody());
+        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "analysis", context.caseBody(), context.caseBody());
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitVerificationCaseUsage(SysMLv2Parser.VerificationCaseUsageContext context)
     {
-        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "verification", context.caseBody());
+        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "verification", context.caseBody(), context.caseBody());
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitUseCaseUsage(SysMLv2Parser.UseCaseUsageContext context)
     {
-        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "use case", null);
+        return BuildCaseUsageNode(context.constraintUsageDeclaration(), "use case", null, context.caseBody());
     }
 
     /// <inheritdoc/>
@@ -1285,6 +1328,11 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         var specialization = ExtractSpecialization(declaration?.usageDeclaration()?.featureSpecializationPart());
+
+        _namespaceStack.Add(name);
+        var bodyChildren = CollectCalculationBodyChildren(context.calculationBody());
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
         return ApplyFeatureNotation(
             new SysmlFeatureNode
             {
@@ -1293,6 +1341,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 FeatureKeyword = "calc",
                 FeatureTyping = specialization.Typing,
                 Multiplicity = specialization.Multiplicity,
+                Children = Excluded(bodyChildren),
             },
             declaration?.usageDeclaration(),
             declaration?.valuePart());
@@ -1302,17 +1351,20 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     Builds the <see cref="SysmlFeatureNode"/> of a <c>case</c>/<c>analysis</c>/<c>verification</c>/
     ///     <c>use case</c> usage (grammar shape <c>occurrenceUsagePrefix KEYWORD
     ///     constraintUsageDeclaration caseBody</c>), capturing its declared name, feature typing and
-    ///     multiplicity, and (when a body is supplied) its nested
-    ///     verified-requirement names. Mirrors the definition-side builders, which do not collect the
-    ///     case body's other members; an unnamed usage yields no node, like the other usage builders.
+    ///     multiplicity, its nested verified-requirement names (when a verification body is
+    ///     supplied) and the members its body declares (flagged
+    ///     <see cref="SysmlNode.IsExcludedFromDiagrams"/>); an unnamed usage yields no node, like the
+    ///     other usage builders.
     /// </summary>
     /// <param name="declaration">The usage's declaration, or null when it has none.</param>
     /// <param name="keyword">The feature keyword (e.g. <c>"analysis"</c>).</param>
-    /// <param name="body">The case body to scan for <c>verify</c> members, or null to skip the scan.</param>
+    /// <param name="verifyBody">The case body to scan for <c>verify</c> members, or null to skip the scan.</param>
+    /// <param name="caseBody">The case body whose members are built as children.</param>
     private SysmlFeatureNode? BuildCaseUsageNode(
         SysMLv2Parser.ConstraintUsageDeclarationContext? declaration,
         string keyword,
-        Antlr4.Runtime.Tree.IParseTree? body)
+        Antlr4.Runtime.Tree.IParseTree? verifyBody,
+        SysMLv2Parser.CaseBodyContext? caseBody)
     {
         var decl = declaration?.usageDeclaration();
         var name = GetDeclaredName(decl?.identification());
@@ -1322,6 +1374,11 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         var specialization = ExtractSpecialization(decl?.featureSpecializationPart());
+
+        _namespaceStack.Add(name);
+        var bodyChildren = CollectCaseBodyChildren(caseBody);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
         return ApplyFeatureNotation(
             new SysmlFeatureNode
             {
@@ -1330,9 +1387,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 FeatureKeyword = keyword,
                 FeatureTyping = specialization.Typing,
                 Multiplicity = specialization.Multiplicity,
-                VerifiedRequirementNames = body is not null
-                    ? FindVerificationMembers(body)
+                VerifiedRequirementNames = verifyBody is not null
+                    ? FindVerificationMembers(verifyBody)
                     : Array.Empty<string>(),
+                Children = Excluded(bodyChildren),
             },
             decl,
             declaration?.valuePart());
@@ -1377,6 +1435,214 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     public override SysmlNode? VisitReferenceUsage(SysMLv2Parser.ReferenceUsageContext context)
     {
         return BuildUsageNode(context.usage(), "ref");
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    ///     A bare (default) reference usage — a usage with no kind keyword, such as the parameter
+    ///     <c>in x : T;</c>, <c>out image;</c> or <c>in :&gt;&gt; payload [0..*];</c> of a behavior,
+    ///     or <c>distancePerVolume :&gt; scalarQuantities = d / v;</c> in a package — builds a
+    ///     feature with the keyword <c>ref</c> (its <see cref="SysmlFeatureNode.IsReference"/> stays
+    ///     <see langword="false"/>, as no <c>ref</c> keyword was written). The direction, typing,
+    ///     multiplicity and value come from the usual usage handling, so a later diagram can list
+    ///     the parameters of an action (issue #103); until then the node is excluded from diagrams.
+    ///     A form with no declaration at all (a stray <c>;</c>) builds nothing.
+    /// </remarks>
+    public override SysmlNode? VisitDefaultReferenceUsage(SysMLv2Parser.DefaultReferenceUsageContext context)
+    {
+        var usage = context.usage();
+        return usage?.usageDeclaration() is null ? null : BuildUsageNode(usage, "ref", excludedFromDiagrams: true);
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    ///     A portion usage (<c>snapshot x : T;</c>, <c>timeslice y : T { ... }</c>) builds a
+    ///     feature whose keyword is the portion kind, excluded from diagrams.
+    /// </remarks>
+    public override SysmlNode? VisitPortionUsage(SysMLv2Parser.PortionUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), context.portionKind().GetText(), excludedFromDiagrams: true);
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    ///     An individual usage (<c>individual x : T;</c>) is an <c>occurrence</c> feature flagged
+    ///     <see cref="SysmlFeatureNode.IsIndividual"/>, excluded from diagrams.
+    /// </remarks>
+    public override SysmlNode? VisitIndividualUsage(SysMLv2Parser.IndividualUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "occurrence", excludedFromDiagrams: true);
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitPerformActionUsage(SysMLv2Parser.PerformActionUsageContext context)
+    {
+        var declaration = context.performActionUsageDeclaration();
+        return BuildBodyUsage(
+            declaration?.usageDeclaration(),
+            declaration?.ownedReferenceSubsetting(),
+            declaration?.featureSpecializationPart(),
+            declaration?.valuePart(),
+            "perform",
+            () => CollectActionBodyChildren(context.actionBody()?.actionBodyItem() ?? []).Children);
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitExhibitStateUsage(SysMLv2Parser.ExhibitStateUsageContext context)
+    {
+        return BuildBodyUsage(
+            context.usageDeclaration(),
+            context.ownedReferenceSubsetting(),
+            context.featureSpecializationPart(),
+            context.valuePart(),
+            "exhibit",
+            () => CollectChildren(context.stateUsageBody()?.stateBodyItem() ?? []).Children,
+            isParallel: context.stateUsageBody()?.PARALLEL() is not null);
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitIncludeUseCaseUsage(SysMLv2Parser.IncludeUseCaseUsageContext context)
+    {
+        return BuildBodyUsage(
+            context.usageDeclaration(),
+            context.ownedReferenceSubsetting(),
+            context.featureSpecializationPart(),
+            context.valuePart(),
+            "include",
+            () => CollectCaseBodyChildren(context.caseBody()));
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAssertConstraintUsage(SysMLv2Parser.AssertConstraintUsageContext context)
+    {
+        return BuildBodyUsage(
+            context.constraintUsageDeclaration()?.usageDeclaration(),
+            context.ownedReferenceSubsetting(),
+            context.featureSpecializationPart(),
+            context.constraintUsageDeclaration()?.valuePart(),
+            "assert constraint",
+            () => CollectCalculationBodyChildren(context.calculationBody()));
+    }
+
+    /// <summary>
+    ///     Builds the feature of a <c>perform</c>, <c>exhibit</c>, <c>include</c> or <c>assert</c>
+    ///     usage: either a declaration (<c>perform action producerBehavior { ... }</c>) or a
+    ///     reference to an existing feature (<c>perform startVehicle.turnVehicleOn;</c>,
+    ///     <c>assert massLimitation { ... }</c>), together with the members of its body.
+    /// </summary>
+    /// <remarks>
+    ///     The usage is named by its declared name, otherwise by the simple name of the first
+    ///     feature it redefines, otherwise by the simple name of the feature it references, so a
+    ///     feature chain such as <c>driver.turnVehicleOn</c> can pass through it. A usage named
+    ///     only by its reference lives in the same namespace as the feature it references, so its
+    ///     qualified name gets a synthetic <c>$&lt;keyword&gt;&lt;n&gt;</c> segment instead of the
+    ///     reference's simple name: the two would otherwise collide. A usage with neither a name nor
+    ///     a reference (<c>assert constraint { ... }</c>) builds no node. The node and everything
+    ///     it contains are excluded from diagrams.
+    /// </remarks>
+    /// <param name="decl">The declared form's usage declaration, or null.</param>
+    /// <param name="reference">The referenced feature of the reference form, or null.</param>
+    /// <param name="referenceSpecialization">The specialization written after a reference, or null.</param>
+    /// <param name="valuePart">The value part, or null.</param>
+    /// <param name="keyword">The feature keyword (<c>perform</c>, <c>exhibit</c>, <c>include</c>, <c>assert constraint</c>).</param>
+    /// <param name="collectBody">Builds the members of the usage's body.</param>
+    /// <param name="isParallel">Whether the body is a <c>parallel</c> state body.</param>
+    private SysmlFeatureNode? BuildBodyUsage(
+        SysMLv2Parser.UsageDeclarationContext? decl,
+        SysMLv2Parser.OwnedReferenceSubsettingContext? reference,
+        SysMLv2Parser.FeatureSpecializationPartContext? referenceSpecialization,
+        SysMLv2Parser.ValuePartContext? valuePart,
+        string keyword,
+        Func<IReadOnlyList<SysmlNode>> collectBody,
+        bool isParallel = false)
+    {
+        var specializationPart = decl?.featureSpecializationPart() ?? referenceSpecialization;
+        var declaredName = GetDeclaredName(decl?.identification());
+        var referenceText = reference?.GetText();
+        var redefinitions = ExtractRedefinedFeatures(specializationPart);
+        var effectiveName = declaredName
+            ?? (redefinitions.Count > 0 ? SimpleNameFromReference(redefinitions[0]) : null)
+            ?? (referenceText is not null ? SimpleNameFromReference(referenceText) : null);
+        if (effectiveName is null)
+        {
+            return null;
+        }
+
+        var segment = declaredName is null && redefinitions.Count == 0
+            ? $"${keyword.Split(' ')[0]}{_syntheticScopeCounter++}"
+            : effectiveName;
+
+        _namespaceStack.Add(segment);
+        _excludedBodyDepth++;
+        var children = collectBody();
+        _excludedBodyDepth--;
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
+        var node = ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = effectiveName,
+                QualifiedName = QualifyName(segment),
+                FeatureKeyword = keyword,
+                FeatureTyping = ExtractFeatureTyping(specializationPart),
+                Multiplicity = ExtractMultiplicity(specializationPart),
+                Children = children,
+                IsParallel = isParallel,
+            },
+            decl,
+            valuePart);
+
+        // The reference form's own specialization part is not a usage declaration; capture its
+        // redefinitions and subsettings, and record the referenced feature as the reference
+        // subsetting (name lookup only: it produces no edge).
+        if (decl is null)
+        {
+            ApplySpecializationClauses(node, referenceSpecialization);
+        }
+
+        if (referenceText is not null)
+        {
+            node.ReferenceSubsettingName = referenceText;
+        }
+
+        return MarkExcluded(node);
+    }
+
+    /// <summary>
+    ///     Returns <paramref name="children"/> with each node and all its descendants flagged
+    ///     <see cref="SysmlNode.IsExcludedFromDiagrams"/>: members of a body that is modeled for
+    ///     name resolution, query and export only.
+    /// </summary>
+    private static IReadOnlyList<SysmlNode> Excluded(IReadOnlyList<SysmlNode> children)
+    {
+        foreach (var child in children)
+        {
+            MarkExcluded(child);
+        }
+
+        return children;
+    }
+
+    /// <summary>
+    ///     Flags <paramref name="node"/> and all its descendants
+    ///     <see cref="SysmlNode.IsExcludedFromDiagrams"/>.
+    /// </summary>
+    private static T MarkExcluded<T>(T node)
+        where T : SysmlNode
+    {
+        // The flag always covers a whole subtree, so an already flagged node needs no second walk.
+        if (node.IsExcludedFromDiagrams)
+        {
+            return node;
+        }
+
+        node.IsExcludedFromDiagrams = true;
+        foreach (var child in node.Children)
+        {
+            MarkExcluded(child);
+        }
+
+        return node;
     }
 
     /// <inheritdoc/>
@@ -1757,6 +2023,18 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var specialization = ExtractSpecialization(
             context.constraintUsageDeclaration()?.usageDeclaration()?.featureSpecializationPart());
 
+        if (name is not null)
+        {
+            _namespaceStack.Add(name);
+        }
+
+        var bodyChildren = CollectCalculationBodyChildren(context.calculationBody());
+
+        if (name is not null)
+        {
+            _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+        }
+
         return ApplyFeatureNotation(
             new SysmlFeatureNode
             {
@@ -1767,6 +2045,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 Multiplicity = specialization.Multiplicity,
                 ExpressionText = expressionText,
                 ReferenceOccurrences = ConstraintBodyOccurrences(context.calculationBody()),
+                Children = Excluded(bodyChildren),
             },
             context.constraintUsageDeclaration()?.usageDeclaration(),
             context.constraintUsageDeclaration()?.valuePart());
@@ -2126,6 +2405,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var target = ConnectorEndReference(
             context.transitionSuccessionMember()?.transitionSuccession()?.connectorEndMember());
         var guard = context.guardExpressionMember()?.ownedExpression()?.GetText();
+        var effect = BuildTransitionEffect(name, context.effectBehaviorMember());
 
         return new SysmlTransitionNode
         {
@@ -2138,7 +2418,43 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Effect = OriginalTextOrNull(context.effectBehaviorMember()?.effectBehaviorUsage()),
             ReferenceOccurrences = TransitionOccurrences(
                 context.guardExpressionMember(), context.triggerActionMember(), context.effectBehaviorMember()),
+            Children = effect is null ? Array.Empty<SysmlNode>() : [effect],
         };
+    }
+
+    /// <summary>
+    ///     Builds the <c>effect</c> feature a named transition owns for its <c>do ...</c> clause, so
+    ///     a reference such as <c>delivering.effect.sentMessage</c> resolves: the keyword is the
+    ///     kind of the effect action (<c>send</c>, <c>accept</c>, or <c>action</c> for a performed
+    ///     or assigning effect), which gives the feature the members of that action kind. The node
+    ///     is excluded from diagrams; a transition without a name or without an effect has none.
+    /// </summary>
+    private SysmlFeatureNode? BuildTransitionEffect(
+        string? transitionName, SysMLv2Parser.EffectBehaviorMemberContext? member)
+    {
+        var usage = member?.effectBehaviorUsage();
+        if (transitionName is null || usage is null)
+        {
+            return null;
+        }
+
+        var keyword = usage switch
+        {
+            _ when usage.transitionSendActionUsage() is not null => "send",
+            _ when usage.transitionAcceptActionUsage() is not null => "accept",
+            _ when usage.transitionPerformActionUsage() is not null ||
+                   usage.transitionAssignmentActionUsage() is not null => "action",
+            _ => null,
+        };
+
+        return keyword is null
+            ? null
+            : MarkExcluded(new SysmlFeatureNode
+            {
+                Name = "effect",
+                QualifiedName = $"{QualifyName(transitionName)}::effect",
+                FeatureKeyword = keyword,
+            });
     }
 
     /// <summary>
@@ -2236,7 +2552,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     Builds a usage/feature AST node from a <see cref="SysMLv2Parser.UsageContext"/>, capturing
     ///     the keyword, declared name, feature typing, multiplicity, and any nested usage children.
     /// </summary>
-    private SysmlFeatureNode? BuildUsageNode(SysMLv2Parser.UsageContext? usage, string keyword)
+    private SysmlFeatureNode? BuildUsageNode(
+        SysMLv2Parser.UsageContext? usage, string keyword, bool excludedFromDiagrams = false)
     {
         if (usage is null)
         {
@@ -2246,7 +2563,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var decl = usage.usageDeclaration();
         var name = GetDeclaredName(decl?.identification());
         var typing = ExtractFeatureTyping(decl?.featureSpecializationPart());
-        var redefined = ExtractRedefinedFeature(decl?.featureSpecializationPart());
+        var redefinitions = ExtractRedefinedFeatures(decl?.featureSpecializationPart());
+        var redefined = redefinitions.Count > 0 ? redefinitions[0] : null;
         var supertypeNames = ExtractSubsettingTargetNames(decl?.featureSpecializationPart());
         var multiplicity = ExtractMultiplicity(decl?.featureSpecializationPart());
 
@@ -2259,21 +2577,29 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         // declared name is always just its simple name.
         var effectiveName = name ?? (redefined is not null ? SimpleNameFromReference(redefined) : null);
 
-        // Named usages contribute a namespace segment for any nested usages they own.
-        var qualifiedName = effectiveName is not null ? QualifyName(effectiveName) : null;
+        // Named usages contribute a namespace segment for any nested usages they own. An anonymous
+        // usage with a body (`attribute :> differencesOf[1] { item :>> elements = ...; }`) gets a
+        // synthetic scope segment so its members resolve and register under it — not under the
+        // enclosing namespace, where they would never see what the anonymous usage inherits. Its
+        // Name stays null.
+        var body = usage.usageCompletion()?.usageBody()?.definitionBody();
+        var scopeSegment = effectiveName
+            ?? (body is { } scoped && scoped.definitionBodyItem().Length > 0 ? $"$anon{_syntheticScopeCounter++}" : null);
+        var qualifiedName = scopeSegment is not null ? QualifyName(scopeSegment) : null;
         IReadOnlyList<SysmlNode> children = Array.Empty<SysmlNode>();
         IReadOnlyList<SysmlAnnotation> annotations = Array.Empty<SysmlAnnotation>();
-        var body = usage.usageCompletion()?.usageBody()?.definitionBody();
         if (body is not null)
         {
-            if (effectiveName is not null)
+            if (scopeSegment is not null)
             {
-                _namespaceStack.Add(effectiveName);
+                _namespaceStack.Add(scopeSegment);
             }
 
+            _excludedBodyDepth += excludedFromDiagrams ? 1 : 0;
             (children, annotations) = CollectDefinitionBodyItems(body.definitionBodyItem());
+            _excludedBodyDepth -= excludedFromDiagrams ? 1 : 0;
 
-            if (effectiveName is not null)
+            if (scopeSegment is not null)
             {
                 _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
             }
@@ -2286,13 +2612,15 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             FeatureKeyword = keyword,
             FeatureTyping = typing,
             RedefinedFeatureName = redefined,
+            AdditionalRedefinedFeatureNames = redefinitions.Count > 1 ? redefinitions.Skip(1).ToList() : null,
             SupertypeNames = supertypeNames,
             Multiplicity = multiplicity,
             Children = children,
             Annotations = annotations,
         };
 
-        return ApplyFeatureNotation(node, decl, usage.usageCompletion()?.valuePart());
+        ApplyFeatureNotation(node, decl, usage.usageCompletion()?.valuePart());
+        return excludedFromDiagrams ? MarkExcluded(node) : node;
     }
 
     /// <summary>
@@ -2308,11 +2636,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     <c>featureSpecializationPart</c>. Shared by every usage builder that produces a
     ///     <see cref="SysmlFeatureNode"/> outside <see cref="BuildUsageNode"/> (requirement, concern,
     ///     constraint, action, state, and the case-kind usages), so each keeps the feature typing and
-    ///     multiplicity that a generic usage keeps. Redefinition and subsetting clauses are
-    ///     deliberately not captured here: <see cref="NameResolver"/> resolves implicit
-    ///     specialization (#93) for name lookup only, and capturing these clauses is deferred
-    ///     until the remaining resolver gaps (#129) are closed, so capturing them now would only
-    ///     add unresolved-reference warnings for valid models.
+    ///     multiplicity that a generic usage keeps. Redefinition and subsetting clauses are not
+    ///     part of it: <see cref="ApplyFeatureNotation"/> records them centrally for every usage
+    ///     (see <see cref="ApplySpecializationClauses"/>).
     /// </summary>
     private static FeatureSpecialization ExtractSpecialization(
         SysMLv2Parser.FeatureSpecializationPartContext? fsp) =>
@@ -2343,7 +2669,40 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         node.ReferenceSubsettingName = ExtractReferenceSubsettingName(specializationPart);
         node.ConjugatedFeatureTyping = ExtractConjugatedTypingName(specializationPart);
         node.ValueText = OriginalTextOrNull(valuePart?.featureValue());
+        ApplySpecializationClauses(node, specializationPart);
         return node;
+    }
+
+    /// <summary>
+    ///     Records the redefinition and subsetting clauses of <paramref name="specializationPart"/>
+    ///     on <paramref name="node"/> unless its builder already did: the first redefinition target
+    ///     in <see cref="SysmlFeatureNode.RedefinedFeatureName"/>, any further ones in
+    ///     <see cref="SysmlFeatureNode.AdditionalRedefinedFeatureNames"/>, and the subsetting
+    ///     targets in <see cref="SysmlNode.SupertypeNames"/>. Applied centrally so that every kind
+    ///     of usage (action, calculation, state, constraint, requirement, case, ...) keeps the
+    ///     relationships it declares, as a generic usage always has.
+    /// </summary>
+    private static void ApplySpecializationClauses(
+        SysmlFeatureNode node, SysMLv2Parser.FeatureSpecializationPartContext? specializationPart)
+    {
+        if (node.RedefinedFeatureName is null)
+        {
+            var redefinitions = ExtractRedefinedFeatures(specializationPart);
+            if (redefinitions.Count > 0)
+            {
+                node.RedefinedFeatureName = redefinitions[0];
+                node.AdditionalRedefinedFeatureNames = redefinitions.Count > 1 ? redefinitions.Skip(1).ToList() : null;
+            }
+        }
+
+        if (node.SupertypeNames.Count == 0)
+        {
+            var subsettings = ExtractSubsettingTargetNames(specializationPart);
+            if (subsettings.Count > 0)
+            {
+                node.SupertypeNames = subsettings;
+            }
+        }
     }
 
     /// <summary>
@@ -2446,15 +2805,18 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <summary>
-    ///     Extracts the first redefined-feature raw reference text from a feature specialization
-    ///     part (the target that follows <c>redefines</c>/<c>:&gt;&gt;</c>), or null when the
-    ///     feature declares no redefinition.
+    ///     Extracts the raw reference text of every redefinition target of a feature specialization
+    ///     part (the targets that follow <c>redefines</c>/<c>:&gt;&gt;</c>, in source order,
+    ///     whether written as several clauses — <c>:&gt;&gt; a :&gt;&gt; b</c> — or as a comma
+    ///     list — <c>:&gt;&gt; a, b</c>), or an empty list when the feature declares no
+    ///     redefinition.
     /// </summary>
-    private static string? ExtractRedefinedFeature(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
+    private static List<string> ExtractRedefinedFeatures(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
     {
+        var names = new List<string>();
         if (fsp is null)
         {
-            return null;
+            return names;
         }
 
         foreach (var fs in fsp.featureSpecialization())
@@ -2465,22 +2827,17 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 continue;
             }
 
-            // The first redefined feature is held by the redefines clause; additional
-            // redefinitions follow as a list.
-            var fromRedefines = redefinitions.redefines()?.ownedRedefinition();
-            if (fromRedefines is not null)
+            // The first target of a clause is held by the redefines clause; further ones of the
+            // same clause follow as a list.
+            if (redefinitions.redefines()?.ownedRedefinition() is { } first)
             {
-                return fromRedefines.GetText();
+                names.Add(first.GetText());
             }
 
-            var fromList = redefinitions.ownedRedefinition().FirstOrDefault(owned => owned is not null);
-            if (fromList is not null)
-            {
-                return fromList.GetText();
-            }
+            names.AddRange(redefinitions.ownedRedefinition().Where(owned => owned is not null).Select(owned => owned.GetText()));
         }
 
-        return null;
+        return names;
     }
 
     /// <summary>
@@ -2509,9 +2866,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <summary>
     ///     Extracts the raw reference text of every <c>subsets &lt;target&gt;;</c>/<c>:&gt;
     ///     &lt;target&gt;</c> clause on a usage/feature — a subsetting reference, grammatically
-    ///     distinct from a redefinition (<see cref="ExtractRedefinedFeature"/>) even though both
+    ///     distinct from a redefinition (<see cref="ExtractRedefinedFeatures"/>) even though both
     ///     share the same <c>featureSpecialization</c> alternative structure. Mirrors
-    ///     <see cref="ExtractRedefinedFeature"/>'s structure for pulling both the first (held by
+    ///     <see cref="ExtractRedefinedFeatures"/>'s structure for pulling both the first (held by
     ///     the <c>subsets</c> clause) and any subsequent comma-separated targets. Populates
     ///     <c>SysmlFeatureNode.SupertypeNames</c> so that a usage-level <c>:&gt;</c> (e.g.
     ///     <c>part vehicle1_c1 :&gt; vehicle1</c>) is resolved into a <see
@@ -3390,6 +3747,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                     direction = SysmlFeatureDirection.In;
                     continue;
                 case SysMLv2Parser.OUT:
+                case SysMLv2Parser.RETURN:
+                    // A `return` parameter is an output of its behavior.
                     direction = SysmlFeatureDirection.Out;
                     continue;
                 case SysMLv2Parser.INOUT:
@@ -3898,6 +4257,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
         }
 
+        var redefinitions = ExtractRedefinedFeatures(specialization);
         return new SysmlFeatureNode
         {
             Name = name,
@@ -3905,7 +4265,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             QualifiedName = name is not null ? QualifyName(name) : null,
             FeatureKeyword = keyword,
             FeatureTyping = ExtractFeatureTyping(specialization),
-            RedefinedFeatureName = ExtractRedefinedFeature(specialization),
+            RedefinedFeatureName = redefinitions.Count > 0 ? redefinitions[0] : null,
+            AdditionalRedefinedFeatureNames = redefinitions.Count > 1 ? redefinitions.Skip(1).ToList() : null,
             SupertypeNames = ExtractSubsettingTargetNames(specialization),
             Multiplicity = ExtractMultiplicity(specialization),
             Children = children,
@@ -3978,16 +4339,21 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     <see langword="null"/>, which is behavior-neutral for callers that don't have (or don't
     ///     need to scan) a specialized body.
     /// </param>
+    /// <param name="bodyCollector">
+    ///     Optional builder of the body's member nodes (the body of a calculation, case or use case
+    ///     definition). Its nodes become the definition's children, flagged
+    ///     <see cref="SysmlNode.IsExcludedFromDiagrams"/>; <see langword="null"/> builds none.
+    /// </param>
     /// <remarks>
-    ///     Only the declared name, supertype names, and (when <paramref name="specializedBody"/> is
-    ///     given) nested verified-requirement names are captured. The specialized body's other
-    ///     contents (nested usages and compartment members) are not yet collected; that is handled
-    ///     in a later phase that adds usage and compartment rendering.
+    ///     Only the declared name, supertype names, nested verified-requirement names (when
+    ///     <paramref name="specializedBody"/> is given) and the members <paramref name="bodyCollector"/>
+    ///     builds are captured.
     /// </remarks>
     private SysmlDefinitionNode? BuildDefinitionFromDeclaration(
         SysMLv2Parser.DefinitionDeclarationContext? decl,
         string keyword,
-        Antlr4.Runtime.Tree.IParseTree? specializedBody = null)
+        Antlr4.Runtime.Tree.IParseTree? specializedBody = null,
+        Func<IReadOnlyList<SysmlNode>>? bodyCollector = null)
     {
         var name = GetDeclaredName(decl?.identification());
         if (name is null)
@@ -4001,6 +4367,16 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ? FindVerificationMembers(specializedBody)
             : Array.Empty<string>();
 
+        // A behavior definition's body (parameters, nested actions) is built so the names it
+        // declares resolve, but kept out of diagrams until its notation is drawn.
+        IReadOnlyList<SysmlNode> children = Array.Empty<SysmlNode>();
+        if (bodyCollector is not null)
+        {
+            _namespaceStack.Add(name);
+            children = Excluded(bodyCollector());
+            _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+        }
+
         return new SysmlDefinitionNode
         {
             Name = name,
@@ -4008,6 +4384,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             DefinitionKeyword = keyword,
             SupertypeNames = supertypeNames,
             VerifiedRequirementNames = verifiedRequirementNames,
+            Children = children,
         };
     }
 
@@ -4173,15 +4550,54 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     traversal state maintained here rather than from anything inside the visited node.
     /// </summary>
     private (IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations)
-        CollectActionBodyChildren(IEnumerable<SysMLv2Parser.ActionBodyItemContext> items)
+        CollectActionBodyChildren(IEnumerable<SysMLv2Parser.ActionBodyItemContext> items, bool excluded = false) =>
+        CollectOrderedChildren(
+            items.Select(item => ((Antlr4.Runtime.ParserRuleContext)item, (SysMLv2Parser.ActionBodyItemContext?)item)),
+            excluded);
+
+    /// <summary>
+    ///     Collects the members of a calculation or constraint body: its action-body items and
+    ///     <c>return</c> parameters, in source order. A <c>;</c> body or a body of only a result
+    ///     expression has none.
+    /// </summary>
+    private IReadOnlyList<SysmlNode> CollectCalculationBodyChildren(SysMLv2Parser.CalculationBodyContext? body) =>
+        CollectOrderedChildren(
+            (body?.calculationBodyPart()?.calculationBodyItem() ?? [])
+                .Select(item => ((Antlr4.Runtime.ParserRuleContext)item, (SysMLv2Parser.ActionBodyItemContext?)item.actionBodyItem())),
+            excluded: true).Children;
+
+    /// <summary>
+    ///     Collects the members of a case body (case, analysis, verification, use case): its
+    ///     action-body items, <c>return</c> parameters, subject and actors, in source order. The
+    ///     <c>objective</c> is not modeled (its <c>verify</c> targets are captured separately).
+    /// </summary>
+    private IReadOnlyList<SysmlNode> CollectCaseBodyChildren(SysMLv2Parser.CaseBodyContext? body) =>
+        CollectOrderedChildren(
+            (body?.caseBodyItem() ?? [])
+                .Where(item => item.objectiveMember() is null)
+                .Select(item => ((Antlr4.Runtime.ParserRuleContext)item, (SysMLv2Parser.ActionBodyItemContext?)item.actionBodyItem())),
+            excluded: true).Children;
+
+    /// <summary>
+    ///     Collects a behavior body's child nodes in source order (see
+    ///     <see cref="CollectActionBodyChildren"/>); <paramref name="items"/> pairs each body item
+    ///     with its <c>actionBodyItem</c> when it is one (the flow position only advances over
+    ///     those). Annotations nested in the body are returned but not attached by the callers
+    ///     that build previously body-less kinds.
+    /// </summary>
+    private (IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations)
+        CollectOrderedChildren(
+            IEnumerable<(Antlr4.Runtime.ParserRuleContext Item, SysMLv2Parser.ActionBodyItemContext? Action)> items,
+            bool excluded = false)
     {
         var children = new List<SysmlNode>();
         var annotations = new List<SysmlAnnotation>();
         var savedPreviousName = _actionBodyPreviousNodeName;
         _actionBodyPreviousNodeName = null;
+        _excludedBodyDepth += excluded ? 1 : 0;
         try
         {
-            foreach (var item in items)
+            foreach (var (item, action) in items)
             {
                 var node = Visit(item);
                 if (node is AnnotationCapture capture)
@@ -4202,12 +4618,13 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                     children.Add(node);
                 }
 
-                _actionBodyPreviousNodeName = DetermineFlowPositionName(item, node);
+                _actionBodyPreviousNodeName = DetermineFlowPositionName(action, node);
             }
         }
         finally
         {
             _actionBodyPreviousNodeName = savedPreviousName;
+            _excludedBodyDepth -= excluded ? 1 : 0;
         }
 
         return (children, annotations);
@@ -4224,7 +4641,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     <c>first start;</c> (no attached succession) still establishes <c>"start"</c> as the
     ///     position even though it synthesizes no AST node of its own.
     /// </summary>
-    private static string? DetermineFlowPositionName(SysMLv2Parser.ActionBodyItemContext item, SysmlNode? node)
+    private static string? DetermineFlowPositionName(SysMLv2Parser.ActionBodyItemContext? item, SysmlNode? node)
     {
         if (node is MultiNodeCapture { Nodes.Count: > 0 } multi)
         {
@@ -4238,7 +4655,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             return node.Name;
         }
 
-        return item.initialNodeMember()?.qualifiedName()?.GetText();
+        return item?.initialNodeMember()?.qualifiedName()?.GetText();
     }
 
     /// <summary>

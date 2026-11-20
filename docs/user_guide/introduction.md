@@ -216,19 +216,33 @@ Without the option, gate a pipeline on them by failing the build on any `warning
 sysml2tools lint --strict-unresolved "src/**/*.sysml"
 ```
 
-Strict reporting is not the default yet because a few valid OMG examples still report errors: they
-reference members the tool does not model (the nested bodies of `action` usages and of `calc def`/
-`constraint def`, time slices and snapshots, bare `in x : T;` usages, and a few other shapes), so
-there is nothing for the name to resolve to. Dotted feature chains (`a.b.c`) and the synthetic
-action-node names resolve: each segment after the first is looked up in the previous feature's own
-members and everything it inherits (typing, subsetting, redefinition, implicit specializations,
-conjugated port types, aliases), public members only. The resolver also
+Strict reporting is not the default yet; the flip is a separate change (#123/#130). On the bundled
+OMG corpus (251 files) strict mode now reports 8 errors in 4 files (it was 48 in 18 files, and 94 in
+36 before feature chains were resolved), and each one is explained:
+
+- `17.Control/Camera.sysml` (3 errors, `Scene`, `Picture`, `Image`) is a name collision between two
+  corpus files, not a gap in the tool: the corpus is loaded as one workspace, and the root-level
+  `part def Camera` of `CameraExample/Camera.sysml` has the same name as this file's root-level
+  `package Camera`, so `Camera::Scene` is looked up in the part definition. Each file is valid on its
+  own — loading just this file and the package it imports reports nothing.
+- `AHFNorwayTopics.sysml`, `AHFSequences.sysml` (1 error each) and `14c-LanguageExtensions.sysml`
+  (3 errors) use user-defined keywords (`#service def`, `#cloud X`, `#cause occurrence`) whose
+  members come from semantic metadata (a `SemanticMetadata` definition's `baseType`), which is not
+  modeled yet.
+
+Dotted feature chains (`a.b.c`) and the synthetic action-node names resolve: each segment after the
+first is looked up in the previous feature's own members and everything it inherits (typing,
+subsetting, redefinition, implicit specializations, conjugated port types, aliases), public members
+only. The nested bodies of `action`, `calc`, `constraint`, `state` and case usages and definitions
+are modeled for this purpose (so `producer.producerBehavior.publish.sentMessage` resolves), as are
+bare parameters (`in x : T;`, `out image;`), `timeslice`/`snapshot` usages, `perform`, `exhibit`,
+`include` and `assert` usages, the `effect` of a transition, every target of a multiple
+redefinition (`part :>> a :>> b`), and an anonymous usage that owns members. These members are
+**not drawn** in diagrams yet (see [Modifier and notation data on nodes](#modifier-and-notation-data-on-nodes)).
+The resolver also
 follows the implicit specializations of every definition and usage kind, so library members such as
-`self`, `start`, `shape`, and `annotatedElement` resolve without any explicit `:>`. On the
-bundled OMG corpus (251 files), strict mode currently reports 48 errors in 18 files (it was 94 in
-36 before feature chains were resolved); the remaining gaps are tracked by issue #129. The default is
-planned to change to errors once the OMG corpus produces close to zero strict
-errors.
+`self`, `start`, `shape`, and `annotatedElement` resolve without any explicit `:>`. The default is
+planned to change to errors once the remaining cases are handled.
 
 Beyond the declaration-level references (supertypes,
 typing, redefinitions, imports, `expose`, `satisfy`, `verify`, `allocate`, `dependency`, metadata,
@@ -1240,6 +1254,8 @@ names are written exactly as shown (no case conversion), like the other node pro
 | `IsParallel` | state definitions, state usages | declared `parallel` |
 | `Trigger`, `Effect` | transitions | the text after `accept` and after `do`, as written |
 | `IsElse` | action successions | declared with `else` (the default branch of a `decide` node) |
+| `AdditionalRedefinedFeatureNames` | usages | raw redefinition targets after the first (`:>> a :>> b`: `["b"]`) |
+| `IsExcludedFromDiagrams` | any node | modeled for resolution, `query` and `export` only; diagrams do not draw it |
 
 Notes:
 
@@ -1248,8 +1264,19 @@ Notes:
   exports its typing and multiplicity (`action build : BuildStep [2]`) like any other usage.
 - `ReferenceSubsettingName` and `ConjugatedFeatureTyping` are raw and unresolved: they produce no
   edge and no diagnostic, and a conjugated usage still has a `null` typing reference.
-- Only usages that become model elements carry a `Direction`. A bare parameter such as
-  `in x : T;` is not a model element, so it is not exported.
+- Bare parameters and the other members that were once not model elements are now exported, with the
+  feature keywords `ref` (a bare usage such as `in x : T;` or `out image;`, with its `Direction`,
+  typing and multiplicity; `IsReference` stays absent because no `ref` was written), `timeslice`,
+  `snapshot`, `perform`, `exhibit`, `include`, `assert constraint`, and `effect` features owned by
+  named transitions. A `return` parameter has the direction `"Out"`. Every such member, and everything
+  inside the body of an `action`, `calc`, `constraint` or case usage or definition, has
+  `IsExcludedFromDiagrams`: diagrams do not draw them yet (the parameters of an action are drawn by
+  issue #103). A `perform`, `include` or `assert` usage written only as a reference
+  (`perform startVehicle.turnOn;`) is named after the referenced feature (`turnOn`), and its qualified
+  name has a synthetic segment such as `$perform0`; an anonymous usage that has a body is exported with
+  a synthetic scope such as `$anon0` (its members are named under it).
+- `query` and `export` list these members, so output for a model that uses them has more entries than
+  before.
 - `derived`, `constant`, and `end` modifiers are not captured.
 
 # Global Options

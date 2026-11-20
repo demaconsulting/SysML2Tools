@@ -860,3 +860,7 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInDefinitionContainer_AreNotMerged`:
   Two relationships between the same two definitions inside a definition container give two separate
   connectors, so parallel-edge merging stays off in definition-container scopes
+- `GeneralView_BuildLayout_ExcludedMembers_RenderIdenticallyToWorkspaceWithout`:
+  Members flagged `IsExcludedFromDiagrams` (bare parameters, `perform`/portion usages, a hidden nested
+  definition, and a hidden member of a port) add no box, row or port box: the SVG equals that of the
+  workspace without them

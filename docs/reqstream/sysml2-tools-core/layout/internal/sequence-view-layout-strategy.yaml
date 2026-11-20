@@ -206,3 +206,14 @@ sections:
           defeating the intended scoping.
         tests:
           - SequenceView_BuildLayout_ExposeInnerLifelineOfNestedDefinition_SelectsNestedDefinitionNotAncestor
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ExcludedMembers
+        title: >-
+          SequenceViewLayoutStrategy shall ignore members flagged IsExcludedFromDiagrams: they are
+          neither lifelines nor messages of the drawn sequence nor a reason to choose their owner as
+          the root.
+        justification: |
+          Members modeled only for name resolution have no notation yet; counting or drawing them
+          would change existing diagrams.
+        tests:
+          - SequenceView_BuildLayout_ExcludedMessagesAndLifelines_RenderIdenticallyToWorkspaceWithout

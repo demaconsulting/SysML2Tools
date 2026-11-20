@@ -111,3 +111,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `ActionFlowView_BuildLayout_WideBranchBoxes_LabeledJogIsLeftUnchanged` | Long sideways run keeps engine route |
 | `ActionFlowView_BuildLayout_DecisionWithManyBranches_KeepsDistinctJogLanes` | Sibling branches keep distinct runs |
 | `ActionFlowView_BuildLayout_LongLeftBranchGuard_LabelIsInsideCanvas` | Left overhang moves content right |
+| `ActionFlowView_BuildLayout_ExcludedBodies_RenderIdenticallyToWorkspaceWithout` | Hidden bodies are not drawn |

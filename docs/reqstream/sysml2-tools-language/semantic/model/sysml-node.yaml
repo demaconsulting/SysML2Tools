@@ -205,16 +205,44 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-FeatureDirection
         title: >-
           SysmlFeatureNode shall expose an optional Direction (In, Out, or InOut) for a usage
-          declared with an `in`, `out`, or `inout` keyword, null otherwise; a bare
-          direction-only parameter that produces no node carries no direction.
+          declared with an `in`, `out`, or `inout` keyword, or a `return` parameter (Out), null
+          otherwise, including for a bare direction-only parameter such as `in x : T;`.
         justification: |
-          Flow direction is part of how ports and parameters are drawn. Bare parameters are not
-          AST nodes today and creating them would change layout inputs, so only usages with a
-          direction keyword
-          carry a direction.
+          Flow direction is part of how ports and parameters are drawn. A bare parameter is a
+          usage like any other (it has the keyword `ref`), so it carries the direction it declares
+          and a later diagram can list the parameters of an action; until then it is excluded from
+          diagrams.
         tests:
           - WorkspaceLoader_LoadAsync_FeatureDirection_Captured
-          - WorkspaceLoader_LoadAsync_BareDirectionParameter_ProducesNoNode
+          - WorkspaceLoader_LoadAsync_BareDirectionParameter_BuildsRefNodeWithDirection
+          - AstBuilder_ReturnParameter_InCalcDef_HasOutDirection
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-AdditionalRedefinedFeatureNames
+        title: >-
+          SysmlFeatureNode shall expose AdditionalRedefinedFeatureNames: the raw reference text of
+          every redefinition target after the first, in source order, null when the feature has at
+          most one target, and shall keep it through serialization.
+        justification: |
+          `part :>> a :>> b` and `:>> a, b` redefine several features; each target is a general
+          type of the redefining feature, so all of them must be observable and resolvable, not
+          only the first.
+        tests:
+          - AstBuilder_MultipleRedefinitions_RecordsAllTargets
+          - Serialize_AdditionalRedefinitionsAndExcludedFlag_RoundTrip
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-IsExcludedFromDiagrams
+        title: >-
+          SysmlNode shall expose IsExcludedFromDiagrams, true for a member that is modeled for
+          name resolution, query and export only, with DiagramChildren returning the children that
+          are not excluded, and shall keep the flag through serialization.
+        justification: |
+          Members such as the bodies of action usages and bare parameters make names resolvable
+          before their diagram notation exists; the flag lets every diagram strategy skip them so
+          that no existing diagram changes.
+        tests:
+          - SysmlNode_DiagramChildren_OmitsExcludedChildren
+          - Serialize_AdditionalRedefinitionsAndExcludedFlag_RoundTrip
+          - WorkspaceLoader_LoadAsync_BareDirectionParameter_BuildsRefNodeWithDirection
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-MultiplicityModifiers
         title: >-

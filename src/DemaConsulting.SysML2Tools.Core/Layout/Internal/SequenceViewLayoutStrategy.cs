@@ -158,6 +158,12 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
 
         foreach (var (qualifiedName, node) in workspace.Declarations)
         {
+            // Members modeled for name resolution only are never drawn, nor chosen as a root.
+            if (node.IsExcludedFromDiagrams)
+            {
+                continue;
+            }
+
             if (node is not SysmlDefinitionNode def)
             {
                 continue;
@@ -173,7 +179,7 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var messages = def.Children.OfType<SysmlConnectionNode>().Count(c => c.ConnectionKeyword == "message");
+            var messages = def.DiagramChildren.OfType<SysmlConnectionNode>().Count(c => c.ConnectionKeyword == "message");
             var scoreBetter = messages > bestMessages;
             var isBetter = scope is not null
                 ? ExposeScopeResolver.IsMoreSpecificCandidate(qualifiedName, bestQualifiedName, scoreBetter)
@@ -235,19 +241,19 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
                     GeneralViewLayoutStrategy.UsageKeyword(declaration),
                     GeneralViewLayoutStrategy.FormatUsageNameLine(declaration, name),
                     declaration.IsReference,
-                    [.. declaration.Children
+                    [.. declaration.DiagramChildren
                         .OfType<SysmlFeatureNode>()
                         .Where(e => e.FeatureKeyword == EventKeyword && e.Name is not null)
                         .Select(e => e.Name!)]));
         }
 
-        foreach (var feature in root.Children.OfType<SysmlFeatureNode>()
+        foreach (var feature in root.DiagramChildren.OfType<SysmlFeatureNode>()
                      .Where(f => f.Name is not null && f.FeatureKeyword is not null && LifelineKeywords.Contains(f.FeatureKeyword)))
         {
             Add(feature.Name, feature);
         }
 
-        foreach (var message in root.Children.OfType<SysmlConnectionNode>().Where(c => c.ConnectionKeyword == "message"))
+        foreach (var message in root.DiagramChildren.OfType<SysmlConnectionNode>().Where(c => c.ConnectionKeyword == "message"))
         {
             Add(FirstSegment(message.EndpointA), null);
             Add(FirstSegment(message.EndpointB), null);
@@ -266,7 +272,7 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
         Dictionary<string, int> index)
     {
         var result = new List<MessageItem>();
-        foreach (var message in root.Children.OfType<SysmlConnectionNode>().Where(c => c.ConnectionKeyword == "message"))
+        foreach (var message in root.DiagramChildren.OfType<SysmlConnectionNode>().Where(c => c.ConnectionKeyword == "message"))
         {
             var from = FirstSegment(message.EndpointA);
             var to = FirstSegment(message.EndpointB);

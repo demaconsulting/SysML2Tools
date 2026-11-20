@@ -784,3 +784,120 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_SatisfyDeclaredRequirementUsage_ResolvesTypingNoWarning
           - WorkspaceLoader_LoadAsync_SatisfyByName_RecordsSatisfyEdge
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-BareUsages
+        title: >-
+          AstBuilder shall build a feature with the keyword `ref` for a bare usage (one with no
+          kind keyword, such as the parameter `in x : T;`, `out image;`, `in :>> payload;` or a
+          package-level `x :> y = v;`), capturing its direction, typing, multiplicity, value,
+          redefinitions and subsettings, and shall give a `return` parameter the direction Out.
+        justification: |
+          The OMG corpus references bare parameters (`shoot.picture`) that resolve only if they
+          exist as members; building them as ordinary features also lets a later diagram list the
+          parameters of an action (issue  # 103).
+        tests:
+          - AstBuilder_DefaultReferenceUsage_InActionDef_BuildsRefNodesWithDirectionTypingAndMultiplicity
+          - AstBuilder_DefaultReferenceUsage_InActionUsageBody_BindingResolves
+          - AstBuilder_DefaultReferenceUsage_NoDirectionInPackage_BuildsRefNode
+          - AstBuilder_DefaultReferenceUsage_RedefinitionOnly_TakesRedefinedName
+          - AstBuilder_DefaultReferenceUsage_WithoutDeclaration_BuildsNoNode
+          - AstBuilder_ReturnParameter_InCalcDef_HasOutDirection
+          - WorkspaceLoader_LoadAsync_BareDirectionParameter_BuildsRefNodeWithDirection
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-PortionUsages
+        title: >-
+          AstBuilder shall build a feature with the keyword `timeslice` or `snapshot` for a portion
+          usage, and an `occurrence` feature flagged individual for an `individual` usage, each
+          with its typing, multiplicity, and nested members.
+        justification: |
+          Successions and references between time slices and snapshots (`first assembly then
+          delivery;`) resolve only if the portions exist as members of their owner.
+        tests:
+          - AstBuilder_PortionUsage_TimesliceAndSnapshot_BuildNodesAndSuccessionResolves
+          - AstBuilder_PortionUsage_IndividualUsage_BuildsIndividualOccurrence
+          - NameResolver_PortionUsage_ImplicitSpecialization_MemberResolves
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-BehaviorBodies
+        title: >-
+          AstBuilder shall build the members declared in the body of an action, calculation,
+          constraint, state, or case (case, analysis, verification, use case) usage or
+          definition, including parameters, nested actions, `return` parameters, subjects and
+          actors, so that feature chains through them resolve; the synthetic names of anonymous
+          action nodes inside such a body shall not change the names of the nodes diagrams draw.
+        justification: |
+          The OMG corpus references members of nested bodies (`producer.producerBehavior.publish.
+          sentMessage`, `'Solve for Pressure1'.rho`, `massAnalysis.totalMass`) that exist only if
+          the bodies are built.
+        tests:
+          - AstBuilder_ActionUsage_NestedActions_BuildsChildrenAndChainResolves
+          - AstBuilder_CalcDef_BareParameters_ResolveThroughTypedUsage
+          - AstBuilder_ConstraintDef_BodyMembers_ResolveThroughAssertConstraint
+          - AstBuilder_ConstraintUsage_Body_BuildsMembers
+          - AstBuilder_VerificationDef_BodyAction_ResolvesThroughUsage
+          - AstBuilder_CaseBodies_UseCaseAndCaseUsage_BuildMembers
+          - AstBuilder_AnonymousActionNodes_InExcludedBodies_DoNotShiftDrawnNodeNames
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-PerformExhibitIncludeAssert
+        title: >-
+          AstBuilder shall build a feature for a `perform`, `exhibit`, `include use case`, or
+          `assert constraint` usage with its body members, named by its declared name, its first
+          redefinition, or the simple name of the feature it references, with a synthetic
+          qualified name when it is named only by its reference, and shall build an `effect`
+          feature of the matching kind (send, accept, action) for a named transition's `do`
+          clause.
+        justification: |
+          A chain such as `driver.turnVehicleOn` or `server.behavior.delivering.effect.sentMessage`
+          passes through these usages; a usage named only by its reference must not collide with
+          the feature it references in the same namespace.
+        tests:
+          - AstBuilder_PerformWithReference_NamedByReferencedFeature
+          - AstBuilder_PerformAction_WithBody_BuildsNestedSend
+          - AstBuilder_ExhibitState_BodyAndTransition_ResolvesAccepterAndEffect
+          - AstBuilder_Transition_WithoutEffect_HasNoEffectChild
+          - AstBuilder_PerformAndAssertSameNameAsReferenced_DoNotCollide
+          - AstBuilder_IncludeUseCase_BuildsIncludeNode
+          - AstBuilder_AssertConstraint_WithoutNameOrReference_BuildsNoNode
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-MultipleRedefinitions
+        title: >-
+          AstBuilder shall record every redefinition target of a feature (the first in
+          RedefinedFeatureName, the rest in AdditionalRedefinedFeatureNames), and the redefinition
+          and subsetting targets of every kind of usage (action, calculation, state, constraint,
+          requirement, case), not only of generic usages.
+        justification: |
+          `part :>> driver :>> driver_b { port :>> setSpeedPort; }` is valid when the member
+          belongs to the second target; dropping targets leaves valid references unresolved.
+        tests:
+          - AstBuilder_MultipleRedefinitions_RecordsAllTargets
+          - AstBuilder_Redefinition_OnActionAndRequirementUsages_IsRecorded
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-AnonymousOwnerScope
+        title: >-
+          AstBuilder shall give an anonymous usage that has a body a synthetic scope segment in
+          its qualified name (its Name staying null), under which its members are named, and shall
+          leave an anonymous usage without a body unnamed.
+        justification: |
+          The members of `attribute :> differencesOf[1] { item :>> elements = ...; }` must resolve
+          in the anonymous usage's own scope, which inherits from the usage it subsets, rather
+          than in the enclosing namespace.
+        tests:
+          - AstBuilder_AnonymousUsageWithBody_GetsSyntheticScope
+          - AstBuilder_AnonymousUsageWithoutBody_HasNoQualifiedName
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-DiagramExclusion
+        title: >-
+          AstBuilder shall flag IsExcludedFromDiagrams on every member it builds only for name
+          resolution (bare parameters, portion usages, perform/exhibit/include/assert usages, a
+          transition's effect, and everything inside the body of an action, calculation,
+          constraint, or case usage or definition) and on all their descendants, and on no member
+          it built before.
+        justification: |
+          Building these members must not change any existing diagram; the flag is how the diagram
+          strategies recognize them.
+        tests:
+          - AstBuilder_DefaultReferenceUsage_InActionDef_BuildsRefNodesWithDirectionTypingAndMultiplicity
+          - AstBuilder_ActionUsage_NestedActions_BuildsChildrenAndChainResolves
+          - AstBuilder_ConstraintDef_BodyMembers_ResolveThroughAssertConstraint
+          - AstBuilder_PerformWithReference_NamedByReferencedFeature
+          - AstBuilder_ExhibitState_BodyAndTransition_ResolvesAccepterAndEffect
+          - AstBuilder_PortionUsage_IndividualUsage_BuildsIndividualOccurrence

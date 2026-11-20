@@ -665,6 +665,15 @@ order; a box with no signature match falls back to the first unpaired node. The 
 whose paired graph node is a recorded truncation and otherwise recurses into the box's own `Children`
 against the graph node's own children, so a truncated folder at any depth is found.
 
+##### Members Excluded from Diagrams
+
+A member flagged `IsExcludedFromDiagrams` — a bare parameter, a `perform`/`exhibit`/`include`/`assert`
+usage, a portion usage, a transition's `effect`, or anything in the body of an action, calculation,
+constraint or case usage or definition — is modeled for name resolution only and never drawn.
+`CollectDefinitions` skips it (and so everything nested in it), `BuildCompartments` skips it so it
+adds no compartment row, and `NodePolicy.HasNestedContent` ignores it, so a port whose only members
+are excluded stays a compartment row instead of becoming a box.
+
 ##### Error Handling
 
 Null `context` or `options` arguments throw `ArgumentNullException`, as does a null policy passed to the

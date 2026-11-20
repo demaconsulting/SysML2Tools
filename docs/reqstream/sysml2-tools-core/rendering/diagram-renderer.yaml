@@ -93,3 +93,13 @@ sections:
           - DiagramRenderer_RenderWorkspace_ViewWithNothingRenderable_ReportsEmptyViewWarning
           - DiagramRenderer_RenderWorkspace_ViewExposesPackageRecursively_ReportsNoWarning
           - DiagramRenderer_RenderWorkspace_ViewExposesRenderableElement_ReportsNoWarning
+
+      - id: SysML2Tools-Core-Rendering-DiagramRenderer-AutoViewExcludedMembers
+        title: >-
+          DiagramRenderer.SynthesizeAutoView shall choose its target counting only the children a
+          diagram draws, and never choose a definition flagged IsExcludedFromDiagrams.
+        justification: |
+          Members modeled only for name resolution must not change which definition the automatic
+          view draws.
+        tests:
+          - DiagramRenderer_SynthesizeAutoView_ExcludedMembers_DoNotChangeTarget

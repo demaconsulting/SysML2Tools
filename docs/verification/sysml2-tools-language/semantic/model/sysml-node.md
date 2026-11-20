@@ -63,6 +63,10 @@ external services or additional configuration are required beyond a standard .NE
   on definitions and features; `Trigger`/`Effect`/`IsElse` on transitions; the end names, end
   multiplicities, and `PayloadText` on connection nodes) hold their documented values for
   models that use the corresponding syntax and their defaults (`false`/null) otherwise.
+- `AdditionalRedefinedFeatureNames` holds every redefinition target after the first (null for at most
+  one) and `IsExcludedFromDiagrams` is true only for the members built for name resolution; both
+  survive a serialization round trip and are omitted from JSON when default; `DiagramChildren` omits
+  the excluded children.
 
 ##### Test Scenarios
 
@@ -117,3 +121,7 @@ external services or additional configuration are required beyond a standard .NE
 | Connection end labels round trip | `Serialize_ConnectionEndLabelsAndPayload_RoundTripAndNullIsOmitted` |
 | Connection end labels captured | `WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities` |
 | New members default for a plain model | `WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault` |
+| Bare parameter is a `ref` feature | `WorkspaceLoader_LoadAsync_BareDirectionParameter_BuildsRefNodeWithDirection` |
+| All redefinition targets | `AstBuilder_MultipleRedefinitions_RecordsAllTargets` |
+| Redefinitions and exclusion flag round trip | `Serialize_AdditionalRedefinitionsAndExcludedFlag_RoundTrip` |
+| `DiagramChildren` omits excluded children | `SysmlNode_DiagramChildren_OmitsExcludedChildren` |

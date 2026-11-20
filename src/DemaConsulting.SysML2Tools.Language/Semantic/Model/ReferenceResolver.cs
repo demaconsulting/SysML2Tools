@@ -390,9 +390,16 @@ internal sealed class ReferenceResolver
     /// </summary>
     private static string? ChildScope(SysmlNode node, string? scope)
     {
-        if (node is not (SysmlPackageNode or SysmlDefinitionNode or SysmlFeatureNode) || node.Name is null)
+        if (node is not (SysmlPackageNode or SysmlDefinitionNode or SysmlFeatureNode))
         {
             return scope;
+        }
+
+        // An anonymous usage that owns members has a synthetic qualified name (see
+        // AstBuilder.BuildUsageNode) and is the namespace of those members.
+        if (node.Name is null)
+        {
+            return node is SysmlFeatureNode && node.QualifiedName is { Length: > 0 } anonymousScope ? anonymousScope : scope;
         }
 
         if (node.QualifiedName is { Length: > 0 } qualified)
@@ -572,19 +579,23 @@ internal sealed class ReferenceResolver
             nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedTyping, SysmlEdgeKind.Typing) { RawReference = typing });
         }
 
-        // Feature redefinition — the target referenced after 'redefines'/':>>' on a usage/feature
+        // Feature redefinition — the target(s) referenced after 'redefines'/':>>' on a usage/feature
         // element, resolved against the general types of the owning type (KerML 8.2.3.5.1), with
-        // a lenient fallback to ordinary resolution (see NameResolver.ResolveRedefinition).
-        if (node is SysmlFeatureNode { RedefinedFeatureName: { } redefined })
+        // a lenient fallback to ordinary resolution (see NameResolver.ResolveRedefinition). Every
+        // target gets its own edge (`part :>> a :>> b`), and each unresolved one its own diagnostic.
+        if (node is SysmlFeatureNode redefiningFeature)
         {
-            var target = _resolver.ResolveRedefinition(redefined, scope ?? string.Empty, node.QualifiedName, file.RootImports);
-            if (target is not null)
+            foreach (var redefined in NameResolver.AllRedefinedFeatureNames(redefiningFeature))
             {
-                nodeEdges.Add(new SysmlEdge(node.QualifiedName, target, SysmlEdgeKind.Redefinition) { RawReference = redefined });
-            }
-            else
-            {
-                ReportUnresolved(redefined, file.FilePath, resolvedInFile, node);
+                var target = _resolver.ResolveRedefinition(redefined, scope ?? string.Empty, node.QualifiedName, file.RootImports);
+                if (target is not null)
+                {
+                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, target, SysmlEdgeKind.Redefinition) { RawReference = redefined });
+                }
+                else
+                {
+                    ReportUnresolved(redefined, file.FilePath, resolvedInFile, node);
+                }
             }
         }
 

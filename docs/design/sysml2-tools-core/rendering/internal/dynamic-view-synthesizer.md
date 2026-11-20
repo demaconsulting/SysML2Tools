@@ -85,6 +85,13 @@ Performs four steps, in order, short-circuiting to a diagnostic on the first fai
      non-null scope.
    - `FilterExpressionText` set to `filterExpressionText` unchanged (including `null`).
 
+##### Members Excluded from Diagrams
+
+The structural compatibility pre-check (`CheckCompatibility`) inspects the target's
+`DiagramChildren` — the children not flagged `IsExcludedFromDiagrams` — so a target whose only
+`part`, `state` or `action` features are members built for name resolution only fails the check, as
+it did before those members were built.
+
 ##### Error Handling
 
 Every failure path returns a `(null, string)` tuple with a specific, human-readable diagnostic —

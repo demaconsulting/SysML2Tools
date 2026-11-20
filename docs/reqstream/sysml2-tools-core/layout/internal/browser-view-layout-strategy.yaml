@@ -82,3 +82,12 @@ sections:
           the default in both cases.
         tests:
           - BrowserView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged
+
+      - id: SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-ExcludedMembers
+        title: >-
+          BrowserViewLayoutStrategy shall not list a declaration flagged IsExcludedFromDiagrams.
+        justification: |
+          Members modeled only for name resolution have no notation yet; listing them would change
+          existing diagrams.
+        tests:
+          - BrowserView_BuildLayout_ExcludedMembers_RenderIdenticallyToWorkspaceWithout

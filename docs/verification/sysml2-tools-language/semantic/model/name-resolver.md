@@ -46,6 +46,11 @@ created in `Path.GetTempPath()` and deleted after each test.
   specialization through a chain terminates; a redefinition target written as a chain resolves its
   first segment among the general types. A quoted and an unquoted spelling of one name are the same
   name.
+- A reference subsetting (`::>`, or the feature a `perform`/`assert` references) is a general type
+  for member lookup only (no edge, no diagnostic); a general-type reference that resolves to the type
+  itself is resolved again from the owner's owner; a transition implicitly specializes
+  `Actions::transitionActions` and the new usage kinds have their implicit-specialization rows; a
+  feature redefining several features inherits the members of each.
 
 ##### Test Scenarios
 
@@ -97,3 +102,7 @@ created in `Path.GetTempPath()` and deleted after each test.
 | `NameResolver_FeatureChain_QualifiedFirstSegment_Resolves` | `P::p.x`, `$::P::p.x` |
 | `NameResolver_ResolveRedefinedFeature_Chain_ResolvesThroughFirstSegment` | `:>> clock.time` |
 | `NameResolver_Resolve_QuotedAndUnquotedSimpleName_AreEquivalent` | `'PowerTrain'` and `PowerTrain` |
+| `NameResolver_ReferenceSubsetting_IsLookupGeneralType` | `::>` target is a general type for lookup; no edge |
+| `NameResolver_Transition_ImplicitlySpecializesTransitionActions` | transition → `Actions::transitionActions` |
+| `NameResolver_ImplicitSpecialization_NewUsageKinds_AddLibraryGeneralType` | Rows of the new usage kinds |
+| `NameResolver_PortionUsage_ImplicitSpecialization_MemberResolves` | `start` resolves in a `timeslice` |

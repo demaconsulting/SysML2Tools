@@ -106,6 +106,13 @@ required. A view with no `expose` statement (including the synthesized `--auto` 
 `ViewNode` is `null`) resolves no scope, so `FindRoot` considers every candidate and
 `CollectLifelines` keeps every lifeline, unchanged from the pre-scoping behavior.
 
+##### Members Excluded from Diagrams
+
+Root selection ignores a declaration flagged `IsExcludedFromDiagrams`, and every count and
+enumeration of the root's children (`DiagramChildren`) skips the children flagged so; members built
+for name resolution only are neither lifelines nor messages, nor a reason to choose their owner as the
+root.
+
 ##### Error Handling
 
 Null `context` or `options` arguments throw `ArgumentNullException`. Empty or unresolved input does

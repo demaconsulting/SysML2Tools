@@ -47,3 +47,4 @@ standard .NET SDK installation.
 | `Serialize_NewModifierProperties_RoundTrip` | Every new modifier/notation member round-trips |
 | `Serialize_DefaultModifierProperties_AreOmittedFromJson` | Default-valued new members are absent from the JSON |
 | `Serialize_Direction_WrittenAsString` | `Direction` is written as `"InOut"` rather than a number |
+| `Serialize_AdditionalRedefinitionsAndExcludedFlag_RoundTrip` | Redefinition targets and exclusion flag round-trip |

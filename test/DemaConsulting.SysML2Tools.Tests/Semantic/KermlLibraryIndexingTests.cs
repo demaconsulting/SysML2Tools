@@ -258,8 +258,9 @@ public sealed class KermlLibraryIndexingTests
     }
 
     /// <summary>
-    ///     Unnamed KerML members (an anonymous invariant, step, and redefining feature) parse
-    ///     without diagnostics and register no symbol of their own.
+    ///     Unnamed KerML members (an anonymous invariant and boolean expression) parse without
+    ///     diagnostics and register no symbol of their own. (A lone <c>step;</c> is not among them:
+    ///     the SysML grammar reads <c>step</c> as the name of a bare usage.)
     /// </summary>
     [Fact]
     public async Task KermlUnnamedMembers_AreSkippedFromTheSymbolTable()
@@ -268,7 +269,6 @@ public sealed class KermlLibraryIndexingTests
         var result = await LoadPackageAsync(
             """
             inv { true }
-            step;
             bool;
             """,
             strict: true);

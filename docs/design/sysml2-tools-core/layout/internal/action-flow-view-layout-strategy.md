@@ -196,6 +196,13 @@ action was never added — no new edge-side logic was required. A view with no `
 `FindRoot` considers every candidate and `CollectActions` keeps every action, unchanged from the
 pre-scoping behavior.
 
+##### Members Excluded from Diagrams
+
+Root selection ignores a declaration flagged `IsExcludedFromDiagrams`, and every count and
+enumeration of the root's children (`DiagramChildren`) skips the children flagged so: the actions and
+successions of a calculation, constraint or case body, built for name resolution only, are neither
+drawn nor a reason to choose their owner as the root.
+
 ##### Error Handling
 
 Null `context` or `options` arguments throw `ArgumentNullException`. The absence of an eligible

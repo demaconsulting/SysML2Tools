@@ -36,7 +36,59 @@ public sealed class SemanticOmgModelsTests
         "7a1-VariantConfiguration-GeneralConcept-a.sysml",
         "8-Requirements.sysml",
         "13a-ModelContainment.sysml",
+        "InteractionSequencingExamples/ServerSequenceRealization-2.sysml",
+        "InteractionSequencingExamples/ServerSequenceOutsideRealization-2.sysml",
+        "VehicleExample/SysMLV2SpecAnnexASimpleVehicleModel.sysml",
+        "VehicleExample/VehicleIndividuals.sysml",
+        "AnalysisExamples/TurbojetStageAnalysis.sysml",
+        "SimpleTests/ConstraintTest.sysml",
+        "03-Function-basedBehavior/3e-Function-basedBehavior-item.sysml",
+        "14.ActionDefinitions/ActionDefinitionExample.sysml",
+        "14.ActionDefinitions/ActionSuccessionExample-1.sysml",
+        "14.ActionDefinitions/ActionSuccessionExample-2.sysml",
+        "IndividualsExamples/JohnIndividualExample.sysml",
+        "27.Occurrences/TimeSliceAndSnapshotExample.sysml",
+        "27.Occurrences/InteractionRealization-2.sysml",
+        "GeometryExamples/CarWithShapeAndCSG.sysml",
+        "GeometryExamples/SimpleQuadcopter.sysml",
     ];
+
+    /// <summary>
+    ///     The unresolved references the OMG corpus still reports in strict mode, as (path suffix,
+    ///     referenced name, reason). Each one is explained here; none is a name-resolution bug.
+    ///     <list type="bullet">
+    ///         <item>
+    ///             <c>Camera.sysml</c> (training): the corpus is loaded as one workspace, and the
+    ///             root-level <c>part def Camera</c> of <c>CameraExample/Camera.sysml</c> collides
+    ///             with this file's root-level <c>package Camera</c> (the first one registered wins),
+    ///             so <c>Camera::Scene</c> is looked up in the part definition. Each file is valid
+    ///             on its own: a genuine corpus artifact, see
+    ///             <see cref="SemanticOmgModels_CameraPackage_ResolvesInIsolation"/>.
+    ///         </item>
+    ///         <item>
+    ///             <c>AHFNorwayTopics.sysml</c>, <c>AHFSequences.sysml</c>: <c>#service def</c> and
+    ///             <c>#cloud X</c> are user-defined keywords whose members come from semantic
+    ///             metadata (<c>SemanticMetadata::baseType</c>), which is not modeled.
+    ///         </item>
+    ///         <item>
+    ///             <c>14c-LanguageExtensions.sysml</c>: the members of <c>#cause occurrence</c>
+    ///             (<c>occurs</c>, <c>detected</c>, <c>severity</c>) also come from semantic
+    ///             metadata.
+    ///         </item>
+    ///     </list>
+    /// </summary>
+    private static readonly (string FileSuffix, string Name)[] ExpectedStrictErrors =
+    [
+        ("ArrowheadFrameworkExample/AHFNorwayTopics.sysml", "APISService"),
+        ("ArrowheadFrameworkExample/AHFSequences.sysml", "AHFNorway_LocalCloudDD.APISConsumer"),
+        ("17.Control/Camera.sysml", "Scene"),
+        ("17.Control/Camera.sysml", "Picture"),
+        ("17.Control/Camera.sysml", "Image"),
+        ("14-LanguageExtensions/14c-LanguageExtensions.sysml", "occurs"),
+        ("14-LanguageExtensions/14c-LanguageExtensions.sysml", "detected"),
+        ("14-LanguageExtensions/14c-LanguageExtensions.sysml", "severity"),
+    ];
+
     /// <summary>
     ///     Finds the test/SysMLModels directory relative to the test assembly.
     /// </summary>
@@ -182,7 +234,7 @@ public sealed class SemanticOmgModelsTests
     public async Task SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline()
     {
         // Arrange
-        const int baseline = 48;
+        const int baseline = 8;
         var modelsRoot = FindSysMLModelsRoot();
         if (modelsRoot is null)
         {
@@ -227,10 +279,66 @@ public sealed class SemanticOmgModelsTests
             .ToList();
         Assert.True(stillFailing.Count == 0, "Unexpected unresolved references:\n" + string.Join("\n", stillFailing));
 
+        // Assert — exactly the explained references remain, no others
+        var actual = unresolved
+            .Select(d => (File: d.FilePath.Replace('\\', '/'), Name: d.Message["Unresolved reference: '".Length..^1]))
+            .OrderBy(e => e.File, StringComparer.Ordinal)
+            .ThenBy(e => e.Name, StringComparer.Ordinal)
+            .ToList();
+        Assert.Equal(ExpectedStrictErrors.Length, actual.Count);
+        foreach (var (fileSuffix, name) in ExpectedStrictErrors)
+        {
+            Assert.Contains(actual, e => e.File.EndsWith(fileSuffix, StringComparison.OrdinalIgnoreCase) && e.Name == name);
+        }
+
         // Assert — by default none of them is an Error
         Assert.DoesNotContain(
             defaultResult.Diagnostics,
             d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Error &&
                  d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     The training <c>Camera</c> package resolves completely on its own (with the package it
+    ///     imports), and its three strict-mode errors in the whole corpus come back exactly when the
+    ///     example whose root-level <c>part def Camera</c> shares its name is loaded too (first, as the
+    ///     corpus lists <c>examples</c> before <c>training</c>; the first declaration of a name wins): the
+    ///     remaining <c>Camera</c> errors are a name collision between two corpus files, not a gap.
+    /// </summary>
+    [Fact]
+    public async Task SemanticOmgModels_CameraPackage_ResolvesInIsolation()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var omgRoot = Path.Combine(modelsRoot, "OMG");
+        var package = Path.Combine(omgRoot, "training", "17.Control", "Camera.sysml");
+        var imported = Path.Combine(omgRoot, "training", "15.Actions", "ActionDecomposition.sysml");
+        var collidingPartDef = Path.Combine(omgRoot, "examples", "CameraExample", "Camera.sysml");
+        var collidingImport = Path.Combine(omgRoot, "examples", "CameraExample", "PictureTaking.sysml");
+        if (!File.Exists(package) || !File.Exists(imported) || !File.Exists(collidingPartDef) || !File.Exists(collidingImport))
+        {
+            return;
+        }
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+
+        // Act
+        var alone = await WorkspaceLoader.LoadAsync([package, imported], stdlibTable, strictUnresolved: true);
+        var together = await WorkspaceLoader.LoadAsync(
+            [collidingPartDef, collidingImport, package, imported], stdlibTable, strictUnresolved: true);
+
+        // Assert
+        Assert.Empty(alone.Diagnostics);
+        Assert.Equal(
+            ["Image", "Picture", "Scene"],
+            together.Diagnostics
+                .Select(d => d.Message["Unresolved reference: '".Length..^1])
+                .Order(StringComparer.Ordinal));
+        Assert.All(together.Diagnostics, d => Assert.EndsWith("Camera.sysml", d.FilePath, StringComparison.Ordinal));
     }
 }

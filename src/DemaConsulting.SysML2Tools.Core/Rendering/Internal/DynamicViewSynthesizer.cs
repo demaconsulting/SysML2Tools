@@ -177,7 +177,7 @@ internal static class DynamicViewSynthesizer
                     return $"--view-target '{targetQualifiedName}' is not a 'part def', which the interconnection view requires";
                 }
 
-                if (!target.Children.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "part"))
+                if (!target.DiagramChildren.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "part"))
                 {
                     return $"--view-target '{targetQualifiedName}' has no nested 'part' features, so the interconnection view would render nothing";
                 }
@@ -185,8 +185,8 @@ internal static class DynamicViewSynthesizer
                 return null;
 
             case "state":
-                var hasStateTransitions = target.Children.OfType<SysmlTransitionNode>().Any();
-                var hasStateFeature = target.Children.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "state");
+                var hasStateTransitions = target.DiagramChildren.OfType<SysmlTransitionNode>().Any();
+                var hasStateFeature = target.DiagramChildren.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "state");
                 if (!hasStateTransitions && !hasStateFeature)
                 {
                     return $"--view-target '{targetQualifiedName}' has no nested state transitions or 'state' features, so the state-transition view would render nothing";
@@ -195,8 +195,8 @@ internal static class DynamicViewSynthesizer
                 return null;
 
             case "action":
-                var hasTransitions = target.Children.OfType<SysmlTransitionNode>().Any();
-                var hasActionFeature = target.Children.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "action");
+                var hasTransitions = target.DiagramChildren.OfType<SysmlTransitionNode>().Any();
+                var hasActionFeature = target.DiagramChildren.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "action");
                 if (!hasTransitions && !hasActionFeature)
                 {
                     return $"--view-target '{targetQualifiedName}' has no successions or 'action' features, so the action-flow view would render nothing";
@@ -216,7 +216,7 @@ internal static class DynamicViewSynthesizer
                 // pre-check yet still renders the canonical near-blank `LayoutTree` sentinel — see
                 // the design documentation and docs/user_guide/introduction.md for the same
                 // documented gap.
-                var hasMessage = target.Children.OfType<SysmlConnectionNode>().Any(c => c.ConnectionKeyword == "message");
+                var hasMessage = target.DiagramChildren.OfType<SysmlConnectionNode>().Any(c => c.ConnectionKeyword == "message");
                 if (!hasMessage)
                 {
                     return $"--view-target '{targetQualifiedName}' has no nested messages (lifelines), so the sequence view would render nothing";

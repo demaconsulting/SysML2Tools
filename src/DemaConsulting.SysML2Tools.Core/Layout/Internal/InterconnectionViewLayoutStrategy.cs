@@ -287,7 +287,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         }
 
         // No nested usages means there is nothing to draw.
-        if (!root.Children.OfType<SysmlFeatureNode>().Any(IsNodeUsage))
+        if (!root.DiagramChildren.OfType<SysmlFeatureNode>().Any(IsNodeUsage))
         {
             return new LayoutTree(200.0, 100.0, []);
         }
@@ -956,7 +956,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>Counts the connector usages directly owned by a node.</summary>
     private static int CountConnectors(SysmlNode node) =>
-        node.Children.OfType<SysmlConnectionNode>().Count(IsDrawnConnector);
+        node.DiagramChildren.OfType<SysmlConnectionNode>().Count(IsDrawnConnector);
 
     /// <summary>
     /// Finds the element(s) whose interior to render: among scope-relevant candidates (non-stdlib
@@ -995,6 +995,12 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var usageCandidates = new List<(string QualifiedName, SysmlNode Node, int Connections, int Parts)>();
         foreach (var (qualifiedName, node) in workspace.Declarations)
         {
+            // Members modeled for name resolution only are never drawn, nor chosen as a root.
+            if (node.IsExcludedFromDiagrams)
+            {
+                continue;
+            }
+
             var isDefinition = node is SysmlDefinitionNode { DefinitionKeyword: "part def" };
             if (!isDefinition && !IsRootUsage(qualifiedName, node, workspace))
             {
@@ -1011,7 +1017,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var entry = (qualifiedName, node, CountConnectors(node), node.Children.Count(IsPartUsage));
+            var entry = (qualifiedName, node, CountConnectors(node), node.DiagramChildren.Count(IsPartUsage));
             (isDefinition ? candidates : usageCandidates).Add(entry);
         }
 
@@ -1031,7 +1037,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var usedAsChildType = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (_, candidate, _, _) in candidates)
         {
-            foreach (var feature in candidate.Children.OfType<SysmlFeatureNode>())
+            foreach (var feature in candidate.DiagramChildren.OfType<SysmlFeatureNode>())
             {
                 if (feature.FeatureKeyword != "part")
                 {
@@ -1096,7 +1102,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     private static bool IsRootUsage(string qualifiedName, SysmlNode node, SysmlWorkspace workspace)
     {
-        if (!IsPartUsage(node) || !node.Children.Any(IsPartUsage) || CountConnectors(node) == 0)
+        if (!IsPartUsage(node) || !node.DiagramChildren.Any(IsPartUsage) || CountConnectors(node) == 0)
         {
             return false;
         }
@@ -1152,7 +1158,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         bool? ancestorUnlimitedRecursion)
     {
         var result = new List<PartItem>();
-        foreach (var feature in root.Children.OfType<SysmlFeatureNode>())
+        foreach (var feature in root.DiagramChildren.OfType<SysmlFeatureNode>())
         {
             if (!IsNodeUsage(feature))
             {
@@ -1323,6 +1329,12 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var matched = new List<SysmlFeatureNode>();
         foreach (var (qualifiedName, node) in workspace.Declarations)
         {
+            // Members modeled for name resolution only are never drawn, nor chosen as a root.
+            if (node.IsExcludedFromDiagrams)
+            {
+                continue;
+            }
+
             if (node is not SysmlFeatureNode feature || !IsNodeUsage(feature))
             {
                 continue;
@@ -1448,7 +1460,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            foreach (var conn in def.Children.OfType<SysmlConnectionNode>().Where(IsDrawnConnector))
+            foreach (var conn in def.DiagramChildren.OfType<SysmlConnectionNode>().Where(IsDrawnConnector))
             {
                 if (conn.QualifiedName is not { Length: > 0 } fqn || !ExposeScopeResolver.IsInSubjectScope(fqn, scope))
                 {
@@ -1547,6 +1559,12 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var index = new Dictionary<string, SysmlDefinitionNode>(StringComparer.Ordinal);
         foreach (var (qualifiedName, node) in workspace.Declarations)
         {
+            // Members modeled for name resolution only are never drawn, nor chosen as a root.
+            if (node.IsExcludedFromDiagrams)
+            {
+                continue;
+            }
+
             if (node is not SysmlDefinitionNode def || def.DefinitionKeyword != "part def")
             {
                 continue;
@@ -1557,7 +1575,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var hasPartChild = def.Children.Any(IsPartUsage);
+            var hasPartChild = def.DiagramChildren.Any(IsPartUsage);
             if (!hasPartChild)
             {
                 continue;
@@ -1583,7 +1601,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         [NotNullWhen(true)] out SysmlNode? container)
     {
         container = null;
-        if (feature.Children.Any(IsPartUsage))
+        if (feature.DiagramChildren.Any(IsPartUsage))
         {
             if (feature.QualifiedName is { Length: > 0 } ownName && visited.Contains(ownName))
             {
@@ -1692,7 +1710,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <summary>Adds the named <c>port</c> usages directly owned by <paramref name="owner"/> that are not yet listed.</summary>
     private static void AddDeclaredPorts(SysmlNode owner, List<PortInfo> ports, HashSet<string> seen)
     {
-        foreach (var port in owner.Children.OfType<SysmlFeatureNode>())
+        foreach (var port in owner.DiagramChildren.OfType<SysmlFeatureNode>())
         {
             if (port.FeatureKeyword == "port" && port.Name is { Length: > 0 } name && seen.Add(name))
             {
@@ -1751,7 +1769,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<PartItem> parts)
     {
         var pairs = new List<ConnItem>();
-        foreach (var conn in root.Children.OfType<SysmlConnectionNode>().Where(IsDrawnConnector))
+        foreach (var conn in root.DiagramChildren.OfType<SysmlConnectionNode>().Where(IsDrawnConnector))
         {
             if (TryResolveConnection(conn, partIndex, parts) is { } item)
             {

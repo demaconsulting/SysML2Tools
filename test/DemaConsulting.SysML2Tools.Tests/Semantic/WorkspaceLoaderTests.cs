@@ -7031,11 +7031,11 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     A bare direction-only parameter (<c>in x : T;</c>) still produces no AST node, so no
-    ///     direction is captured for it (decision D1: no new nodes).
+    ///     A bare direction-only parameter (<c>in x : T;</c>) builds a <c>ref</c> feature carrying
+    ///     the direction and typing, owned by the behavior and excluded from diagrams.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_BareDirectionParameter_ProducesNoNode()
+    public async Task WorkspaceLoader_LoadAsync_BareDirectionParameter_BuildsRefNodeWithDirection()
     {
         // Arrange / Act
         var result = await LoadModelsAsync("""
@@ -7046,8 +7046,14 @@ public sealed class WorkspaceLoaderTests
             """);
 
         // Assert
-        Assert.Empty(DefinitionAt(result, "P::Act").Children);
-        Assert.DoesNotContain("P::Act::x", result.Workspace!.Declarations.Keys);
+        var x = FeatureAt(result, "P::Act::x");
+        Assert.Equal("ref", x.FeatureKeyword);
+        Assert.Equal(SysmlFeatureDirection.In, x.Direction);
+        Assert.Equal("T", x.FeatureTyping);
+        Assert.False(x.IsReference);
+        Assert.True(x.IsExcludedFromDiagrams);
+        Assert.Equal(SysmlFeatureDirection.Out, FeatureAt(result, "P::Act::y").Direction);
+        Assert.Equal(2, DefinitionAt(result, "P::Act").Children.Count);
     }
 
     /// <summary>

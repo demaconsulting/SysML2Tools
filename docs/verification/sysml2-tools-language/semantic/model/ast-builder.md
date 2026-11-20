@@ -131,7 +131,8 @@ external services or additional configuration are required beyond a standard .NE
 - A body element's leading `abstract`/`variation`/`individual`/`variant`/`ref` and
   `in`/`out`/`inout` keywords are applied to its definition or feature node in definition, state,
   action, and requirement bodies (skipping visibility and a leading `then`), never to a
-  synthesized transition; a bare direction-only parameter produces no node.
+  synthesized transition; a bare direction-only parameter builds a `ref` feature carrying its
+  direction (`return` is `Out`), flagged excluded from diagrams.
 - `ordered`/`nonunique`, the value clause (`ValueText`, operator and whitespace preserved),
   `::>`/`references` targets, `~` conjugated typing, state sub-action declaration text, and
   `parallel` are captured as raw, unresolved data; `::>` targets stay out of `SupertypeNames`
@@ -147,6 +148,22 @@ external services or additional configuration are required beyond a standard .NE
 - `event occurrence name [: Type];` (with or without a leading `then`) is captured as a feature child
   with the keyword `event occurrence`, in declaration order; the referencing form `event feature;` is
   not captured.
+- Bare parameters (`in x : T;`, `out y;`, `in :>> p;`, a package-level `x :> y = v;`) build `ref`
+  features with direction, typing, multiplicity, value and redefinitions; `timeslice`, `snapshot` and
+  `individual` usages build features whose keyword is the portion kind (`occurrence` for individual);
+  `perform`, `exhibit`, `include` and `assert constraint` usages build features named by their
+  declared name, first redefinition or referenced feature, under a synthetic qualified name when
+  named only by the reference (so a `perform`/`assert` named like the feature it references does not
+  collide with it); a named transition's `do` clause builds an `effect` child of the matching kind.
+- The bodies of action, calculation, constraint, state and case usages and definitions are built
+  (nested actions, parameters, `return` parameters, subjects), so feature chains through them
+  resolve; every member built this way, with its descendants, is flagged `IsExcludedFromDiagrams`
+  and no previously built member is; the synthetic names of anonymous action nodes inside such bodies
+  do not shift those of drawn nodes.
+- Every redefinition target (`:>> a :>> b`, `:>> a, b`) is recorded, the first in
+  `RedefinedFeatureName` and the rest in `AdditionalRedefinedFeatureNames`, and redefinitions and
+  subsettings are captured for action, requirement and the other usage kinds; an anonymous usage with
+  a body gets a `$anon<n>` scope segment (null `Name`) and one without a body stays unnamed.
 
 ##### Test Scenarios
 
@@ -227,7 +244,7 @@ external services or additional configuration are required beyond a standard .NE
 | `individual` modifier | `WorkspaceLoader_LoadAsync_IndividualPrefix_SetsIsIndividual` |
 | `ref` modifier | `WorkspaceLoader_LoadAsync_RefPrefix_SetsIsReference` |
 | Feature direction | `WorkspaceLoader_LoadAsync_FeatureDirection_Captured` |
-| Bare direction parameter yields no node | `WorkspaceLoader_LoadAsync_BareDirectionParameter_ProducesNoNode` |
+| Bare parameter builds a `ref` node | `WorkspaceLoader_LoadAsync_BareDirectionParameter_BuildsRefNodeWithDirection` |
 | Modifiers in specialized bodies | `WorkspaceLoader_LoadAsync_ModifiersInSpecializedBodies_AppliedToUsagesOnly` |
 | `ordered`/`nonunique` | `WorkspaceLoader_LoadAsync_OrderedNonunique_Captured` |
 | Value clause verbatim | `WorkspaceLoader_LoadAsync_FeatureValue_CapturedVerbatim` |
@@ -268,3 +285,29 @@ external services or additional configuration are required beyond a standard .NE
 | Unnamed KerML members register no symbol | `KermlUnnamedMembers_AreSkippedFromTheSymbolTable` |
 | KerML relationship statements parse | `KermlRelationshipStatements_ParseWithoutDiagnostics` |
 | SysML model resolves KerML library | `SysmlModel_ReferencingKermlLibraryDeclarations_ResolvesWithoutDiagnostics` |
+| Action def params | `AstBuilder_DefaultReferenceUsage_InActionDef_BuildsRefNodesWithDirectionTypingAndMultiplicity` |
+| Bare parameters in an action usage body | `AstBuilder_DefaultReferenceUsage_InActionUsageBody_BindingResolves` |
+| Bare usage in a package | `AstBuilder_DefaultReferenceUsage_NoDirectionInPackage_BuildsRefNode` |
+| Bare redefinition takes the redefined name | `AstBuilder_DefaultReferenceUsage_RedefinitionOnly_TakesRedefinedName` |
+| Stray `;` builds nothing | `AstBuilder_DefaultReferenceUsage_WithoutDeclaration_BuildsNoNode` |
+| `return` parameter is `Out` | `AstBuilder_ReturnParameter_InCalcDef_HasOutDirection` |
+| Timeslice and snapshot usages | `AstBuilder_PortionUsage_TimesliceAndSnapshot_BuildNodesAndSuccessionResolves` |
+| Individual usage | `AstBuilder_PortionUsage_IndividualUsage_BuildsIndividualOccurrence` |
+| Nested actions and chains | `AstBuilder_ActionUsage_NestedActions_BuildsChildrenAndChainResolves` |
+| Calculation parameters | `AstBuilder_CalcDef_BareParameters_ResolveThroughTypedUsage` |
+| Constraint definition body | `AstBuilder_ConstraintDef_BodyMembers_ResolveThroughAssertConstraint` |
+| Constraint usage body | `AstBuilder_ConstraintUsage_Body_BuildsMembers` |
+| Verification definition body | `AstBuilder_VerificationDef_BodyAction_ResolvesThroughUsage` |
+| Use case and case usage bodies | `AstBuilder_CaseBodies_UseCaseAndCaseUsage_BuildMembers` |
+| Anonymous action names unchanged | `AstBuilder_AnonymousActionNodes_InExcludedBodies_DoNotShiftDrawnNodeNames` |
+| `perform` by reference | `AstBuilder_PerformWithReference_NamedByReferencedFeature` |
+| `perform action` with a body | `AstBuilder_PerformAction_WithBody_BuildsNestedSend` |
+| `exhibit state` and transition effect | `AstBuilder_ExhibitState_BodyAndTransition_ResolvesAccepterAndEffect` |
+| Transition without `do` | `AstBuilder_Transition_WithoutEffect_HasNoEffectChild` |
+| Same name as the referenced feature | `AstBuilder_PerformAndAssertSameNameAsReferenced_DoNotCollide` |
+| `include use case` | `AstBuilder_IncludeUseCase_BuildsIncludeNode` |
+| `assert constraint` without name | `AstBuilder_AssertConstraint_WithoutNameOrReference_BuildsNoNode` |
+| All redefinition targets recorded | `AstBuilder_MultipleRedefinitions_RecordsAllTargets` |
+| Redefinitions on action/requirement usages | `AstBuilder_Redefinition_OnActionAndRequirementUsages_IsRecorded` |
+| Anonymous owner scope | `AstBuilder_AnonymousUsageWithBody_GetsSyntheticScope` |
+| Anonymous usage without a body | `AstBuilder_AnonymousUsageWithoutBody_HasNoQualifiedName` |

@@ -620,3 +620,14 @@ sections:
         tests:
           - InterconnectionView_BuildLayout_MotorRigGalleryModel_MidpointLabelsClearOfPortLabels
           - LayeredPlacement_WidenForMidpointLabels_LabelOverlappingPortLabels_IsSeparated
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExcludedMembers
+        title: >-
+          InterconnectionViewLayoutStrategy shall ignore members flagged IsExcludedFromDiagrams:
+          they are neither parts, ports or connectors of the drawn view nor a reason to choose their
+          owner as the root.
+        justification: |
+          Members modeled only for name resolution have no notation yet; counting or drawing them
+          would change existing diagrams.
+        tests:
+          - InterconnectionView_BuildLayout_ExcludedPartUsage_RenderIdenticallyToWorkspaceWithout
