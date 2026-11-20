@@ -313,6 +313,8 @@ public sealed class DiagramRenderer
             scale *= MaxPngDimension / longestSide;
         }
 
+        // Ratio of the surface the backend rejected to the layout size at that attempt (label overhang)
+        var rejectedRatio = 1.0;
         for (var attempt = 1; attempt <= MaxFitAttempts + 1; attempt++)
         {
             try
@@ -327,7 +329,14 @@ public sealed class DiagramRenderer
                 ex.ActualValue is int actual &&
                 actual > MaxPngDimension)
             {
-                // Label overhang made the surface slightly larger than the layout; tighten the scale
+                // Label overhang made the surface slightly larger than the layout; remember how much on the
+                // first rejection (the largest attempted surface) and tighten the scale
+                if (rejectedRatio <= 1.0)
+                {
+                    var layoutSide = (ex.ParamName == "width" ? layout.Width : layout.Height) * scale;
+                    rejectedRatio = Math.Max(1.0, actual / layoutSide);
+                }
+
                 scale *= (double)MaxPngDimension / actual * FitSlack;
             }
         }
@@ -340,8 +349,8 @@ public sealed class DiagramRenderer
 
         // Report the original and the actual scaled size (read from the PNG header, falling back to
         // the computed size)
-        var originalWidth = (int)Math.Ceiling(layout.Width * options.Scale);
-        var originalHeight = (int)Math.Ceiling(layout.Height * options.Scale);
+        var originalWidth = (int)Math.Ceiling(layout.Width * options.Scale * rejectedRatio);
+        var originalHeight = (int)Math.Ceiling(layout.Height * options.Scale * rejectedRatio);
         var (scaledWidth, scaledHeight) = ReadPngSize(stream)
             ?? ((int)Math.Ceiling(layout.Width * scale), (int)Math.Ceiling(layout.Height * scale));
         var warning =
