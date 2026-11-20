@@ -172,10 +172,10 @@ After evaluating all criteria, output:
 
 ## Defect Severity
 
-| Severity     | Description                                | Action                                         |
-| ------------ | ------------------------------------------ | ---------------------------------------------- |
-| **Blocking** | Any criterion FAIL                         | Do not commit; fix layout engine and re-render |
-| **Warning**  | Minor label crowding not causing confusion | Document in commit message; fix in next pass   |
+| Severity | Description | Action |
+| --- | --- | --- |
+| **Blocking** | Any criterion FAIL | Do not commit; fix layout engine and re-render |
+| **Warning** | Minor label crowding not causing confusion | Document in commit message; fix in next pass |
 
 ---
 

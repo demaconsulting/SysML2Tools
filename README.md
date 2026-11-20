@@ -9,6 +9,8 @@
 [![Security][badge-security]][link-security]
 [![NuGet][badge-nuget]][link-nuget]
 
+## Overview
+
 SysML2Tools is a free, open-source .NET CLI tool and library that parses SysML v2 textual
 model files and renders them as professional nested block diagrams suitable for architecture
 documentation, CI/CD pipelines, and AI-assisted modeling workflows.
@@ -366,6 +368,17 @@ parsing, semantic model, and layout without pulling in the CLI tool; `Core` auto
 in `Language` and `Stdlib` as NuGet dependencies. Each package ships its own generated Markdown
 API reference documentation alongside its assembly.
 
+## Building
+
+```pwsh
+pwsh ./build.ps1
+```
+
+## User Guide
+
+The SysML2Tools User Guide is available on the
+[SysML2Tools releases page](https://github.com/demaconsulting/SysML2Tools/releases).
+
 ## Contributing
 
 See [CONTRIBUTING.md](https://github.com/demaconsulting/SysML2Tools/blob/main/CONTRIBUTING.md) for
@@ -376,6 +389,10 @@ guidelines on reporting bugs, suggesting features, and submitting pull requests.
 Copyright (c) DEMA Consulting. Licensed under the MIT License. See [LICENSE][link-license] for details.
 
 By contributing to this project, you agree that your contributions will be licensed under the MIT License.
+
+## Support
+
+- [Report a bug, request a feature, or ask a question](https://github.com/demaconsulting/SysML2Tools/issues)
 
 <!-- Badge References -->
 [workflow]: https://raw.githubusercontent.com/demaconsulting/SysML2Tools/main/docs/images/workflow.png

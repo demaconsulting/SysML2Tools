@@ -130,14 +130,17 @@ Instead use **verbal references** - plain prose that identifies the target by na
 
 # Markdown Format Requirements
 
-Follow `.markdownlint-cli2.yaml` formatting standards:
+Follow `.lintmark.yaml` (LintMark) formatting standards. Run `pwsh ./fix.ps1` to auto-fix these;
+`pwsh ./lint.ps1` (`dotnet lintmark`) reports whatever remains:
 
-- **120 Character Line Limit**: Keep lines 120 characters or fewer; break at punctuation or logical breaks.
+- **120 Character Line Limit**: Keep lines 120 characters or fewer. `fix.ps1` re-wraps over-length paragraphs;
+  headings, table rows, and unbreakable URLs, links, or code spans must be shortened by hand.
 - **No Trailing Whitespace**: Remove all trailing spaces and tabs.
 - **Blank Lines Around Headings**: Include a blank line before and after each heading.
 - **Blank Lines Around Lists**: Include a blank line before and after numbered and bullet lists.
 - **ATX-Style Headers**: Use `#` syntax, not underline style.
 - **Consistent List Indentation**: Use 2-space indentation for nested list items.
+- **Consistent Markers**: Use `-` for bullets, incrementing numbers for ordered lists, and `*` for emphasis.
 
 # Auto-Generated Content (CRITICAL)
 

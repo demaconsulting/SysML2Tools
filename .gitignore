@@ -72,6 +72,7 @@ dlldata.c
 BenchmarkDotNet.Artifacts/
 
 # .NET
+*.slnx.user
 project.lock.json
 project.fragment.lock.json
 artifacts/
@@ -116,3 +117,7 @@ AGENT_REPORT_*.md
 stdlib.json
 
 mermaid-filter.err
+
+# OS
+.DS_Store
+Thumbs.db

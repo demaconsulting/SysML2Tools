@@ -28,8 +28,8 @@ docs/verification/
     └── {package-name}.md        # heading depth ##
 ```
 
-All sections in every file are mandatory; write "N/A - {justification}" rather than removing any.
-Determine subsystem vs. unit classification from `docs/design/introduction.md` — folder depth does not determine classification.
+All sections in every file are mandatory; write "N/A - {justification}" rather than removing any. Determine subsystem
+vs. unit classification from `docs/design/introduction.md` — folder depth does not determine classification.
 
 # introduction.md (MANDATORY)
 
@@ -38,7 +38,7 @@ Must include:
 - **Purpose**: audience and compliance drivers
 - **Scope**: items covered and explicitly excluded (no test projects)
 - **Companion Artifact Structure**: parallel paths for requirements, design, verification, source, tests
-- **References** _(if applicable)_: external standards or specifications - only in `introduction.md`
+- **References** *(if applicable)*: external standards or specifications - only in `introduction.md`
 
 # System Verification Design (MANDATORY)
 
@@ -97,5 +97,6 @@ verification approach.
 - [ ] Non-applicable mandatory sections contain "N/A - {justification}"
 - [ ] Requirements-to-test coverage is tracked via the ReqStream trace matrix, not in these documents
 - [ ] `docs/verification/ots.md` and `docs/verification/ots/{ots-name}.md` exist when OTS items are present
-- [ ] `docs/verification/shared.md` and `docs/verification/shared/{package-name}.md` exist when Shared Packages are present
+- [ ] `docs/verification/shared.md` and `docs/verification/shared/{package-name}.md` exist when Shared Packages are
+  present
 - [ ] Documents are integrated into ReviewMark review-sets

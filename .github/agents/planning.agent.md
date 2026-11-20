@@ -52,10 +52,13 @@ Repeat up to 2 more times, stopping when the plan is stable.
 
 List up to 5 risks with a brief mitigation for each.
 
-## Step 6 — Feasibility Assessment
+## Step 6 — Feasibility and Delivery
 
 State whether this can be implemented in a single development pass and any
-preconditions that affect feasibility.
+preconditions that affect feasibility. Propose how the work groups into pull
+requests: one complete, useful change per pull request where possible; if it
+should be split, list ordered parts that are split by behavior (not by layer or
+file type) and each build, pass, and deliver something on their own.
 
 ## Step 7 — Recommendation
 
@@ -108,9 +111,12 @@ Then respond to the caller with ONLY the lean structured summary below.
 
 1. **[severity]** {risk} — {mitigation}
 
-## Feasibility Assessment
+## Feasibility and Delivery
 
 {Single-pass or not, and why. Any preconditions.}
+
+{Proposed pull-request grouping: one pull request, or ordered parts split by behavior,
+each with what it delivers on its own.}
 
 ## Unknowns
 
