@@ -7,21 +7,16 @@
 #
 #   To auto-fix formatting issues, run fix.ps1 instead.
 #
-# EXTENSION POINTS:
-#   Search for "[PROJECT-SPECIFIC]" comments to find the designated locations
-#   for adding project-specific lint checks.
-#
-# MODIFICATION POLICY:
-#   Only modify this file to add project-specific operations at the designated
-#   [PROJECT-SPECIFIC] extension points, or to update tool versions as needed.
-
-# ==============================================================================
-# HELPER FUNCTIONS
-# ==============================================================================
+# CUSTOMIZATION:
+#   This script belongs to the project: extend it as the project grows. Add steps at the
+#   [PROJECT-SPECIFIC] points, update tool versions, and add optional parameters that focus
+#   a run (for example -Project <name> in a multi-library repository).
+#   Run with no arguments it must still run every check (CI relies on that), and never
+#   remove or weaken a check to make it pass.
 
 function Get-VenvActivateScript {
-    if (Test-Path ".venv/Scripts/Activate.ps1") { return ".venv/Scripts/Activate.ps1" }  # Windows
-    if (Test-Path ".venv/bin/Activate.ps1") { return ".venv/bin/Activate.ps1" }          # Linux/macOS
+    if (Test-Path ".venv/Scripts/Activate.ps1") { return ".venv/Scripts/Activate.ps1" }
+    if (Test-Path ".venv/bin/Activate.ps1") { return ".venv/bin/Activate.ps1" }
     return $null
 }
 
@@ -49,15 +44,9 @@ function Initialize-PythonVenv {
     }
 }
 
-# ==============================================================================
-# LINT CHECKS
-# Runs all lint checks. Exits 1 if any check fails.
-# ==============================================================================
-
 $lintError = $false
 
-# --- PYTHON SECTION ---
-# Sets up a virtual environment and runs yamllint.
+# --- YAML ---
 Write-Host "Linting: YAML..."
 $skipPython = -not (Initialize-PythonVenv)
 if ($skipPython) { $lintError = $true }
@@ -68,44 +57,30 @@ if (-not $skipPython) {
     deactivate
 }
 
-# [PROJECT-SPECIFIC] Add additional Python-based lint checks here.
-# Example:
-#   if (-not $skipPython) {
-#       flake8 src/
-#       if ($LASTEXITCODE -ne 0) { $lintError = $true }
-#   }
-
-# --- NPM SECTION ---
-# Installs npm dependencies and runs markdownlint-cli2.
-Write-Host "Linting: markdown..."
-$skipNpm = $false
-$env:PUPPETEER_SKIP_DOWNLOAD = "true"
-npm install --silent
-if ($LASTEXITCODE -ne 0) { $lintError = $true; $skipNpm = $true }
-
-if (-not $skipNpm) {
-    npx markdownlint-cli2 "**/*.md"
-    if ($LASTEXITCODE -ne 0) { $lintError = $true }
-}
-
-# [PROJECT-SPECIFIC] Add additional npm-based lint checks here.
-# Example (ESLint for TypeScript):
-#   if (-not $skipNpm) {
-#       npx eslint "src/**/*.ts"
-#       if ($LASTEXITCODE -ne 0) { $lintError = $true }
-#   }
-
-# --- DOTNET LINTING SECTION ---
-# Runs spell checking (textlint) and compliance tools: reqstream, versionmark, reviewmark.
-Write-Host "Linting: spelling and compliance tools..."
+# --- dotnet Tools ---
 $skipDotnetTools = $false
 dotnet tool restore > $null
 if ($LASTEXITCODE -ne 0) { $lintError = $true; $skipDotnetTools = $true }
 
+# --- Spelling ---
+Write-Host "Linting: spelling..."
 if (-not $skipDotnetTools) {
     dotnet textlint
     if ($LASTEXITCODE -ne 0) { $lintError = $true }
+}
 
+# --- Markdown ---
+Write-Host "Linting: markdown..."
+if (-not $skipDotnetTools) {
+    dotnet lintmark
+    if ($LASTEXITCODE -ne 0) { $lintError = $true }
+}
+
+# [PROJECT-SPECIFIC] Add additional lint checks here.
+
+# --- Compliance Tools ---
+Write-Host "Linting: compliance tools..."
+if (-not $skipDotnetTools) {
     dotnet reqstream --lint --enforce --requirements requirements.yaml
     if ($LASTEXITCODE -ne 0) { $lintError = $true }
 
@@ -116,15 +91,9 @@ if (-not $skipDotnetTools) {
     if ($LASTEXITCODE -ne 0) { $lintError = $true }
 }
 
-# [PROJECT-SPECIFIC] Add additional dotnet tool lint checks here.
-# Example:
-#   if (-not $skipDotnetTools) {
-#       dotnet custom-tool --lint
-#       if ($LASTEXITCODE -ne 0) { $lintError = $true }
-#   }
+# [PROJECT-SPECIFIC] Add additional dotnet tool checks here.
 
-# --- DOTNET FORMATTING SECTION ---
-# Verifies C# code formatting matches .editorconfig rules.
+# --- dotnet Format ---
 Write-Host "Linting: dotnet format..."
 $skipDotnetFormat = $false
 dotnet restore > $null
@@ -135,11 +104,12 @@ if (-not $skipDotnetFormat) {
     if ($LASTEXITCODE -ne 0) { $lintError = $true }
 }
 
-# [PROJECT-SPECIFIC] Add additional format verification checks here.
-# Example (clang-format check for C/C++):
-#   Get-ChildItem -Recurse -Include "*.cpp","*.hpp","*.h" | ForEach-Object {
-#       $result = clang-format --dry-run --Werror $_.FullName 2>&1
-#       if ($LASTEXITCODE -ne 0) { Write-Output $result; $lintError = $true }
-#   }
+# [PROJECT-SPECIFIC] C/C++ clang-format check example:
+#   Get-ChildItem -Recurse -Include "*.cpp","*.hpp","*.h","*.c" |
+#       Where-Object { $_.FullName -notmatch '[/\\](thirdparty|third-party|3rd-party|generated)[/\\]' } |
+#       ForEach-Object {
+#           $result = clang-format --dry-run --Werror $_.FullName 2>&1
+#           if ($LASTEXITCODE -ne 0) { Write-Output $result; $lintError = $true }
+#       }
 
 exit ($lintError ? 1 : 0)

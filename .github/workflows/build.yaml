@@ -36,11 +36,6 @@ jobs:
         run: >
           dotnet tool restore
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24.x
-
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
@@ -57,7 +52,7 @@ jobs:
           echo "Capturing tool versions..."
           dotnet versionmark --capture --job-id "quality" \
             --output "artifacts/versionmark-quality.json" -- \
-            dotnet git versionmark textlint
+            dotnet git versionmark textlint lintmark
           echo "✓ Tool versions captured"
 
       # === CAPTURE OTS SELF-VALIDATION RESULTS ===
@@ -493,7 +488,7 @@ jobs:
           dotnet versionmark --capture --job-id "build-docs" \
             --output "artifacts/versionmark-build-docs.json" -- \
             dotnet git node npm pandoc weasyprint sarifmark sonarmark reqstream \
-            buildmark versionmark reviewmark fileassert canvasnet textlint
+            buildmark versionmark reviewmark fileassert canvasnet textlint lintmark docdown
           echo "✓ Tool versions captured"
 
       # === PREPARE DOCUMENT OUTPUT ===

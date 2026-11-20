@@ -75,12 +75,10 @@
     },
     {
       "label": "lint markdown",
-      "command": "npx",
+      "command": "dotnet",
       "type": "shell",
       "args": [
-        "markdownlint-cli2",
-        "\"**/*.md\"",
-        "\"#node_modules\""
+        "lintmark"
       ],
       "problemMatcher": [],
       "presentation": {

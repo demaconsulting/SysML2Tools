@@ -23,7 +23,7 @@ pre-laid-out `InnerContent`; `Name` remains the identity used to resolve connect
 `PortInfo` (a declared port: its name, its `name : Type` label, and its `PortAppearance`),
 `TopLevelPart` (pairs a top-level-fallback `PartItem` with its owning
 definition's qualified name, `OwnerQualifiedName`, so `ResolveTopLevelConnections` can scope
-endpoint resolution correctly per owning definition — see _No-single-root scoped fallback_ below),
+endpoint resolution correctly per owning definition — see *No-single-root scoped fallback* below),
 `ConnItem` (a resolved binary connector between two nested-part indices, the `EdgePortRef` each end
 attaches through, and its `ConnectorStyle`: end decoration, midpoint label, and end labels),
 `InteriorLayout` (the full container size and content produced by laying out one element's interior),
@@ -35,34 +35,30 @@ workspace, so a usage's type and its supertypes can be resolved whatever kind of
 
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
-Entry point. Resolves the view's `expose` scope via `ExposeScopeResolver.ResolveExposedScope`,
-selects the root part definition(s) or part usage(s) via `FindRoots(workspace, scope, defsByName)`, builds the container-definition
-index via `BuildDefinitionIndex`, lays out the root's interior via `LayOutInterior` (applying
-`scope`'s namespace-prefix filter only at the root's own direct children, depth 0; every deeper
-recursive call passes `scope: null`, since a nested container's own interior's membership in the
-exposed scope is never re-derived from its own qualified name — composition structure and
-namespace/file organization are independent in SysML v2 — but whether that deeper interior is
-expanded **at all** is gated by a per-branch `ancestorUnlimitedRecursion` flag, decided once per
-depth-0 feature and threaded unchanged through every recursive call beneath it; see
-_Per-Branch Depth-Limited Recursion_ below; the true root call passes `ancestorUnlimitedRecursion:
-null`, since no branch decision exists yet at that point), and assembles the root container box
-with the interior content nested as that box's own `Children` (mirroring the nesting `MakePartBox`
-already uses for a container part, so the root box is never a bare sibling of its own content) into
-the `LayoutTree`. When `FindRoots` returns several roots, `LayOutRootsSideBySide` builds each
-root's container box with `BuildRootBox` and places them left to right in declaration order,
-separated by `6 × LabelPadding`, with aligned tops (SysML v2.1 Beta 2 8.2.3.11:
-`interconnection-view = (interconnection-element)*`); the gap grows by the left and right overhang of
-each frame's own port labels. A single root is translated right by its left overhang and the canvas
-widened by both overhangs. When `FindRoots` selects no root, falls
-back to the **no-single-root scoped fallback** described below when the resolved scope directly
-includes one or more top-level node usages; otherwise returns a minimal 200×100 empty
+Entry point. Resolves the view's `expose` scope via `ExposeScopeResolver.ResolveExposedScope`, selects the root part
+definition(s) or part usage(s) via `FindRoots(workspace, scope, defsByName)`, builds the container-definition index via
+`BuildDefinitionIndex`, lays out the root's interior via `LayOutInterior` (applying `scope`'s namespace-prefix filter
+only at the root's own direct children, depth 0; every deeper recursive call passes `scope: null`, since a nested
+container's own interior's membership in the exposed scope is never re-derived from its own qualified name — composition
+structure and namespace/file organization are independent in SysML v2 — but whether that deeper interior is expanded
+**at all** is gated by a per-branch `ancestorUnlimitedRecursion` flag, decided once per depth-0 feature and threaded
+unchanged through every recursive call beneath it; see *Per-Branch Depth-Limited Recursion* below; the true root call
+passes `ancestorUnlimitedRecursion: null`, since no branch decision exists yet at that point), and assembles the root
+container box with the interior content nested as that box's own `Children` (mirroring the nesting `MakePartBox` already
+uses for a container part, so the root box is never a bare sibling of its own content) into the `LayoutTree`. When
+`FindRoots` returns several roots, `LayOutRootsSideBySide` builds each root's container box with `BuildRootBox` and
+places them left to right in declaration order, separated by `6 × LabelPadding`, with aligned tops (SysML v2.1 Beta 2
+8.2.3.11: `interconnection-view = (interconnection-element)*`); the gap grows by the left and right overhang of each
+frame's own port labels. A single root is translated right by its left overhang and the canvas widened by both
+overhangs. When `FindRoots` selects no root, falls back to the **no-single-root scoped fallback** described below when
+the resolved scope directly includes one or more top-level node usages; otherwise returns a minimal 200×100 empty
 `LayoutTree`.
 
 ###### Per-Branch Depth-Limited Recursion (`DetermineBranchUnlimitedRecursion`, `MatchesUnlimitedSubject`)
 
 Recursion depth is decided **once per composition branch**, not once for the whole diagram. At
 depth 0 — the only point where a feature's own qualified name is checked against the resolved
-scope at all (see _Cross-boundary resolution_ / `CollectParts` below) — `CollectParts` (and,
+scope at all (see *Cross-boundary resolution* / `CollectParts` below) — `CollectParts` (and,
 identically, each independently-scoped feature visited by `CollectTopLevelScopedParts`) computes
 `ancestorUnlimitedRecursion ?? DetermineBranchUnlimitedRecursion(feature, scope)`: when an ancestor
 branch decision has already been made (always `null` only at the true root), it is reused unchanged
@@ -74,7 +70,7 @@ delegates to `ExposeScopeResolver.MatchesUnlimitedSubject(qualifiedName, scope)`
 sibling of `IsInSubjectScope` that returns `true` only when the feature matches a subject whose
 recursion kind is `ExposeRecursionKind.MembershipRecursive` or `ExposeRecursionKind.NamespaceRecursive`
 (an `expose X::**;` or `expose X::*::**;` form), never via `ExplicitMembers` (which is always
-exact-only, regardless of any subject's recursion kind) and never merely because some _other_,
+exact-only, regardless of any subject's recursion kind) and never merely because some *other*,
 unrelated subject in the same scope happens to be recursive. When a feature matches both a
 recursive and a non-recursive subject simultaneously (e.g. two overlapping `expose` statements both
 naming an ancestor of the same feature with different recursion kinds), the branch is still decided
@@ -139,8 +135,8 @@ feature's own qualified name (it is already reachable as that ancestor's own nes
 not also be duplicated as a separate top-level node), and builds a `PartItem` for each survivor via
 `BuildPartItem` — the same container-vs-leaf recursion `CollectParts` uses for every other nested
 part, extracted so the logic is never duplicated, gated by that same feature's own independently
-decided `DetermineBranchUnlimitedRecursion(feature, scope)` (see _Per-Branch Depth-Limited
-Recursion_ above) so this boxless fallback path applies the identical per-branch depth-limiting
+decided `DetermineBranchUnlimitedRecursion(feature, scope)` (see *Per-Branch Depth-Limited
+Recursion* above) so this boxless fallback path applies the identical per-branch depth-limiting
 decision as the normal container-rooted path — each top-level feature here is its own branch root,
 exactly as a depth-0 feature is in `CollectParts`. Each survivor is returned as a `TopLevelPart(Part,
 OwnerQualifiedName)` — pairing the built `PartItem` with its owning definition's qualified name
@@ -167,7 +163,7 @@ fallback: `CollectTopLevelScopedParts` can pull matching top-level features from
 containing definitions across the entire workspace scan, and two different definitions can each
 happen to declare a same-named part (e.g. both `part logger : Logger;`). A single flat
 `Dictionary<string, int>` built from every collected top-level part would let `TryAdd` silently keep
-only the first same-named occurrence, so a connection declared inside the _other_ definition would
+only the first same-named occurrence, so a connection declared inside the *other* definition would
 incorrectly resolve against the first definition's part index — producing a bogus edge (or a
 silently dropped connection, if the mis-resolved indices happened to coincide). `ResolveTopLevelConnections`
 avoids this by grouping the received `IReadOnlyList<TopLevelPart>` into a `Dictionary<string,
@@ -184,41 +180,37 @@ without needing to change that unrelated, unaffected code path at all.
 
 ###### `BuildPartItem(feature, theme, depth, defsByName, visited, unlimitedRecursion)`
 
-Extracted from `CollectParts`'s per-feature loop body: builds the keyword (`GeneralViewLayoutStrategy.UsageKeyword`,
-so a reference part reads `ref part`), the name line (`FormatUsageNameLine`), and the declared
-ports (`ResolvePorts`), then resolves the container through `TryResolveContainer` — the usage itself
-when its own inline body declares nested parts, otherwise the container definition its `FeatureTyping`
-resolves to against `defsByName` — recursing into `LayOutInterior` at `depth + 1` for a
-container **only when `unlimitedRecursion` is `true`** (with the resolved container's qualified
-name added to a copy of `visited`, `scope: null` — nested composition structure's own membership is
-never re-derived from its own qualified name, matching `CollectParts`'s own documented recursion
-behavior — and `ancestorUnlimitedRecursion: unlimitedRecursion`, propagating this branch's
-already-decided flag unchanged to every descendant; see _Per-Branch Depth-Limited Recursion_ above)
-or computing an intrinsic leaf size via `ComputePartSize(label, keyword, theme)` (or `GeneralViewLayoutStrategy.ComputeBoxSize`
-when the leaf has `doc` or `attributes` compartments, built by `BuildLeafCompartments`) otherwise — which happens both
-when the feature is not a container, and, unconditionally, whenever
-`unlimitedRecursion` is `false` (a container part still renders as its own node; only its interior
-expansion is suppressed). Here, `unlimitedRecursion` is always the concrete, already-decided
-per-branch `bool` computed once at that branch's own depth 0 (never the ambient `bool?` — by the
-time `CollectParts`/`CollectTopLevelScopedParts` call this method, the branch decision has always
-already been resolved to a concrete value). This method is only ever invoked at `depth == 0`
-directly (from `CollectParts` or `CollectTopLevelScopedParts`) or via its own
-`unlimitedRecursion`-gated recursive `LayOutInterior` call, so gating solely on `unlimitedRecursion`
-(without separately re-checking `depth`) is sufficient to limit expansion to "depth 0 only" under a
-non-recursive branch decision.
-Every box is at least tall enough for its declared ports (`PortReservedHeight`: the title area plus
-one `PortPitch` per declared port, whether the engine or this strategy places it). Both `CollectParts`
-(depth > 0 or an already-scope-filtered depth-0 feature) and
-`CollectTopLevelScopedParts` (a scope-matched top-level feature, always at `depth: 0`) call this one
-method, so the container-vs-leaf recursion is defined exactly once.
+Extracted from `CollectParts`'s per-feature loop body: builds the keyword (`GeneralViewLayoutStrategy.UsageKeyword`, so
+a reference part reads `ref part`), the name line (`FormatUsageNameLine`), and the declared ports (`ResolvePorts`), then
+resolves the container through `TryResolveContainer` — the usage itself when its own inline body declares nested parts,
+otherwise the container definition its `FeatureTyping` resolves to against `defsByName` — recursing into
+`LayOutInterior` at `depth + 1` for a container **only when `unlimitedRecursion` is `true`** (with the resolved
+container's qualified name added to a copy of `visited`, `scope: null` — nested composition structure's own membership
+is never re-derived from its own qualified name, matching `CollectParts`'s own documented recursion behavior — and
+`ancestorUnlimitedRecursion: unlimitedRecursion`, propagating this branch's already-decided flag unchanged to every
+descendant; see *Per-Branch Depth-Limited Recursion* above) or computing an intrinsic leaf size via
+`ComputePartSize(label, keyword, theme)` (or `GeneralViewLayoutStrategy.ComputeBoxSize` when the leaf has `doc` or
+`attributes` compartments, built by `BuildLeafCompartments`) otherwise — which happens both when the feature is not a
+container, and, unconditionally, whenever `unlimitedRecursion` is `false` (a container part still renders as its own
+node; only its interior expansion is suppressed). Here, `unlimitedRecursion` is always the concrete, already-decided
+per-branch `bool` computed once at that branch's own depth 0 (never the ambient `bool?` — by the time
+`CollectParts`/`CollectTopLevelScopedParts` call this method, the branch decision has always already been resolved to a
+concrete value). This method is only ever invoked at `depth == 0` directly (from `CollectParts` or
+`CollectTopLevelScopedParts`) or via its own `unlimitedRecursion`-gated recursive `LayOutInterior` call, so gating
+solely on `unlimitedRecursion` (without separately re-checking `depth`) is sufficient to limit expansion to "depth 0
+only" under a non-recursive branch decision. Every box is at least tall enough for its declared ports
+(`PortReservedHeight`: the title area plus one `PortPitch` per declared port, whether the engine or this strategy places
+it). Both `CollectParts` (depth > 0 or an already-scope-filtered depth-0 feature) and `CollectTopLevelScopedParts` (a
+scope-matched top-level feature, always at `depth: 0`) call this one method, so the container-vs-leaf recursion is
+defined exactly once.
 
 ###### `LayOutInteriorWithConnections(parts, pairs, theme, boxDepth, reserveTitleArea = true, extraTopBand = 0)`
 
 Places `parts` and routes `pairs` via `LayeredPlacement.PlaceWithPorts`, passing each connector's
-decoration, midpoint label, end labels, and port requests (see _Ports_ and _Connector kinds and end
-labels_ below), then opens corridors with `LayeredPlacement.WidenForMidpointLabels` (see _Midpoint
-label clearance_), shifts the content inside the container, adds the engine's connector lines and
-ports, and places the unconnected declared ports (see _Unconnected and frame ports_). Two
+decoration, midpoint label, end labels, and port requests (see *Ports* and *Connector kinds and end
+labels* below), then opens corridors with `LayeredPlacement.WidenForMidpointLabels` (see *Midpoint
+label clearance*), shifts the content inside the container, adds the engine's connector lines and
+ports, and places the unconnected declared ports (see *Unconnected and frame ports*). Two
 behaviors are parameterized because an enclosing container box does not always exist or always have the same header:
 `extraTopBand` is the height of the compartment title band the root frame carries below its title
 (zero for every other container), and `boxDepth` is stamped directly onto each placed part's own `LayoutBox.Depth`
@@ -236,28 +228,24 @@ bottom-up** scheme equivalent to ELK's `SEPARATE_CHILDREN` hierarchy mode: inner
 out first through flat layered placement, and each container is then treated as an atomic fixed-size
 node by its parent, which is laid out with the **same** flat placement.
 
-- **Container detection.** A part usage whose own body declares nested `part` usages is a container
-  itself (its body is laid out like a definition's). Otherwise `BuildDefinitionIndex` builds a `Dictionary<string, SysmlDefinitionNode>`
-  of candidate containers — non-standard-library `part def`s that have at least one nested `part`
-  usage — keyed by qualified name. For each part,
-  `CollectParts` resolves its type against that index (`TryResolveContainer` → `ResolveByTyping`):
-  first via the part's resolved `Typing` edge from the semantic model, used as resolved (the
-  semantic resolver already applies KerML name resolution — member visibility, filtered imports,
-  and import scoping — so the layout does not re-check it; a target that
-  is not a container makes the part a leaf — it never matches a same-named container
-  elsewhere); otherwise by KerML 8.2.3.5 name resolution of the raw `FeatureTyping` text relative to the part's
-  owning namespace (the private `DefinitionIndex` wraps the container map and a `NameResolver`
-  from `FilterExpressionEvaluator.CreateNameResolver`). A typing neither step resolves, such as a
-  private or filtered-out definition, makes the part a leaf: there is no bare simple-name
-  matching and the layout emits no warning (the load-time `Unresolved reference` diagnostic is the
-  single report). A part whose type resolves
-  to a container, and whose type is not already
-  on the recursion path, is a container, and every other part is a leaf. `FindRoot`'s
+- **Container detection.** A part usage whose own body declares nested `part` usages is a container itself (its body is
+  laid out like a definition's). Otherwise `BuildDefinitionIndex` builds a `Dictionary<string, SysmlDefinitionNode>` of
+  candidate containers — non-standard-library `part def`s that have at least one nested `part` usage — keyed by
+  qualified name. For each part, `CollectParts` resolves its type against that index (`TryResolveContainer` →
+  `ResolveByTyping`): first via the part's resolved `Typing` edge from the semantic model, used as resolved (the
+  semantic resolver already applies KerML name resolution — member visibility, filtered imports, and import scoping — so
+  the layout does not re-check it; a target that is not a container makes the part a leaf — it never matches a
+  same-named container elsewhere); otherwise by KerML 8.2.3.5 name resolution of the raw `FeatureTyping` text relative
+  to the part's owning namespace (the private `DefinitionIndex` wraps the container map and a `NameResolver` from
+  `FilterExpressionEvaluator.CreateNameResolver`). A typing neither step resolves, such as a private or filtered-out
+  definition, makes the part a leaf: there is no bare simple-name matching and the layout emits no warning (the
+  load-time `Unresolved reference` diagnostic is the single report). A part whose type resolves to a container, and
+  whose type is not already on the recursion path, is a container, and every other part is a leaf. `FindRoot`'s
   composition-graph check uses the same `ResolveByTyping`.
 - **Recursion.** A container part is laid out by calling `LayOutInterior` on its type definition at
   `depth + 1`, with the type's qualified name added to a `visited` set — but only when this
-  branch's own decided `unlimitedRecursion` value is `true` (see _Per-Branch Depth-Limited
-  Recursion_ above); when `false`, expansion never proceeds past that branch's own depth 0 and a
+  branch's own decided `unlimitedRecursion` value is `true` (see *Per-Branch Depth-Limited
+  Recursion* above); when `false`, expansion never proceeds past that branch's own depth 0 and a
   deeper container is instead sized as an intrinsic leaf. The
   returned interior size becomes the part's atomic box size, and the returned interior content
   becomes its `InnerContent`. A `visited` qualified-name set guards against self- or
@@ -303,7 +291,7 @@ node by its parent, which is laid out with the **same** flat placement.
   not just its head segment: the head segment still identifies the parent-level part index, and any
   remaining dotted segment(s) (e.g. `cpu` in `board.cpu`, or `encoder` in `StepperMotorX.encoder`) is
   captured as that endpoint's port-name label (or, when its first segment names a declared port, the
-  declared port; see _Ports_) and flows through `ConnItem.PortA`/`PortB` into the
+  declared port; see *Ports*) and flows through `ConnItem.PortA`/`PortB` into the
   emitted `LayoutPort.ExternalLabel`. This means a reference into a nested part (`connect psu to
   board.cpu`) now shows the true target name (`cpu`) on the port, rather than the pre-fix behavior of
   silently discarding it. The connector itself is still **routed only to the container's own
@@ -315,7 +303,7 @@ node by its parent, which is laid out with the **same** flat placement.
   `LayoutGraphNode.Children` for the affected subtree, which is a materially larger architectural
   change than this feature makes; it remains a known, documented limitation. `ResolveEndpoint`
   captures **everything** after the first dotted segment as the label, however many levels deep
-  (e.g. `board.sub.cpu` yields the label `sub.cpu`, not just `sub`); only the _routing_ — never the
+  (e.g. `board.sub.cpu` yields the label `sub.cpu`, not just `sub`); only the *routing* — never the
   label text — stops at the container's boundary regardless of path depth.
 
 ##### Ports
@@ -415,12 +403,12 @@ so multiple distinct SysML connections between the same two parts (e.g. separate
 `power`/`encoder`/`sensor` connections wired between the same controller and motor, as seen in a
 real 3-axis-gantry wiring model) are never collapsed onto one shared routed polyline: each
 connection keeps its own independently-routed connector with distinct waypoints (a separate
-parallel lane), and its own ports (a declared port that several of them name is one shared port; see _Ports_).
+parallel lane), and its own ports (a declared port that several of them name is one shared port; see *Ports*).
 
 ###### `FindRoots(workspace, scope, defsByName)`
 
-Chooses the non-standard-library `part def` with the most drawn connector usages (see _Connector kinds
-and end labels_; ties broken by the most part usages) as the element whose interior to render,
+Chooses the non-standard-library `part def` with the most drawn connector usages (see *Connector kinds
+and end labels*; ties broken by the most part usages) as the element whose interior to render,
 restricted — when a scope is
 resolved — to candidates for which `ExposeScopeResolver.IsRootRelevantToScope` returns `true`;
 returns `null` when no candidate is relevant to a non-null scope (an empty canvas results), and
@@ -448,8 +436,8 @@ and `occurrence`; attributes and plain references stay compartment rows), sizing
 qualified name fails `ExposeScopeResolver.IsInSubjectScope`. `ResolveConnections` maps each binary
 connection's dotted endpoint references to nested-part indices and port-name labels via
 `ResolveEndpoint` (matching the first dotted segment against the (possibly narrowed) part names and
-attaching each end through the declared port its next segment names — see _Ports_ and _Cross-boundary
-resolution_ above), keeping only distinct, resolvable pairs of drawn connector kinds; a connection whose
+attaching each end through the declared port its next segment names — see *Ports* and *Cross-boundary
+resolution* above), keeping only distinct, resolvable pairs of drawn connector kinds; a connection whose
 endpoint was excluded by scoping simply fails to
 resolve and is dropped by this existing endpoint-lookup logic — no separate edge-side scoping is
 needed.
@@ -460,7 +448,7 @@ Because this strategy renders the interior of each selected root, scoping cannot
 workspace-wide collection the way `GridViewLayoutStrategy` and `BrowserViewLayoutStrategy` do;
 instead it restricts **which root is selected**, then narrows **which of that root's parts are
 shown**, and finally — via `DetermineBranchUnlimitedRecursion`/`MatchesUnlimitedSubject` (see
-_Per-Branch Depth-Limited Recursion_ above) — governs **how deep into each shown part's own
+*Per-Branch Depth-Limited Recursion* above) — governs **how deep into each shown part's own
 interior the diagram recurses, decided independently per branch**.
 `FindRoots` only considers candidates `ExposeScopeResolver.IsRootRelevantToScope` accepts,
 so exposing the current heuristic root itself, an inner part of it, or a definition that itself
@@ -492,9 +480,9 @@ recursive subject in the very same scope fully recurses, independently of this o
 ###### Placement and routing
 
 Placement and routing are delegated to `LayeredPlacement.PlaceWithPorts` with a left-to-right flow
-direction; parallel-edge merging is unconditionally disabled by that method (see _Parallel
-Connection Preservation_ above). Nested-container recursion is driven at the strategy level (see
-_Recursive nested layout_ above); each level calls the same flat placement helper. The strategy
+direction; parallel-edge merging is unconditionally disabled by that method (see *Parallel
+Connection Preservation* above). Nested-container recursion is driven at the strategy level (see
+*Recursive nested layout* above); each level calls the same flat placement helper. The strategy
 passes the collected part boxes and resolved connection pairs — each carrying an `EdgePortRef` for
 every endpoint — as plain geometric input. `LayeredPlacement` delegates to the off-the-shelf
 `DemaConsulting.Rendering.Layout` layered algorithm and returns placed rectangles, connector

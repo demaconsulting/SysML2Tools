@@ -1,16 +1,21 @@
 # YAML Auto-Fix Configuration
 #
-# PURPOSE:
-# - Configure yamlfix to auto-fix common YAML issues before yamllint checks
-# - Settings MUST align with .yamllint.yaml to avoid conflicts
-# - Use 'pwsh ./fix.ps1' or run 'yamlfix .' before 'pwsh ./lint.ps1' to auto-fix, then verify with yamllint
-#
-# RELATIONSHIP TO YAMLLINT:
-# - line_length MUST match .yamllint.yaml line-length.max (120)
-# - preserve_quotes prevents mangling GitHub Actions 'on:' boolean handling
-# - After yamlfix auto-fix, yamllint should only fail on genuinely unresolvable issues
-
-line_length = 120
+# NOTES:
+# - comments_min_spaces_from_content is 1 (not yamllint's 2) on purpose: any value above 1
+#   enables a yamlfix text pass that also rewrites spacing before any '#' inside full-line
+#   comments (for example "(not #)" or a commented-out "#   # note"), so fix.ps1 changed
+#   comment text in .lintmark.yaml and .textlint.yaml on every run. With 1, yamlfix leaves
+#   comment spacing alone and yamllint's comments rule still enforces 2 spaces before inline comments
+# - line_length is 10000 on purpose: DEMA repositories have no YAML line-length limit (yamllint's
+#   line-length rule is disabled in .yamllint.yaml), and yamlfix has no way to turn its limit off,
+#   so a value no line reaches is the closest equivalent. Do not lower it to wrap YAML text.
+# - comments_require_starting_space is false on purpose: yamlfix's comment pass also matches a '#'
+#   inside block scalar text (for example "PKCS #12" in a requirement's text) and rewrote it to
+#   "PKCS # 12" on every run. yamllint's comments rule still requires a space after '#' in real
+#   comments, so turning yamlfix's rewrite off loses no checking.
 preserve_quotes = true
 sequence_style = "keep_style"
 whitelines = 1
+line_length = 10000
+comments_min_spaces_from_content = 1
+comments_require_starting_space = false

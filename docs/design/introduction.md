@@ -29,7 +29,7 @@ The following topics are out of scope:
   files and writes `stdlib.json.gz` (invoked as a plain, sequential step by `build.ps1`, not
   part of the MSBuild graph). Like the build pipeline, it is not part of the delivered
   software and is therefore excluded from the software-items requirements, design, and verification
-  tree. It is listed under _Software Structure_ for navigation only; the absence of requirements,
+  tree. It is listed under *Software Structure* for navigation only; the absence of requirements,
   design, and verification artifacts for it is intentional, not a decomposition gap.
 
 ## Software Structure
@@ -94,7 +94,7 @@ system, subsystem, and unit levels:
     embedded stdlib.json.gz
 - **StdlibGen** (Standalone tool) — console tool that parses stdlib source files and writes
   stdlib.json.gz (invoked by build.ps1, not part of the MSBuild graph; excluded from the
-  software-items requirements/design/verification tree — see _Scope_)
+  software-items requirements/design/verification tree — see *Scope*)
   - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes and compresses to stdlib.json.gz
 - **DemaConsulting.SysML2Tools.Core** (System) — core library: layout strategies,
   rendering orchestration, and the SysML-coupled rendering pipeline

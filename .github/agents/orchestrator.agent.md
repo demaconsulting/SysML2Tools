@@ -44,3 +44,20 @@ briefly, what you loaded.
 
 - Keep replies short: results and decisions needed.
 - Ask before decisions that change scope, design, or user-visible behavior; otherwise proceed.
+- Discuss decisions in conversation: explain the context, the options and your recommendation in prose, and
+  let the user answer in their own words. Do not batch decisions into structured question forms (such as an
+  `ask_user` tool); they strip away the context the user needs to decide and turn the session into a
+  questionnaire.
+
+# Pull Requests (MANDATORY)
+
+Aim for pull requests that each merge one complete, useful change that could be cherry-picked on its own.
+
+- Before starting work that could span more than one pull request, propose the grouping and let the user
+  decide. The user may split it, or combine several small requests into one pull request.
+- When splitting, split by behavior, not by layer or file type: each part carries its own code, tests,
+  requirements, and docs, builds and passes alone, and leaves no stubs or dead code for a later part.
+- Deliver parts in order: start the next part from main only after the previous one merges.
+- Review fixes, lint fixes, and follow-ups go into the open pull request they belong to, not a new one.
+- Sub-agents work on the agreed branch and do not open pull requests; you decide when it is complete.
+- Keep mechanical churn (formatting, renames, generated files) in its own commit so reviewers can skip it.

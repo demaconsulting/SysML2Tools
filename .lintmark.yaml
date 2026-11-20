@@ -1,0 +1,29 @@
+---
+# Markdown Linting and Formatting Configuration (LintMark)
+#
+# PURPOSE:
+# - Checks and formats all Markdown files with 'dotnet lintmark' (lint.ps1) and
+#   'dotnet lintmark --fix' (fix.ps1)
+#
+# DO NOT MODIFY: These settings represent coding standards. If files fail linting,
+# fix the files rather than relaxing the rules.
+#
+# FRAGMENT MARKDOWN: This project uses the "fragment markdown" method where subsystem,
+# unit, OTS, and shared-package files intentionally start with ## or ### (not #) because
+# they are assembled by Pandoc into a single document via definition.yaml. LintMark does
+# not require a top-level heading on the first line, so no exception is needed here.
+
+# The configured list replaces LintMark's built-in default ignores.
+ignore:
+  - '**/.git/**'
+  - '**/node_modules/**'
+  - '**/.venv/**'
+  - '**/thirdparty/**'
+  - '**/third-party/**'
+  - '**/3rd-party/**'
+  - '**/generated/**'
+  - '**/.agent-logs/**'
+  # SysML2Tools-specific: ApiMark-generated API reference docs, agent report files, and the roadmap
+  - '**/api/**'
+  - '**/AGENT_REPORT_*.md'
+  - ROADMAP.md

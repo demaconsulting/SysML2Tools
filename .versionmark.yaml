@@ -82,3 +82,13 @@ tools:
   textlint:
     command: dotnet tool list
     regex: '(?i)demaconsulting\.textlint\.tool\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # LintMark (DemaConsulting.LintMark from dotnet tool list)
+  lintmark:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.lintmark\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # DocDown (DemaConsulting.DocDown.Tool from dotnet tool list)
+  docdown:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.docdown\.tool\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'

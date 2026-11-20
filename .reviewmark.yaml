@@ -25,6 +25,7 @@ needs-review:
   - "docs/user_guide/**/*.md"     # User guide documentation
   - "!**/obj/**"                  # Exclude build output
   - "!**/bin/**"                  # Exclude build output
+  - "!**/generated/**"            # Exclude generated documentation
   - "!src/**/Parser/Antlr/**"    # ANTLR4-generated C# — not hand-written
   - "!test/**/Runner.cs"          # Integration-test process-runner helper (test harness, not a unit)
   - "!test/**/AssemblyInfo.cs"    # xUnit collection/parallelization definitions (test harness, not a unit)

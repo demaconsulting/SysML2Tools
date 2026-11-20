@@ -125,27 +125,27 @@ flowchart TD
 
 - *Type*: Sealed class.
 - *Role*: Orchestrator.
-- *Contract*: `IReadOnlyList<RenderOutput> RenderWorkspace(SysmlWorkspace workspace, IRenderer renderer, RenderOptions options)`.
-  Iterates over all views in the workspace, routes each view to an `ILayoutStrategy` via
-  `DiagramTypeRouter`, calls `ILayoutStrategy.BuildLayout`, then calls `IRenderer.Render`
-  and collects the results. Standard-library view declarations are filtered by `StdlibFilter`.
+- *Contract*:
+  `IReadOnlyList<RenderOutput> RenderWorkspace(SysmlWorkspace workspace, IRenderer renderer, RenderOptions options)`.
+  Iterates over all views in the workspace, routes each view to an `ILayoutStrategy` via `DiagramTypeRouter`, calls
+  `ILayoutStrategy.BuildLayout`, then calls `IRenderer.Render` and collects the results. Standard-library view
+  declarations are filtered by `StdlibFilter`.
 
 **DiagramTypeRouter**: Internal routing helper.
 
 - *Type*: Internal static class.
 - *Role*: Router.
-- *Contract*: `static ILayoutStrategy GetStrategy(object viewNode, SysmlWorkspace workspace, out string? unsupportedMessage)`.
-  First checks the view's declared `render` target for an exact, case-sensitive match against
-  `asTreeDiagram` (routes to `BrowserViewLayoutStrategy`) or `asInterconnectionDiagram` (routes to
-  `InterconnectionViewLayoutStrategy`), taking precedence over the heuristic below; any other
-  render target value (including none, `asElementTable`, or `asTextualNotation`) falls through
-  unchanged. Absent a recognized render target, inspects the view node's name and declared
-  supertype names (case-insensitively) for a recognized view-kind marker, in priority order —
-  Interconnection, StateTransition/State, ActionFlow/Action, Grid/Matrix/Tabular, Browser/Tree,
-  then Sequence — and returns the matching concrete `ILayoutStrategy`, falling back to
-  `GeneralViewLayoutStrategy` for unrecognized views or non-view nodes. The `unsupportedMessage`
-  out-parameter is reserved for future unsupported view kinds and is currently always null
-  because every view resolves to a strategy.
+- *Contract*:
+  `static ILayoutStrategy GetStrategy(object viewNode, SysmlWorkspace workspace, out string? unsupportedMessage)`. First
+  checks the view's declared `render` target for an exact, case-sensitive match against `asTreeDiagram` (routes to
+  `BrowserViewLayoutStrategy`) or `asInterconnectionDiagram` (routes to `InterconnectionViewLayoutStrategy`), taking
+  precedence over the heuristic below; any other render target value (including none, `asElementTable`, or
+  `asTextualNotation`) falls through unchanged. Absent a recognized render target, inspects the view node's name and
+  declared supertype names (case-insensitively) for a recognized view-kind marker, in priority order — Interconnection,
+  StateTransition/State, ActionFlow/Action, Grid/Matrix/Tabular, Browser/Tree, then Sequence — and returns the matching
+  concrete `ILayoutStrategy`, falling back to `GeneralViewLayoutStrategy` for unrecognized views or non-view nodes. The
+  `unsupportedMessage` out-parameter is reserved for future unsupported view kinds and is currently always null because
+  every view resolves to a strategy.
 
 **StdlibFilter**: Standard-library element filter.
 

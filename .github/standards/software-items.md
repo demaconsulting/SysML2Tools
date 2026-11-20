@@ -130,3 +130,8 @@ the item is correct, well-designed, and proven to work:
 - **Verification Design** - HOW the requirements will be tested (applies to all item types)
 - **Source code** - The implementation of the design (local units only; not applicable to OTS or Shared Package)
 - **Tests** - PROOF the item does WHAT it is required to do (applies to all item types)
+
+Where the repository models its software structure in SysML2, each item's part def carries a
+`metadata info : SoftwareInfo` annotation whose attributes (`sourceFiles`/`testFiles`/
+`designFiles`/`verificationFiles`/`requirementFiles`) point at these same artifact locations
+so agents can query them directly — see `sysml2-modeling.md`.

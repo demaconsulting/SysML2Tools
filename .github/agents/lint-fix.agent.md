@@ -13,7 +13,7 @@ submission, not during normal development.
 # Workflow (MANDATORY)
 
 1. **Auto-fix pass**: Run `pwsh ./fix.ps1` to silently apply all
-   automatic fixes (dotnet format, markdownlint, yamlfix).
+   automatic fixes (dotnet format, lintmark, yamlfix).
 
 2. **Fix loop** (maximum 5 iterations):
 
@@ -30,21 +30,37 @@ submission, not during normal development.
 
 # Fix Guidance by Failure Type
 
-- **TextLint spelling errors**: Add legitimate technical terms to `.textlint.yaml`
-  under the `words` list. Correct genuine misspellings in the source text.
-  Do not add misspelled words to the dictionary.
+- **TextLint spelling errors** (`dotnet textlint`, configured by `.textlint.yaml`):
+  decide the cause first, then apply the matching fix. The `overrides` and
+  `enabled` settings used below need TextLint 0.1.0-beta.4 or later.
 
-- **markdownlint MD013 (line length)**: Wrap long lines at natural break points,
-  after commas, before conjunctions, or at sentence boundaries. Do not break
-  in the middle of a code span or URL. **Pipe-tables that cannot be wrapped
-  without breaking structure** are a special case - convert them to a bullet
-  list if the data reads naturally that way, or rewrite as a
-  [grid table](https://pandoc.org/MANUAL.html#tables) if a tabular layout is
-  essential. Do not get stuck trying to squeeze a wide pipe-table into 120
-  characters.
+  1. **Typo**: Fix it in the source. Never add a misspelled word to `words`.
+  2. **Genuine project or technical term used across the repository**: Add it
+     to the global `words` list in US English. Never add a British-English
+     spelling.
+  3. **Fixture or test data** (deliberate misspellings, encoded data): Add a
+     scoped `overrides` entry with `filename` globs and `words`, `ignoreWords`,
+     or `ignoreRegExpList`, plus a comment explaining why. Do not use global
+     `words` or scattered inline `textlint:` comment directives for these.
+  4. **Never ours** (vendored, generated, or build-output files): Use
+     `ignorePaths`, and only for these.
+  5. **Ours, but deliberately not checked**: Add an `overrides` entry with
+     `enabled: false` and a comment stating the reason.
+  6. `.textlint.yaml` is a protected configuration file. Explain every change to
+     it in the report.
 
-- **markdownlint other rules**: Apply the specific fix indicated in the output
-  (e.g., missing blank lines, heading levels, code fence languages).
+- **LintMark line length (`line-length`, `MD013`)**: Run `pwsh ./fix.ps1` (or `dotnet lintmark --fix`), which
+  re-wraps over-length paragraphs automatically. Only lines LintMark cannot break remain: a single long URL, link, or
+  code span, a heading, or a table row. Fix these by shortening the content, using reference-style links, or
+  restructuring the table. **Pipe-tables that cannot be wrapped without breaking structure** are a special case -
+  convert them to a bullet list if the data reads naturally that way, or rewrite as a
+  [grid table](https://pandoc.org/MANUAL.html#tables) if a tabular layout is essential. Do not get stuck trying to
+  squeeze a wide pipe-table into 120 characters.
+
+- **LintMark other rules** (`dotnet lintmark`): Formatting rules are fixed by `pwsh ./fix.ps1`. The lint-only rules
+  (heading increment, duplicate headings, missing alt text, broken link fragments, undefined or unused link
+  references, emphasis or link spacing, table too wide) need a manual fix: apply the specific fix indicated in the
+  output (`file:line:col: rule-id message`).
 
 - **yamllint errors**: Fix indentation, trailing spaces, or missing document
   markers as indicated. Run `pwsh ./fix.ps1` again if structural YAML
@@ -59,7 +75,7 @@ submission, not during normal development.
 # Rules
 
 - Fix **only** lint issues - do not refactor, restructure, or make functional changes
-- For spelling: prefer adding terms to `.textlint.yaml` over rewriting correct technical text
+- For spelling: follow the TextLint policy above; never add a word to the global `words` list just to silence a failure
 - Never modify auto-generated files (check file headers for "auto-generated" or "do not edit")
 - Respect all protected configuration files listed in AGENTS.md
 - Report **all** files modified
@@ -75,6 +91,7 @@ submission, not during normal development.
 - **Iterations**: {Number of fix-loop iterations performed}
 - **Files Modified**: {List of all files changed}
 - **Issues Fixed**: {Brief categorized description of what was corrected}
+- **`.textlint.yaml` Changes**: {Each change and why, or "None"}
 
 ## Remaining Issues (only when Result is FAILED)
 
