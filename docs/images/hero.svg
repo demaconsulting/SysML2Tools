@@ -141,7 +141,7 @@
     <rect class="panel" x="588" y="48" width="304" height="112" rx="10"/>
     <g transform="translate(588 48)">
       <text class="miniMono" x="16" y="36" fill="#f8fafc"><tspan fill="#c4b5fd">part def</tspan> Car {</text>
-      <text class="miniMono" x="42.4" y="66" fill="#f8fafc"><tspan fill="#c4b5fd">part</tspan> eng : <tspan fill="#fde68a">Engine</tspan>;</text>
+      <text class="miniMono" x="42.4" y="66" fill="#f8fafc"><tspan fill="#c4b5fd">part</tspan> e : <tspan fill="#fde68a">Engine</tspan>;</text>
       <text class="miniMono" x="16" y="96" fill="#f8fafc">}</text>
       <rect x="206" y="78" width="82" height="28" rx="7" fill="#fbbf24" fill-opacity="0.16" stroke="#fbbf24" stroke-width="1.5"/>
       <text class="mini" x="247" y="99" fill="#fde68a" text-anchor="middle">.sysml</text>
@@ -166,7 +166,7 @@
     <rect x="1345" y="40" width="112" height="3" rx="1.5" fill="#f472b6"/>
     <rect class="panel" x="1250" y="48" width="302" height="112" rx="10"/>
     <g transform="translate(1250 48)">
-      <text class="miniMono" x="16" y="36" fill="#f8fafc"><tspan fill="#c4b5fd">part</tspan> eng : <tspan fill="#fde68a">Engine</tspan> {</text>
+      <text class="miniMono" x="16" y="36" fill="#f8fafc"><tspan fill="#c4b5fd">part</tspan> e : <tspan fill="#fde68a">Engine</tspan> {</text>
       <text class="miniMono" x="42.4" y="66" fill="#f9a8d4">@Safety;</text>
       <text class="miniMono" x="16" y="96" fill="#f8fafc">}</text>
       <rect x="206" y="78" width="82" height="28" rx="14" fill="#f472b6" fill-opacity="0.16" stroke="#f472b6" stroke-width="1.5"/>
@@ -220,19 +220,19 @@
     <rect class="card" x="580" y="390" width="296" height="210" rx="16"/>
     <rect class="panel" x="588" y="398" width="280" height="152" rx="10"/>
     <rect x="596" y="404" width="264" height="140" rx="8" fill="#ffffff"/>
-    <rect class="specBox" x="606" y="412" width="130" height="54"/>
-    <text class="specKw" x="671" y="435">«part def»</text>
-    <text class="spec" x="671" y="459">Car</text>
-    <path d="M671 466 L677 474 L671 482 L665 474 Z" fill="#1e293b"/>
-    <path class="specLine" d="M671 482 L671 494"/>
-    <rect class="specBox" x="603" y="494" width="136" height="40" rx="12"/>
-    <text class="spec" x="671" y="521">eng : Engine</text>
-    <path class="specLine" d="M739 514 L749 514"/>
-    <path class="specLine" d="M743 509 L743 519"/>
-    <path class="specLine" d="M747 509 L747 519"/>
-    <path d="M749 507 L749 521 L765 514 Z" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" stroke-linejoin="round"/>
-    <rect class="specBox" x="765" y="494" width="88" height="40"/>
-    <text class="spec" x="809" y="521">Engine</text>
+    <rect class="specBox" x="602" y="412" width="124" height="54"/>
+    <text class="specKw" x="664" y="435">«part def»</text>
+    <text class="spec" x="664" y="459">Car</text>
+    <path d="M664 466 L671 475 L664 484 L657 475 Z" fill="#1e293b"/>
+    <path class="specLine" d="M664 484 L664 494"/>
+    <rect class="specBox" x="604" y="494" width="120" height="40" rx="12"/>
+    <text class="spec" x="664" y="521">e : Engine</text>
+    <path class="specLine" d="M724 514 L748 514"/>
+    <path class="specLine" d="M733 506 L733 522"/>
+    <path class="specLine" d="M738 506 L738 522"/>
+    <path d="M748 503 L748 525 L766 514 Z" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" stroke-linejoin="round"/>
+    <rect class="specBox" x="766" y="494" width="90" height="40"/>
+    <text class="spec" x="811" y="521">Engine</text>
     <text class="label" x="728" y="585">SVG / PNG diagrams</text>
 
     <!-- Output two: lint diagnostics, a warning and an error with their line and column, and the exit code -->
@@ -253,14 +253,10 @@
     <rect class="panel" x="1130" y="398" width="204" height="152" rx="10"/>
     <text class="miniMono" x="1146" y="430" fill="#c4b5fd"># query uses</text>
     <line x1="1146" y1="442" x2="1318" y2="442" stroke="#ffffff" stroke-opacity="0.15"/>
-    <circle cx="1152" cy="468" r="5" fill="#60a5fa"/>
-    <rect class="bar" x="1166" y="464" width="130" height="8" rx="4" fill-opacity="0.75"/>
-    <circle cx="1152" cy="492" r="5" fill="#f472b6"/>
-    <rect class="bar" x="1166" y="488" width="104" height="8" rx="4" fill-opacity="0.75"/>
-    <rect x="1146" y="508" width="60" height="30" rx="15" fill="#22d3ee" fill-opacity="0.16" stroke="#22d3ee" stroke-width="1.5"/>
-    <text class="mini" x="1176" y="530" fill="#a5f3fc" text-anchor="middle">md</text>
-    <rect x="1218" y="508" width="84" height="30" rx="15" fill="#f472b6" fill-opacity="0.16" stroke="#f472b6" stroke-width="1.5"/>
-    <text class="mini" x="1260" y="530" fill="#fbcfe8" text-anchor="middle">json</text>
+    <rect x="1146" y="458" width="136" height="32" rx="16" fill="#22d3ee" fill-opacity="0.16" stroke="#22d3ee" stroke-width="1.5"/>
+    <text class="mini" x="1214" y="481" fill="#a5f3fc" text-anchor="middle">markdown</text>
+    <rect x="1146" y="502" width="84" height="32" rx="16" fill="#f472b6" fill-opacity="0.16" stroke="#f472b6" stroke-width="1.5"/>
+    <text class="mini" x="1188" y="525" fill="#fbcfe8" text-anchor="middle">json</text>
     <text class="label" x="1232" y="585">Query reports</text>
 
     <!-- Output four: the whole model as a JSON or JSONL export -->
