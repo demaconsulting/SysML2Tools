@@ -79,6 +79,8 @@ public sealed class NameResolver
     private readonly HashSet<(string Name, string Namespace, Scope Scope)> _inProgress = new();
     private readonly Dictionary<string, IReadOnlyList<string>> _declaredGeneralTypes = new(StringComparer.Ordinal);
     private readonly HashSet<string> _declaredGeneralTypesInProgress = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _referenceSubsettingTargets = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _referenceSubsettingInProgress = new(StringComparer.Ordinal);
     private int _generalTypeReentries;
     private readonly Dictionary<string, HashSet<string>> _redefinedMembers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _redefinedMembersInProgress = new(StringComparer.Ordinal);
@@ -576,6 +578,12 @@ public sealed class NameResolver
         }
 
         List<string>? result = null;
+        if (ReferenceSubsettingLookupType(typeName, node) is { } referenceSubsetting &&
+            !declared.Contains(referenceSubsetting))
+        {
+            result = [.. declared, referenceSubsetting];
+        }
+
         foreach (var candidate in ImplicitGeneralTypes(typeName, node))
         {
             if (candidate == typeName || !_declarations.ContainsKey(candidate) || declared.Contains(candidate) ||
@@ -685,9 +693,10 @@ public sealed class NameResolver
     }
 
     /// <summary>
-    ///     The raw supertype, typing, reference-subsetting, and view-definition references that
-    ///     name a type's general types. A reference subsetting is a specialization for lookup
-    ///     purposes only: it adds no edge and no diagnostic (it is not among the supertypes).
+    ///     The raw supertype, typing, and view-definition references that name a type's declared
+    ///     general types. A reference subsetting is deliberately not among them: it specializes for
+    ///     lookup purposes only (see <see cref="ReferenceSubsettingLookupType"/>), so it is never
+    ///     part of the public <see cref="GeneralTypes"/>.
     /// </summary>
     private static List<string> RawGeneralReferences(SysmlNode node)
     {
@@ -701,12 +710,46 @@ public sealed class NameResolver
             raw.Add(viewDefinition);
         }
 
-        if (node is SysmlFeatureNode { ReferenceSubsettingName: { Length: > 0 } referenceSubsetting })
+        return raw;
+    }
+
+    /// <summary>
+    ///     The qualified name of the feature a feature references by reference subsetting
+    ///     (<c>::&gt;</c>, <c>perform</c>, <c>assert</c>, ...), resolved relative to its owning
+    ///     namespace, or null when it has none, it does not resolve, or it resolves to the feature
+    ///     itself. It specializes for name lookup only: it adds no edge and no diagnostic and is
+    ///     not part of <see cref="GeneralTypes"/>. A feature reached again while its own reference
+    ///     is being resolved contributes nothing.
+    /// </summary>
+    private string? ReferenceSubsettingLookupType(string typeName, SysmlNode node)
+    {
+        if (node is not SysmlFeatureNode { ReferenceSubsettingName: { Length: > 0 } reference })
         {
-            raw.Add(referenceSubsetting);
+            return null;
         }
 
-        return raw;
+        if (_referenceSubsettingTargets.TryGetValue(typeName, out var cached))
+        {
+            return cached;
+        }
+
+        if (!_referenceSubsettingInProgress.Add(typeName))
+        {
+            _generalTypeReentries++;
+            return null;
+        }
+
+        try
+        {
+            var target = ResolveGeneralReference(reference, typeName, OwnerOf(typeName), RootImportsOf(typeName));
+            var result = target == typeName ? null : target;
+            _referenceSubsettingTargets[typeName] = result;
+            return result;
+        }
+        finally
+        {
+            _referenceSubsettingInProgress.Remove(typeName);
+        }
     }
 
     /// <summary>

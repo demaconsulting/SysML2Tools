@@ -799,7 +799,13 @@ public sealed class AstBodyCoverageTests
             result.Workspace!.Index.AllEdges,
             e => e.SourceQualifiedName == "P::holder::link" && e.TargetQualifiedName == "P::target");
         var resolver = new NameResolver(result.Workspace.Declarations);
-        Assert.Contains("P::target", resolver.GeneralTypes("P::holder::link"));
+        Assert.Contains("P::target", resolver.LookupGeneralTypes("P::holder::link"));
+
+        // The public general types are declared relationships only: no reference subsetting.
+        Assert.DoesNotContain("P::target", resolver.GeneralTypes("P::holder::link"));
+        var declaredOnly = new NameResolver(result.Workspace.Declarations, null, declaredReferencesOnly: true);
+        Assert.DoesNotContain("P::target", declaredOnly.GeneralTypes("P::holder::link"));
+        Assert.Contains("P::target", declaredOnly.LookupGeneralTypes("P::holder::link"));
     }
 
     /// <summary>A transition implicitly specializes the library's transition action.</summary>

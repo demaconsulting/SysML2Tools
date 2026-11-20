@@ -37,8 +37,9 @@ instance serves one workspace.
   `AdditionalRedefinedFeatureNames`),
   cached per type and guarded against re-entry (a specialization
   cycle contributes nothing). The reference subsetting (`::>`, or the feature a `perform`,
-  `include` or `assert` usage references) is a general type for *lookup only*: it adds no edge and no
-  diagnostic. A general-type reference that resolves to the type itself (a usage named only by the
+  `include` or `assert` usage references) is a general type for *lookup only* (`LookupGeneralTypes`,
+  never the public `GeneralTypes`): it adds no edge and no diagnostic. A general-type reference that
+  resolves to the type itself (a usage named only by the
   feature it references, `assert massLimitation { ... }`, finds itself under that name) is resolved
   again from the owner's own owner (`ResolveGeneralReference`). A feature that redefines several
   features inherits the members of each, and hides the inherited members each redefines. That makes

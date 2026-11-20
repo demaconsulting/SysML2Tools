@@ -47,7 +47,8 @@ created in `Path.GetTempPath()` and deleted after each test.
   first segment among the general types. A quoted and an unquoted spelling of one name are the same
   name.
 - A reference subsetting (`::>`, or the feature a `perform`/`assert` references) is a general type
-  for member lookup only (no edge, no diagnostic); a general-type reference that resolves to the type
+  for member lookup only (`LookupGeneralTypes`; the public `GeneralTypes` never includes it, in either
+  resolution mode; no edge, no diagnostic); a general-type reference that resolves to the type
   itself is resolved again from the owner's owner; a transition implicitly specializes
   `Actions::transitionActions` and the new usage kinds have their implicit-specialization rows; a
   feature redefining several features inherits the members of each.
