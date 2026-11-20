@@ -237,7 +237,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         /// <summary>
         /// A resolved standalone <c>dependency</c> reference: dashed line, open chevron at the
-        /// depended-upon element.
+        /// depended-upon element, with a midpoint label that is the dependency's declared name or,
+        /// for an unnamed dependency, <c>«depend»</c>.
         /// </summary>
         Dependency,
 
@@ -1740,6 +1741,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                             RecordDrop("Allocate", sourceRef, edge.TargetQualifiedName, source, target);
                         }
 
+        // The declared names of the named dependencies, by (client, supplier) pair, so each
+        // dependency edge below is labeled with its own name (see DependencyLabel).
+        var dependencyNames = CollectDependencyNames(workspace);
+
                         break;
                     }
 
@@ -1749,7 +1754,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, usageBoxes);
                         if (source is not null && target is not null && source != target)
                         {
-                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
+                            edges.Add(new ModelEdge(
+                                source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency, DependencyLabel(dependencyNames, sourceRef, edge.TargetQualifiedName)));
                         }
                         else
                         {
@@ -1876,6 +1882,68 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         foreach (var (importer, declaration) in workspace.Declarations)
         {
             foreach (var import in declaration.Children.OfType<SysmlImportNode>())
+    /// <summary>The label of a dependency edge whose dependency declares no name (SysML v2 graphical notation: the relationship keyword in guillemets).</summary>
+    private const string DependencyKeywordLabel = "«depend»";
+
+    /// <summary>
+    /// Collects the declared names of the named, non-stdlib <c>dependency</c> declarations, keyed by
+    /// the (client, supplier) qualified-name pair of each edge they resolved to, in resolution order.
+    /// </summary>
+    /// <remarks>
+    /// A dependency edge in the semantic index carries no reference to the declaration it came
+    /// from, so the declared name is recovered from the declaration's own resolved edges. A
+    /// dependency without a name is not registered as a declaration and so has no entry; its edges
+    /// fall back to the keyword label (see <see cref="DependencyLabel"/>).
+    /// </remarks>
+    /// <param name="workspace">The workspace whose named dependencies are collected.</param>
+    /// <returns>The queue of declared names, per (client, supplier) pair, in declaration order.</returns>
+    private static Dictionary<(string Source, string Target), Queue<string>> CollectDependencyNames(SysmlWorkspace workspace)
+    {
+        var names = new Dictionary<(string Source, string Target), Queue<string>>();
+        foreach (var (qualifiedName, declaration) in workspace.Declarations)
+        {
+            if (declaration is not SysmlDependencyNode { Name: { Length: > 0 } name } ||
+                StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
+            {
+                continue;
+            }
+
+            foreach (var resolved in declaration.ResolvedEdges.Where(e => e.Kind == SysmlEdgeKind.Dependency))
+            {
+                var key = (resolved.SourceQualifiedName ?? string.Empty, resolved.TargetQualifiedName);
+                if (!names.TryGetValue(key, out var queue))
+                {
+                    queue = new Queue<string>();
+                    names[key] = queue;
+                }
+
+                queue.Enqueue(name);
+            }
+        }
+
+        return names;
+    }
+
+    /// <summary>
+    /// Returns the label of a dependency edge: the declared name of the dependency when it is named,
+    /// else the <c>«depend»</c> keyword label. The choice is this single expression, so a different
+    /// rule (for example showing both) is a one-line change.
+    /// </summary>
+    /// <remarks>
+    /// Consumes the next name recorded for the (client, supplier) pair, so two named dependencies
+    /// between the same boxes each show their own name, and an edge with no recorded name (an
+    /// unnamed dependency, or an edge in a hand-built workspace) shows the keyword.
+    /// </remarks>
+    /// <param name="names">The declared names collected by <see cref="CollectDependencyNames"/>; consumed by this call.</param>
+    /// <param name="source">The edge's client qualified name.</param>
+    /// <param name="target">The edge's supplier qualified name.</param>
+    /// <returns>The edge label.</returns>
+    private static string DependencyLabel(
+        Dictionary<(string Source, string Target), Queue<string>> names, string source, string target) =>
+        names.TryGetValue((source, target), out var queue) && queue.Count > 0
+            ? queue.Dequeue()
+            : DependencyKeywordLabel;
+
             {
                 var label = ImportLabel(import);
                 foreach (var target in import.ResolvedEdges.Where(e => e.Kind == SysmlEdgeKind.Import).Select(e => e.TargetQualifiedName))

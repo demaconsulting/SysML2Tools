@@ -21,7 +21,7 @@ connections, transitions, dependency declarations, and requirement-satisfaction 
 | `SysmlConnectionNode` | Connector usage; adds ConnectionKeyword, EndpointA/B, end labels, PayloadText |
 | `SysmlTransitionNode` | State transition; adds Source, Target, Guard, Trigger, Effect |
 | `SysmlSatisfyNode` | `satisfy X by Y;` requirement-satisfaction usage; adds RequirementName, SubjectName |
-| `SysmlDependencyNode` | Standalone `dependency A, B to C, D;` declaration; adds FromNames, ToNames |
+| `SysmlDependencyNode` | Standalone `dependency A, B to C, D;`; adds FromNames, ToNames, and a declared name |
 
 ##### Properties
 

@@ -2634,7 +2634,8 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     A resolved standalone <see cref="SysmlEdgeKind.Dependency"/> edge between two
-    ///     definitions is drawn as a dashed line with an open chevron at the depended-upon box.
+    ///     definitions is drawn as a dashed line with an open chevron at the depended-upon box and
+    ///     the <c>«depend»</c> keyword label (the edge has no declared name to show).
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_Dependency_ProducesDashedChevronEdge()
@@ -2659,10 +2660,38 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a dashed open-chevron edge (no label) is emitted.
+        // Assert: a dashed open-chevron edge labeled with the keyword is emitted.
         var lines = CollectLines(layout.Nodes);
-        var dependencyEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed && l.MidpointLabel is null);
+        var dependencyEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed && l.MidpointLabel == "«depend»");
         Assert.NotNull(dependencyEdge);
+    }
+
+    /// <summary>
+    ///     A named dependency (<c>dependency link from A to B;</c>) is labeled with its declared name
+    ///     instead of the keyword, an unnamed dependency of the same model keeps <c>«depend»</c>, and
+    ///     two named dependencies between the same boxes each show their own name.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Dependency_Named_ShowsDeclaredNameInsteadOfKeyword()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package P {
+                part def A; part def B; part def C; part def D;
+                dependency link from A to B;
+                dependency A to D;
+                dependency alpha from C to D;
+                dependency beta from C to D;
+            }
+            """);
+
+        // Assert: every dashed open-chevron edge carries exactly the expected label
+        var labels = CollectLines(layout.Nodes)
+            .Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed)
+            .Select(l => l.MidpointLabel)
+            .OrderBy(label => label, StringComparer.Ordinal)
+            .ToList();
+        Assert.Equal(["alpha", "beta", "link", "«depend»"], labels);
     }
 
     /// <summary>

@@ -108,7 +108,8 @@ package QuadcopterDrone {
     }
 
     // A standalone dependency declaration, demonstrating the dashed
-    // open-chevron line (no label) used for a general OMG dependency.
+    // open-chevron line labeled «depend» used for a general OMG dependency
+    // (a named dependency shows its declared name instead).
     dependency FlightController to Battery;
 
     view def DroneGeneralView {}

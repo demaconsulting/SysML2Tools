@@ -78,7 +78,9 @@ external services or additional configuration are required beyond a standard .NE
 - `VisitDependency` splits a `dependency A, B to C, D;` declaration's flat qualified-name list
   into `FromNames`/`ToNames` correctly, including the FROM-keyword-omitted shape
   (`dependency z to x, y;`), and resolves to the expected cross-product `Dependency` edges (or a
-  Warning with no edge for an unresolvable name).
+  Warning with no edge for an unresolvable name). A declared name (`dependency link from a to b;`,
+  with an optional short name) is recorded as the node's name and registers it under its qualified
+  name, while an unnamed dependency registers nothing.
 - `VisitBindingConnectorAsUsage` captures a `bind A = B;` binding connector's two endpoints on a
   `SysmlConnectionNode` with `ConnectionKeyword == "binding"`, resolved via the same
   dotted-feature-chain walk as `connect`, producing a `Binding` edge when both sides resolve (or
@@ -207,6 +209,7 @@ external services or additional configuration are required beyond a standard .NE
 | Dependency binary ends | `WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge` |
 | Dependency comma-list cross product | `WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges` |
 | Dependency unresolved end | `WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge` |
+| Dependency declared name | `WorkspaceLoader_LoadAsync_DependencyNamed_RecordsDeclaredName` |
 | Dependency OMG corpus fixtures | `Dependency_OmgCorpusFixtures_ResolveExpectedEdges` |
 | Binding dotted-chain resolution | `WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge` |
 | Binding unresolved end | `WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge` |

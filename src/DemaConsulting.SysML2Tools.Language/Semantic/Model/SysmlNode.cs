@@ -1078,7 +1078,10 @@ public sealed class SysmlSatisfyNode : SysmlNode
 /// </summary>
 /// <remarks>
 ///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
-///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+///     VerifiedRequirementNames, ResolvedEdges, Annotations. A named dependency
+///     (<c>dependency link from A to B;</c>) carries its declared name in <c>Name</c> and
+///     <c>QualifiedName</c> (and so is a registered symbol, as the specification's Dependency is a
+///     named element); an unnamed dependency has neither.
 /// </remarks>
 public sealed class SysmlDependencyNode : SysmlNode
 {

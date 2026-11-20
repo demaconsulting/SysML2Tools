@@ -1817,8 +1817,16 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             (qualifiedName.Start.TokenIndex < toTokenIndex ? fromNames : toNames).Add(qualifiedName.GetText());
         }
 
+        // The optional declared name (`dependency link from A to B;`) is a name of the dependency
+        // itself, not a reference: the first alternative carries the identification directly, the
+        // second inside its dependencyDeclaration. An unnamed dependency stays anonymous, so it
+        // registers no symbol.
+        var name = GetDeclaredName(context.identification() ?? context.dependencyDeclaration()?.identification());
+
         return new SysmlDependencyNode
         {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
             FromNames = fromNames,
             ToNames = toNames,
         };

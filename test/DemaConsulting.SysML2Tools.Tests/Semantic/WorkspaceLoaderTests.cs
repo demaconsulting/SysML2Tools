@@ -2604,6 +2604,55 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A named <c>dependency link from a to b;</c> records its declared name (and registers the
+    ///     dependency under its qualified name) while still resolving the <c>Dependency</c> edge, and
+    ///     an unnamed dependency stays anonymous.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DependencyNamed_RecordsDeclaredName()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    part b : Q;
+                    dependency link from a to b;
+                    dependency <s1> shortened from b to a;
+                    dependency b to a;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var named = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDependencyNode>(
+                result.Workspace.Declarations["P::link"]);
+            Assert.Equal("link", named.Name);
+            Assert.Contains(named.ResolvedEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency &&
+                     e.SourceQualifiedName == "P::a" &&
+                     e.TargetQualifiedName == "P::b");
+            var shortNamed = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDependencyNode>(
+                result.Workspace.Declarations["P::shortened"]);
+            Assert.Equal("s1", shortNamed.ShortName);
+            Assert.Equal(3, result.Workspace.Index.AllEdges.Count(
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency));
+            Assert.Equal(2, result.Workspace.Declarations.Values.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDependencyNode>().Count());
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A <c>dependency</c> declaration with an unresolvable end should produce a Warning
     ///     diagnostic and must not produce a <c>Dependency</c> edge (no partial edge, no crash).
     /// </summary>

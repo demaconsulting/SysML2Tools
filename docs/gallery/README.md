@@ -82,8 +82,8 @@ marker used for `subsets`/`:>` feature subsetting. `allocate flightTime to batte
 usages, not definitions), demonstrates the solid open-chevron line carrying the
 `«allocate»` stereotype label used for allocation relationships, while the
 standalone `dependency FlightController to Battery;` statement demonstrates the
-dashed open-chevron line without a label, used for general OMG
-dependency relationships.
+dashed open-chevron line labeled `«depend»` (a named dependency shows its declared name
+instead), used for general OMG dependency relationships.
 
 `Battery`'s `comment /* ... */` annotation demonstrates the `BoxShape.Note`
 (folded-corner) box rendered for a commented element, connected to its box by

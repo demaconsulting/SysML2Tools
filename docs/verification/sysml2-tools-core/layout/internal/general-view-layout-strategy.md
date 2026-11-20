@@ -155,7 +155,7 @@ configuration are required beyond a standard .NET SDK installation.
 - A resolved `Allocate` edge yields a solid line with an open-chevron end marker at the target
   and a `«allocate»` midpoint label.
 - A resolved `Dependency` edge yields a dashed line with an open-chevron end marker at the target
-  and no midpoint label.
+  and a midpoint label: the dependency's declared name when it is named, otherwise `«depend»`.
 - A resolved `Binding` edge whose endpoints map to two distinct rendered boxes yields a solid line
   with no end marker and an `=` midpoint label.
 - A usage that subsets a bare-named or qualified inherited usage, or a sibling usage of the same
@@ -635,7 +635,12 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesSolidChevronEdgeWithLabel`:
   An `Allocate` edge produces a solid open-chevron line with a `«allocate»` midpoint label
 - `GeneralViewLayoutStrategy_BuildLayout_Dependency_ProducesDashedChevronEdge`:
-  A `Dependency` edge produces a dashed open-chevron line with no midpoint label
+  A `Dependency` edge with no declared name produces a dashed open-chevron line with a `«depend»`
+  midpoint label
+- `GeneralViewLayoutStrategy_BuildLayout_Dependency_Named_ShowsDeclaredNameInsteadOfKeyword`:
+  Loaded from text, a named dependency (`dependency link from A to B;`) is labeled with its name, an
+  unnamed one keeps `«depend»`, and two named dependencies between the same boxes each show their own
+  name
 - `GeneralViewLayoutStrategy_BuildLayout_Binding_ProducesSolidEdgeWithEqualsLabel`:
   A `Binding` edge produces a solid line with no end marker and an `=` midpoint label
 - `GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesSolidHollowTriangleUsageEdge`:

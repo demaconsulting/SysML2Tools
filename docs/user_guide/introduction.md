@@ -462,7 +462,7 @@ Lines are solid, except imports, dependencies, and comment links, which are dash
 | Dashed, no arrowhead, to a folded note | A `comment` on the element (documentation is a `doc` compartment) |
 | Plain solid line, no end marker | `connect` between two features |
 | Plain solid line labeled `=` | `bind` between two features |
-| Dashed line with an open arrowhead | `dependency` |
+| Dashed line with an open arrowhead, `«depend»` or a name | `dependency`; a named one (`dependency link from A to B;`) shows `link` |
 | Solid line with an open arrowhead, `«allocate»` | `allocate` |
 
 The documentation and comments of a usage that is drawn as its own box (a part, item, action, or

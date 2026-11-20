@@ -112,7 +112,7 @@ element). `LineStyleForKind` draws `Dependency` and `Import` dashed and every ot
 | Import | importing namespace → imported namespace | open arrowhead | dashed | `«import»`, `«import»*`, `«import»**` |
 | Connect | box → box | none | solid | none |
 | Allocate | source → target | open arrowhead | solid | `«allocate»` |
-| Dependency | client → supplier | open arrowhead | dashed | none |
+| Dependency | client → supplier | open arrowhead | dashed | the declared name, else `«depend»` |
 | Binding | box → box | none | solid | `=` |
 | Comment link | element → note | none | dashed | none |
 
@@ -294,6 +294,15 @@ Then `workspace.Index.AllEdges` is walked once:
   `DroppedRelationshipEdge`, except that an unresolved-endpoint drop is not reported in an `expose`-scoped
   view, where an endpoint outside the exposed subtree legitimately has no box; a self-loop is always
   reported.
+- A `Dependency` edge is labeled by `DependencyLabel`: the declared name of the dependency when it is
+  named (`dependency link from A to B;` shows `link`), else the keyword label `«depend»` — one
+  expression, so showing both or only the keyword is a one-line change. The edge in the semantic index
+  does not point back at the declaration it came from, so `CollectDependencyNames` recovers the names
+  from the named `SysmlDependencyNode` declarations (an unnamed dependency is not a declaration) and
+  records each name per (client, supplier) pair in declaration order; `DependencyLabel` consumes the next
+  recorded name of the edge's pair. A pair with no recorded name — an unnamed dependency, or an edge of a
+  hand-built workspace whose `Declarations` hold no dependency — gets `«depend»`. The name replaces the
+  keyword rather than accompanying it, and the keyword spelling follows the OMG Pilot.
 - `Satisfy` and `Verify` map each endpoint to the *nearest rendered box* with `ResolveNearestBox`
   (the name itself, else the longest rendered `::` prefix), because the relating element is often a
   nested declaration such as an objective or a subject. The edge is added once per source, target,

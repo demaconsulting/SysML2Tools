@@ -394,13 +394,17 @@ sections:
           GeneralViewLayoutStrategy shall connect the owning rendered box of each resolved
           Dependency edge's source endpoint to the owning rendered box of its target endpoint
           with a dashed line ending in an open chevron at the target (the depended-upon
-          element), with no midpoint label.
+          element), carrying a midpoint label that is the dependency's declared name when it
+          has one and `«depend»` otherwise.
         justification: |
           A standalone `dependency A to B;` declaration is the general OMG dependency
           relationship, rendered per convention as a dashed line with an open arrowhead pointing
-          at the depended-upon element, distinct from the solid line of an allocation.
+          at the depended-upon element, distinct from the solid line of an allocation. The
+          Pilot labels the edge with its relationship keyword, as the other labeled
+          relationships here are, and a named dependency identifies itself by its name.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Dependency_ProducesDashedChevronEdge
+          - GeneralViewLayoutStrategy_BuildLayout_Dependency_Named_ShowsDeclaredNameInsteadOfKeyword
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Binding
         title: >-
