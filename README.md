@@ -9,6 +9,8 @@
 [![Security][badge-security]][link-security]
 [![NuGet][badge-nuget]][link-nuget]
 
+![SysML2 Tools banner: the SysML2 Tools name with the tagline 'SysML v2 text in. Diagrams, answers out.' and the command 'sysml2tools render model.sysml --output out'. SysML v2 model files with part definitions and typed parts, views that expose part of a model, and metadata annotations such as @Safety flow on curved arrows into the sysml2tools .NET tool, and arrows lead out to what it produces: SVG and PNG diagrams in the SysML v2 graphical notation, CI lint diagnostics with warnings, errors, and an exit code, Markdown and JSON query reports, and a JSON or JSONL model export][hero]
+
 ## Overview
 
 SysML2Tools is a free, open-source .NET CLI tool and library that parses SysML v2 textual
@@ -395,6 +397,7 @@ By contributing to this project, you agree that your contributions will be licen
 - [Report a bug, request a feature, or ask a question](https://github.com/demaconsulting/SysML2Tools/issues)
 
 <!-- Badge References -->
+[hero]: https://raw.githubusercontent.com/demaconsulting/SysML2Tools/main/docs/images/hero.png
 [workflow]: https://raw.githubusercontent.com/demaconsulting/SysML2Tools/main/docs/images/workflow.png
 [badge-forks]: https://img.shields.io/github/forks/demaconsulting/SysML2Tools?style=plastic
 [badge-stars]: https://img.shields.io/github/stars/demaconsulting/SysML2Tools?style=plastic

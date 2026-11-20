@@ -1,0 +1,272 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="640" viewBox="0 0 1600 640">
+  <!-- The README hero banner. SysML v2 model files (parts, views that expose them, and metadata annotations) flow
+       into the sysml2tools .NET tool, which comes out with spec-notation SVG and PNG diagrams, CI lint
+       diagnostics, Markdown and JSON query reports, and a JSON or JSONL model export.
+       The definitions and the left panel follow the shared DEMA Consulting hero (CanvasNet and BuildMark).
+       This file is docs/images/hero.svg, beside its rendered docs/images/hero.png (matching base names, per the
+       diagram documentation standard); the files it embeds are in docs/images/hero/. -->
+  <defs>
+    <style>
+      .word { font: bold 92px sans-serif; fill: #ffffff; }
+      .eyebrow { font: bold 25px sans-serif; fill: #a5b4fc; }
+      .tag { font: bold 40px sans-serif; fill: #f8fafc; }
+      .body { font: 25px sans-serif; fill: #cbd5e1; }
+      .cmd { font: 25px monospace; fill: #e2e8f0; }
+      .prompt { fill: #5eead4; }
+      .file { fill: #f9a8d4; }
+      .brandText { fill: url(#brand); }
+      .note { font: italic 25px sans-serif; fill: #94a3b8; }
+      .label { font: bold 25px sans-serif; fill: #f1f5f9; text-anchor: middle; }
+      .engine { font: bold 32px monospace; fill: #ffffff; }
+      .api { font: bold 25px sans-serif; fill: #c4b5fd; }
+      .card { fill: url(#glass); stroke: url(#rim); stroke-width: 1.5; filter: url(#shadow); }
+      .panel { fill: #0a1022; stroke: #ffffff; stroke-opacity: 0.06; }
+      .flow { fill: none; stroke-width: 3; stroke-linecap: round; }
+      .page { fill: #ffffff; filter: url(#paper); }
+    </style>
+
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#070b1f"/>
+      <stop offset="0.55" stop-color="#130f3b"/>
+      <stop offset="1" stop-color="#071a2e"/>
+    </linearGradient>
+    <radialGradient id="glowViolet" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#7c3aed" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowCyan" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#06b6d4" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#06b6d4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowPink" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#db2777" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#db2777" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="1.2" fill="#a5b4fc" fill-opacity="0.16"/>
+    </pattern>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.5" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#f472b6"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.08"/>
+    </linearGradient>
+    <linearGradient id="engineFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e1b4b"/>
+      <stop offset="1" stop-color="#0b1022"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="paper" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="blur" x="-30%" y="-150%" width="160%" height="400%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <filter id="heat" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+
+    <marker id="headPink" viewBox="0 0 10 10" refX="2.5" refY="5" markerWidth="4" markerHeight="4" orient="auto">
+      <path d="M0,0 L10,5 L0,10 L2.5,5 z" fill="#f472b6"/>
+    </marker>
+    <marker id="headAmber" viewBox="0 0 10 10" refX="2.5" refY="5" markerWidth="4" markerHeight="4" orient="auto">
+      <path d="M0,0 L10,5 L0,10 L2.5,5 z" fill="#fbbf24"/>
+    </marker>
+    <marker id="headCyan" viewBox="0 0 10 10" refX="2.5" refY="5" markerWidth="4" markerHeight="4" orient="auto">
+      <path d="M0,0 L10,5 L0,10 L2.5,5 z" fill="#22d3ee"/>
+    </marker>
+    <marker id="headViolet" viewBox="0 0 10 10" refX="2.5" refY="5" markerWidth="4" markerHeight="4" orient="auto">
+      <path d="M0,0 L10,5 L0,10 L2.5,5 z" fill="#a78bfa"/>
+    </marker>
+    <marker id="headBlue" viewBox="0 0 10 10" refX="2.5" refY="5" markerWidth="4" markerHeight="4" orient="auto">
+      <path d="M0,0 L10,5 L0,10 L2.5,5 z" fill="#60a5fa"/>
+    </marker>
+    <marker id="headMint" viewBox="0 0 10 10" refX="2.5" refY="5" markerWidth="4" markerHeight="4" orient="auto">
+      <path d="M0,0 L10,5 L0,10 L2.5,5 z" fill="#5eead4"/>
+    </marker>
+
+    <!-- The text and shapes inside the mini illustrations -->
+    <style>
+      .mini { font: bold 22px sans-serif; }
+      .miniMono { font: bold 22px monospace; }
+      .bar { fill: #cbd5e1; }
+      .ink { fill: #1e293b; }
+      .spec { font: 22px sans-serif; fill: #1e293b; text-anchor: middle; }
+      .specKw { font: italic 22px sans-serif; fill: #1e293b; text-anchor: middle; }
+      .specBox { fill: #ffffff; stroke: #1e293b; stroke-width: 1.5; }
+      .specLine { fill: none; stroke: #1e293b; stroke-width: 1.5; }
+    </style>
+  </defs>
+
+  <!-- Background: deep gradient, soft glows, and a dot grid -->
+  <rect width="1600" height="640" fill="url(#bg)"/>
+  <ellipse cx="250" cy="170" rx="420" ry="300" fill="url(#glowViolet)"/>
+  <ellipse cx="1070" cy="294" rx="420" ry="220" fill="url(#glowCyan)"/>
+  <ellipse cx="1480" cy="620" rx="380" ry="260" fill="url(#glowPink)"/>
+  <rect width="1600" height="640" fill="url(#dots)"/>
+
+  <!-- Wordmark and tagline: "SysML2 Tools" at 72px, the second word starting where the first plus a space ends -->
+  <image href="hero/dc-logo-dark.svg" x="46" y="54" width="50" height="50"/>
+  <text class="eyebrow" x="100" y="90">DEMA Consulting</text>
+  <text class="word" style="font-size:72px" x="52" y="176">SysML2</text>
+  <text class="word brandText" style="font-size:72px" x="344.1" y="176">Tools</text>
+  <rect x="58" y="200" width="132" height="6" rx="3" fill="url(#brand)"/>
+  <text class="tag" x="56" y="266">SysML v2 text in.</text>
+  <text class="tag brandText" x="56" y="316">Diagrams, answers out.</text>
+  <text class="body" x="58" y="368">A .NET tool that lints, renders,</text>
+  <text class="body" x="58" y="402">queries, and exports SysML v2 models</text>
+  <text class="body" x="58" y="436">for CI, design docs, and AI agents.</text>
+  <!-- The command box: render a model file to diagrams in the "out" directory -->
+  <rect x="56" y="468" width="480" height="90" rx="12" fill="#0a1022" fill-opacity="0.8" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="1.5"/>
+  <text class="cmd prompt" x="78" y="503">$</text>
+  <text class="cmd" x="108" y="503">sysml2tools render</text>
+  <text class="cmd file" x="138" y="539">model.sysml</text>
+  <text class="cmd" x="318" y="539">--output out</text>
+  <text class="note" x="58" y="604">Pixel-identical PNGs on every OS.</text>
+
+  <!-- Input cards: model files, views, and metadata annotations, each a few lines of SysML v2 text -->
+  <g>
+    <!-- Input one: a part definition and a typed part usage in a .sysml model file -->
+    <rect class="card" x="580" y="40" width="320" height="160" rx="16"/>
+    <rect x="684" y="40" width="112" height="3" rx="1.5" fill="#fbbf24"/>
+    <rect class="panel" x="588" y="48" width="304" height="112" rx="10"/>
+    <g transform="translate(588 48)">
+      <text class="miniMono" x="16" y="36" fill="#f8fafc"><tspan fill="#c4b5fd">part def</tspan> Car {</text>
+      <text class="miniMono" x="42.4" y="66" fill="#f8fafc"><tspan fill="#c4b5fd">part</tspan> e : <tspan fill="#fde68a">Engine</tspan>;</text>
+      <text class="miniMono" x="16" y="96" fill="#f8fafc">}</text>
+      <rect x="206" y="78" width="82" height="28" rx="7" fill="#fbbf24" fill-opacity="0.16" stroke="#fbbf24" stroke-width="1.5"/>
+      <text class="mini" x="247" y="99" fill="#fde68a" text-anchor="middle">.sysml</text>
+    </g>
+    <text class="label" x="740" y="190">Model files</text>
+
+    <!-- Input two: a view that exposes part of the model -->
+    <rect class="card" x="912" y="40" width="318" height="160" rx="16"/>
+    <rect x="1015" y="40" width="112" height="3" rx="1.5" fill="#22d3ee"/>
+    <rect class="panel" x="920" y="48" width="302" height="112" rx="10"/>
+    <g transform="translate(920 48)">
+      <text class="miniMono" x="16" y="36" fill="#f8fafc"><tspan fill="#c4b5fd">view</tspan> overview {</text>
+      <text class="miniMono" x="42.4" y="66" fill="#f8fafc"><tspan fill="#c4b5fd">expose</tspan> <tspan fill="#a5f3fc">Car::**</tspan>;</text>
+      <text class="miniMono" x="16" y="96" fill="#f8fafc">}</text>
+      <rect x="206" y="78" width="82" height="28" rx="14" fill="#22d3ee" fill-opacity="0.16" stroke="#22d3ee" stroke-width="1.5"/>
+      <text class="mini" x="247" y="99" fill="#a5f3fc" text-anchor="middle">scope</text>
+    </g>
+    <text class="label" x="1071" y="190">Views</text>
+
+    <!-- Input three: a metadata annotation on a part -->
+    <rect class="card" x="1242" y="40" width="318" height="160" rx="16"/>
+    <rect x="1345" y="40" width="112" height="3" rx="1.5" fill="#f472b6"/>
+    <rect class="panel" x="1250" y="48" width="302" height="112" rx="10"/>
+    <g transform="translate(1250 48)">
+      <text class="miniMono" x="16" y="36" fill="#f8fafc"><tspan fill="#c4b5fd">part</tspan> e : <tspan fill="#fde68a">Engine</tspan> {</text>
+      <text class="miniMono" x="42.4" y="66" fill="#f9a8d4">@Safety;</text>
+      <text class="miniMono" x="16" y="96" fill="#f8fafc">}</text>
+      <rect x="206" y="78" width="82" height="28" rx="14" fill="#f472b6" fill-opacity="0.16" stroke="#f472b6" stroke-width="1.5"/>
+      <text class="mini" x="247" y="99" fill="#fbcfe8" text-anchor="middle">filter</text>
+    </g>
+    <text class="label" x="1401" y="190">Metadata</text>
+  </g>
+
+  <!-- Flows into the engine -->
+  <g class="flow">
+    <path d="M740,206 C740,236 970,226 970,253" stroke="#fbbf24" marker-end="url(#headAmber)"/>
+    <path d="M1071,206 C1071,236 1071,226 1071,253" stroke="#22d3ee" marker-end="url(#headCyan)"/>
+    <path d="M1401,206 C1401,236 1170,226 1170,253" stroke="#f472b6" marker-end="url(#headPink)"/>
+  </g>
+  <g stroke="#0a1022" stroke-width="2">
+    <circle cx="740" cy="206" r="5" fill="#fbbf24"/>
+    <circle cx="1071" cy="206" r="5" fill="#22d3ee"/>
+    <circle cx="1401" cy="206" r="5" fill="#f472b6"/>
+  </g>
+  <!-- The engine: the sysml2tools command, with a small part-composition glyph -->
+  <rect x="840" y="262" width="460" height="64" rx="32" fill="url(#brand)" opacity="0.55" filter="url(#blur)"/>
+  <rect x="840" y="262" width="460" height="64" rx="32" fill="url(#engineFill)" stroke="url(#brand)" stroke-width="2.5"/>
+  <rect x="864" y="276" width="36" height="36" rx="9" fill="url(#brand)"/>
+  <g fill="#ffffff">
+    <rect x="868" y="281" width="28" height="10" rx="1.5"/>
+    <rect x="868" y="299" width="28" height="9" rx="4.5"/>
+  </g>
+  <path d="M882 291 L882 299" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <text class="engine" x="916" y="305">sysml2tools</text>
+  <line x1="1139" y1="278" x2="1139" y2="310" stroke="#ffffff" stroke-opacity="0.25" stroke-width="1.5"/>
+  <text class="api" x="1159" y="303">.NET tool</text>
+
+  <!-- Flows out of the engine -->
+  <g class="flow" stroke="#5eead4">
+    <path d="M980,330 C980,356 728,356 728,381" marker-end="url(#headMint)"/>
+    <path d="M1040,330 C1040,356 999,356 999,381" marker-end="url(#headMint)"/>
+    <path d="M1100,330 C1100,356 1232,356 1232,381" marker-end="url(#headMint)"/>
+    <path d="M1160,330 C1160,356 1457,356 1457,381" marker-end="url(#headMint)"/>
+  </g>
+  <g fill="#5eead4" stroke="#0a1022" stroke-width="2">
+    <circle cx="980" cy="330" r="5"/>
+    <circle cx="1040" cy="330" r="5"/>
+    <circle cx="1100" cy="330" r="5"/>
+    <circle cx="1160" cy="330" r="5"/>
+  </g>
+
+  <!-- Output tiles -->
+  <g>
+    <!-- Output one: a diagram in the SysML v2 graphical notation (a part definition, a composite part usage
+         in a rounded box typed by a definition) -->
+    <rect class="card" x="580" y="390" width="296" height="210" rx="16"/>
+    <rect class="panel" x="588" y="398" width="280" height="152" rx="10"/>
+    <rect x="596" y="404" width="264" height="140" rx="8" fill="#ffffff"/>
+    <rect class="specBox" x="602" y="412" width="124" height="54"/>
+    <text class="specKw" x="664" y="435">«part def»</text>
+    <text class="spec" x="664" y="459">Car</text>
+    <path d="M664 466 L671 475 L664 484 L657 475 Z" fill="#1e293b"/>
+    <path class="specLine" d="M664 484 L664 494"/>
+    <rect class="specBox" x="604" y="494" width="120" height="40" rx="12"/>
+    <text class="spec" x="664" y="521">e : Engine</text>
+    <path class="specLine" d="M724 514 L748 514"/>
+    <path class="specLine" d="M733 506 L733 522"/>
+    <path class="specLine" d="M738 506 L738 522"/>
+    <path d="M748 503 L748 525 L766 514 Z" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" stroke-linejoin="round"/>
+    <rect class="specBox" x="766" y="494" width="90" height="40"/>
+    <text class="spec" x="811" y="521">Engine</text>
+    <text class="label" x="728" y="585">SVG / PNG diagrams</text>
+
+    <!-- Output two: lint diagnostics, a warning and an error with their line and column, and the exit code -->
+    <rect class="card" x="889" y="390" width="220" height="210" rx="16"/>
+    <rect class="panel" x="897" y="398" width="204" height="152" rx="10"/>
+    <text class="miniMono" x="913" y="428" fill="#f8fafc">model.sysml</text>
+    <rect x="913" y="442" width="100" height="30" rx="15" fill="#fbbf24" fill-opacity="0.16" stroke="#fbbf24" stroke-width="1.5"/>
+    <text class="mini" x="963" y="464" fill="#fde68a" text-anchor="middle">warning</text>
+    <text class="miniMono" x="1021" y="464" fill="#cbd5e1">12,19</text>
+    <rect x="913" y="484" width="78" height="30" rx="15" fill="#f87171" fill-opacity="0.16" stroke="#f87171" stroke-width="1.5"/>
+    <text class="mini" x="952" y="506" fill="#fecaca" text-anchor="middle">error</text>
+    <text class="miniMono" x="1001" y="506" fill="#cbd5e1">34,4</text>
+    <text class="miniMono" x="913" y="538" fill="#fca5a5">exit 1</text>
+    <text class="label" x="999" y="585">CI lint gate</text>
+
+    <!-- Output three: a Markdown query report and its formats -->
+    <rect class="card" x="1122" y="390" width="220" height="210" rx="16"/>
+    <rect class="panel" x="1130" y="398" width="204" height="152" rx="10"/>
+    <text class="miniMono" x="1146" y="430" fill="#c4b5fd"># query uses</text>
+    <line x1="1146" y1="442" x2="1318" y2="442" stroke="#ffffff" stroke-opacity="0.15"/>
+    <rect x="1146" y="458" width="136" height="32" rx="16" fill="#22d3ee" fill-opacity="0.16" stroke="#22d3ee" stroke-width="1.5"/>
+    <text class="mini" x="1214" y="481" fill="#a5f3fc" text-anchor="middle">markdown</text>
+    <rect x="1146" y="502" width="84" height="32" rx="16" fill="#f472b6" fill-opacity="0.16" stroke="#f472b6" stroke-width="1.5"/>
+    <text class="mini" x="1188" y="525" fill="#fbcfe8" text-anchor="middle">json</text>
+    <text class="label" x="1232" y="585">Query reports</text>
+
+    <!-- Output four: the whole model as a JSON or JSONL export -->
+    <rect class="card" x="1355" y="390" width="205" height="210" rx="16"/>
+    <rect class="panel" x="1363" y="398" width="189" height="152" rx="10"/>
+    <text x="1457" y="468" font-family="monospace" font-size="64" font-weight="bold" fill="url(#brand)" text-anchor="middle">{}</text>
+    <rect x="1375" y="498" width="70" height="30" rx="15" fill="#22d3ee" fill-opacity="0.16" stroke="#22d3ee" stroke-width="1.5"/>
+    <text class="mini" x="1410" y="520" fill="#a5f3fc" text-anchor="middle">json</text>
+    <rect x="1455" y="498" width="84" height="30" rx="15" fill="#f472b6" fill-opacity="0.16" stroke="#f472b6" stroke-width="1.5"/>
+    <text class="mini" x="1497" y="520" fill="#fbcfe8" text-anchor="middle">jsonl</text>
+    <text class="label" x="1457" y="585">Model export</text>
+  </g>
+</svg>
