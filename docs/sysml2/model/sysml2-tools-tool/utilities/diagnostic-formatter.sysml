@@ -2,7 +2,7 @@ package SysML2ToolsTool_DiagnosticFormatter {
     private import SoftwareItemMetadata::*;
 
     part def DiagnosticFormatter {
-        doc /* Shared path(line,col): severity: message console-line formatter used by the lint, render, query, and export commands. */
+        doc /* Shared path(line,col): severity: message console-line formatter used by the lint, render, and query commands. */
 
         metadata info : SoftwareInfo {
             sourceFiles = ("src/DemaConsulting.SysML2Tools.Tool/Utilities/DiagnosticFormatter.cs");

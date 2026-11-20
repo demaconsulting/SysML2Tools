@@ -19,10 +19,12 @@ package SysML2ToolsTool_QueryCommand {
         dependency QueryCommand to Context;
         dependency QueryCommand to DiagnosticFormatter;
         dependency QueryCommand to SysML2ToolsCore_QueryEngine::QueryEngine;
+        dependency QueryCommand to SysML2ToolsCore_QueryVerb::QueryVerb;
         dependency QueryCommand to SysML2ToolsCore_QueryResultRenderer::QueryResultRenderer;
         dependency QueryCommand to SysML2ToolsCore_QueryResultExporter::QueryResultExporter;
         dependency QueryCommand to SysML2ToolsCore_GlobFileCollector::GlobFileCollector;
         dependency QueryCommand to SysML2ToolsStdlib_StdlibProvider::StdlibProvider;
         dependency QueryCommand to SysML2ToolsLanguage_WorkspaceLoader::WorkspaceLoader;
+        dependency QueryCommand to SysML2ToolsLanguage_SysmlNode::SysmlNode;
     }
 }

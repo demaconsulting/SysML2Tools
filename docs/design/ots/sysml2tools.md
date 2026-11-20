@@ -13,22 +13,26 @@ model is always checked by a stable, independent copy of the tool.
 
 ### Features Used
 
-- **Lint** (`lint 'docs/sysml2/**/*.sysml'`) — reports syntax errors and unresolved references in
-  the model without producing output files; run from `lint.ps1`.
+- **Lint** (`lint 'docs/sysml2/**/*.sysml'`) — reports syntax errors as errors and unresolved
+  references as warnings, without producing output files. The pinned release does not support
+  `--strict-unresolved`, and warnings do not change its exit code, so `lint.ps1` captures the output
+  and fails on any `warning:` line (see Integration Pattern).
 - **Render** (`render --format svg`) — renders every view declared in
   `docs/sysml2/views/design-views.sysml` to an SVG file named after the view (for example
   `SoftwareStructureView.svg`).
 - **Query** (`query list`, `query describe`, `query dependencies`) — answers structure questions
   directly from the model, so agents and reviewers can navigate the software items without reading
   source code.
-- **Self-validation** (`--validate --results`) — exercises `lint` and `render` against known
-  fixtures and writes a TRX result.
+- **Self-validation** (`--validate --results`) — runs a lint self-test and a render self-test
+  against built-in model fixtures and writes a TRX result.
 
 ### Integration Pattern
 
 SysML2Tools is installed as a .NET local tool via `.config/dotnet-tools.json` and invoked as
 `dotnet sysml2tools` from two places: `lint.ps1` runs
-`dotnet sysml2tools lint 'docs/sysml2/**/*.sysml'` as an early-detection lint gate, and the
+`dotnet sysml2tools lint 'docs/sysml2/**/*.sysml'` as an early-detection lint gate (failing on a
+non-zero exit code and on any `warning:` line in the output, because the pinned release cannot
+treat unresolved references as errors with `--strict-unresolved`), and the
 design-document section of `.github/workflows/build.yaml` runs the following command
 
 ```pwsh

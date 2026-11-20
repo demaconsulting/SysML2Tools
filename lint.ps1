@@ -91,9 +91,18 @@ if (-not $skipDotnetTools) {
     if ($LASTEXITCODE -ne 0) { $lintError = $true }
 
     # [PROJECT-SPECIFIC] SysML2 architecture model validation.
+    # The pinned published sysml2tools (0.3.0-beta.3) rejects --strict-unresolved, and without it an
+    # unresolved reference is only a warning that does not change the exit code. Capture the output
+    # and fail on any warning line instead, so unresolved references (and other warnings) fail lint.
+    # TODO: replace the warning scan with --strict-unresolved once the pinned sysml2tools supports it.
     if (Test-Path docs/sysml2) {
-        dotnet sysml2tools lint 'docs/sysml2/**/*.sysml'
+        $sysmlOutput = dotnet sysml2tools lint 'docs/sysml2/**/*.sysml' 2>&1 | ForEach-Object { "$_" }
+        $sysmlOutput | Write-Host
         if ($LASTEXITCODE -ne 0) { $lintError = $true }
+        if ($sysmlOutput -match ': warning: ') {
+            Write-Host "sysml2tools lint reported warnings (treated as errors)."
+            $lintError = $true
+        }
     }
 }
 

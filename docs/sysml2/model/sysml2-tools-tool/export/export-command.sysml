@@ -13,7 +13,8 @@ package SysML2ToolsTool_ExportCommand {
             requirementFiles = ("docs/reqstream/sysml2-tools-tool/export.yaml");
         }
 
-        // Exporting loads the workspace and dumps its nodes, resolved edges, and diagnostics.
+        // Exporting loads the workspace, dumps its nodes, resolved edges, and diagnostics, and narrows the
+        // declarations with the Language filter parser and evaluator when --filter is supplied.
         dependency ExportCommand to Context;
         dependency ExportCommand to SysML2ToolsCore_GlobFileCollector::GlobFileCollector;
         dependency ExportCommand to SysML2ToolsStdlib_StdlibProvider::StdlibProvider;
@@ -21,5 +22,6 @@ package SysML2ToolsTool_ExportCommand {
         dependency ExportCommand to SysML2ToolsLanguage_SemanticIndex::SemanticIndex;
         dependency ExportCommand to SysML2ToolsLanguage_SysmlNode::SysmlNode;
         dependency ExportCommand to SysML2ToolsLanguage_SysmlEdge::SysmlEdge;
+        dependency ExportCommand to SysML2ToolsLanguage_FilterExpressionEvaluator::FilterExpressionEvaluator;
     }
 }
