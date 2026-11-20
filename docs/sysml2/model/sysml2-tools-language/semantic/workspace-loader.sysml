@@ -1,4 +1,10 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_WorkspaceLoader {
+    private import SysML2ToolsLanguage_AstBuilder::*;
+    private import SysML2ToolsLanguage_ReferenceResolver::*;
+    private import SysML2ToolsLanguage_SemanticIndex::*;
+    private import SysML2ToolsLanguage_SupertypeWalker::*;
+    private import SysML2ToolsLanguage_SymbolTable::*;
+    private import SysML2ToolsLanguage_WorkspaceParser::*;
     private import SoftwareItemMetadata::*;
 
     part def WorkspaceLoader {

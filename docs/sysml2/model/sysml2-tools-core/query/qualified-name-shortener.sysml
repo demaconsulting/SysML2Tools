@@ -1,4 +1,4 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_QualifiedNameShortener {
     private import SoftwareItemMetadata::*;
 
     part def QualifiedNameShortener {

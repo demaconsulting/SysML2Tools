@@ -1,4 +1,4 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_LayoutWarnings {
     private import SoftwareItemMetadata::*;
 
     part def LayoutWarnings {

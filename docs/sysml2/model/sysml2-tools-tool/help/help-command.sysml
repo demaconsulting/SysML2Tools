@@ -1,4 +1,8 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_HelpCommand {
+    private import SysML2ToolsTool_Context::*;
+    private import SysML2ToolsTool_LintCommand::*;
+    private import SysML2ToolsTool_QueryCommand::*;
+    private import SysML2ToolsTool_RenderCommand::*;
     private import SoftwareItemMetadata::*;
 
     part def HelpCommand {
@@ -14,7 +18,8 @@ package SysML2ToolsTool {
 
         // Help dispatches to the help text owned by the program and by each command.
         dependency HelpCommand to Context;
-        dependency HelpCommand to Program;
+        // Qualified (not imported): Program imports this package, and an import cycle triggers a lint warning.
+        dependency HelpCommand to SysML2ToolsTool_Program::Program;
         dependency HelpCommand to LintCommand;
         dependency HelpCommand to RenderCommand;
         dependency HelpCommand to QueryCommand;

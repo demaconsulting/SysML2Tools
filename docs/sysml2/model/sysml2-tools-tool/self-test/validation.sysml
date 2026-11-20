@@ -1,4 +1,6 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_Validation {
+    private import SysML2ToolsTool_Context::*;
+    private import SysML2ToolsTool_PathHelpers::*;
     private import SoftwareItemMetadata::*;
 
     part def Validation {
@@ -15,7 +17,8 @@ package SysML2ToolsTool {
         // Validation runs the tool through the program entry point, writes its output through the context, and builds
         // log paths safely.
         dependency Validation to Context;
-        dependency Validation to Program;
+        // Qualified (not imported): Program imports this package, and an import cycle triggers a lint warning.
+        dependency Validation to SysML2ToolsTool_Program::Program;
         dependency Validation to PathHelpers;
     }
 }

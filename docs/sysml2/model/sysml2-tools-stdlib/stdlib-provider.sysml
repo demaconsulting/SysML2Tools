@@ -1,4 +1,4 @@
-package SysML2ToolsStdlib {
+package SysML2ToolsStdlib_StdlibProvider {
     private import SoftwareItemMetadata::*;
 
     part def StdlibProvider {
@@ -13,6 +13,6 @@ package SysML2ToolsStdlib {
         }
 
         // The provider deserializes the embedded standard-library bytes into a symbol table.
-        dependency StdlibProvider to SysML2ToolsLanguage::AstDeserializer;
+        dependency StdlibProvider to SysML2ToolsLanguage_AstDeserializer::AstDeserializer;
     }
 }

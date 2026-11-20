@@ -1,4 +1,4 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_SysmlDiagnosticListener {
     private import SoftwareItemMetadata::*;
 
     part def SysmlDiagnosticListener {

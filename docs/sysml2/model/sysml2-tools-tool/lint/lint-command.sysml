@@ -1,4 +1,6 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_LintCommand {
+    private import SysML2ToolsTool_Context::*;
+    private import SysML2ToolsTool_DiagnosticFormatter::*;
     private import SoftwareItemMetadata::*;
 
     part def LintCommand {
@@ -16,8 +18,8 @@ package SysML2ToolsTool {
         // and formats each diagnostic.
         dependency LintCommand to Context;
         dependency LintCommand to DiagnosticFormatter;
-        dependency LintCommand to SysML2ToolsCore::GlobFileCollector;
-        dependency LintCommand to SysML2ToolsStdlib::StdlibProvider;
-        dependency LintCommand to SysML2ToolsLanguage::WorkspaceLoader;
+        dependency LintCommand to SysML2ToolsCore_GlobFileCollector::GlobFileCollector;
+        dependency LintCommand to SysML2ToolsStdlib_StdlibProvider::StdlibProvider;
+        dependency LintCommand to SysML2ToolsLanguage_WorkspaceLoader::WorkspaceLoader;
     }
 }

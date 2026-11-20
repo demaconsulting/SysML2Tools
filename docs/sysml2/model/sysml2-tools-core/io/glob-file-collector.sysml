@@ -1,4 +1,4 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_GlobFileCollector {
     private import SoftwareItemMetadata::*;
 
     part def GlobFileCollector {

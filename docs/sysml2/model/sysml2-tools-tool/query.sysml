@@ -1,4 +1,5 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_QuerySubsystem {
+    private import SysML2ToolsTool_QueryCommand::*;
     private import SoftwareItemMetadata::*;
 
     part def QuerySubsystem {

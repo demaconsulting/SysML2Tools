@@ -1,4 +1,7 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_DiagramRenderer {
+    private import SysML2ToolsCore_DiagramTypeRouter::*;
+    private import SysML2ToolsCore_DynamicViewSynthesizer::*;
+    private import SysML2ToolsCore_LayoutWarnings::*;
     private import SoftwareItemMetadata::*;
 
     part def DiagramRenderer {

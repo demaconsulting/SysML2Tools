@@ -1,4 +1,13 @@
 package SysML2ToolsTool {
+    private import SysML2ToolsTool_CliSubsystem::*;
+    private import SysML2ToolsTool_ExportSubsystem::*;
+    private import SysML2ToolsTool_HelpSubsystem::*;
+    private import SysML2ToolsTool_LintSubsystem::*;
+    private import SysML2ToolsTool_Program::*;
+    private import SysML2ToolsTool_QuerySubsystem::*;
+    private import SysML2ToolsTool_RenderSubsystem::*;
+    private import SysML2ToolsTool_SelfTestSubsystem::*;
+    private import SysML2ToolsTool_UtilitiesSubsystem::*;
     private import SoftwareItemMetadata::*;
 
     doc /* DemaConsulting.SysML2Tools.Tool is the dotnet tool: a thin command-line wrapper and orchestration around the Language, Stdlib, and Core libraries. */

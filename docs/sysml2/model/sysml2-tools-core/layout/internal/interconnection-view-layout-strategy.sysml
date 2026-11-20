@@ -1,4 +1,7 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_InterconnectionViewLayoutStrategy {
+    private import SysML2ToolsCore_ExposeScopeResolver::*;
+    private import SysML2ToolsCore_GeneralViewLayoutStrategy::*;
+    private import SysML2ToolsCore_LayeredPlacement::*;
     private import SoftwareItemMetadata::*;
 
     part def InterconnectionViewLayoutStrategy {

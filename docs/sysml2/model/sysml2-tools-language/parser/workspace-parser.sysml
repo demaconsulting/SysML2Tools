@@ -1,4 +1,5 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_WorkspaceParser {
+    private import SysML2ToolsLanguage_SysmlDiagnosticListener::*;
     private import SoftwareItemMetadata::*;
 
     part def WorkspaceParser {

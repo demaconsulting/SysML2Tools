@@ -1,4 +1,4 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_SysmlMetadataNode {
     private import SoftwareItemMetadata::*;
 
     part def SysmlMetadataNode {

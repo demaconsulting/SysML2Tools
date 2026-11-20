@@ -1,4 +1,6 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_BrowserViewLayoutStrategy {
+    private import SysML2ToolsCore_ExposeScopeResolver::*;
+    private import SysML2ToolsCore_GeneralViewLayoutStrategy::*;
     private import SoftwareItemMetadata::*;
 
     part def BrowserViewLayoutStrategy {

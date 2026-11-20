@@ -1,4 +1,5 @@
 package SysML2ToolsStdlib {
+    private import SysML2ToolsStdlib_StdlibProvider::*;
     private import SoftwareItemMetadata::*;
 
     doc /* DemaConsulting.SysML2Tools.Stdlib is the standard-library package: the pre-compiled SysML v2 standard library JSON embedded as a gzip-compressed managed resource. */

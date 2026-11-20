@@ -1,4 +1,6 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_RenderingSubsystem {
+    private import SysML2ToolsCore_DiagramRenderer::*;
+    private import SysML2ToolsCore_RenderingInternalSubsystem::*;
     private import SoftwareItemMetadata::*;
 
     part def RenderingSubsystem {

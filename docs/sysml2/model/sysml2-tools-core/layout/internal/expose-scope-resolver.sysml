@@ -1,4 +1,4 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_ExposeScopeResolver {
     private import SoftwareItemMetadata::*;
 
     part def ExposeScopeResolver {
@@ -13,7 +13,7 @@ package SysML2ToolsCore {
         }
 
         // Bracket-filtered expose members are parsed and evaluated with the language library's filter expressions.
-        dependency ExposeScopeResolver to SysML2ToolsLanguage::FilterExpressionEvaluator;
-        dependency ExposeScopeResolver to SysML2ToolsLanguage::SysmlEdge;
+        dependency ExposeScopeResolver to SysML2ToolsLanguage_FilterExpressionEvaluator::FilterExpressionEvaluator;
+        dependency ExposeScopeResolver to SysML2ToolsLanguage_SysmlEdge::SysmlEdge;
     }
 }

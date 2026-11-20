@@ -1,4 +1,6 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_NameResolver {
+    private import SysML2ToolsLanguage_SysmlEdge::*;
+    private import SysML2ToolsLanguage_SysmlNode::*;
     private import SoftwareItemMetadata::*;
 
     part def NameResolver {

@@ -1,4 +1,7 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_QueryEngine {
+    private import SysML2ToolsCore_QueryOptions::*;
+    private import SysML2ToolsCore_QueryResult::*;
+    private import SysML2ToolsCore_QueryVerb::*;
     private import SoftwareItemMetadata::*;
 
     part def QueryEngine {
@@ -16,8 +19,8 @@ package SysML2ToolsCore {
         dependency QueryEngine to QueryOptions;
         dependency QueryEngine to QueryVerb;
         dependency QueryEngine to QueryResult;
-        dependency QueryEngine to SysML2ToolsLanguage::SysmlNode;
-        dependency QueryEngine to SysML2ToolsLanguage::SysmlEdge;
-        dependency QueryEngine to SysML2ToolsLanguage::SemanticIndex;
+        dependency QueryEngine to SysML2ToolsLanguage_SysmlNode::SysmlNode;
+        dependency QueryEngine to SysML2ToolsLanguage_SysmlEdge::SysmlEdge;
+        dependency QueryEngine to SysML2ToolsLanguage_SemanticIndex::SemanticIndex;
     }
 }

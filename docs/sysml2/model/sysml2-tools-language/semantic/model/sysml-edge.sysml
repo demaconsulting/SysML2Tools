@@ -1,4 +1,4 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_SysmlEdge {
     private import SoftwareItemMetadata::*;
 
     part def SysmlEdge {

@@ -1,4 +1,5 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_ExportSubsystem {
+    private import SysML2ToolsTool_ExportCommand::*;
     private import SoftwareItemMetadata::*;
 
     part def ExportSubsystem {

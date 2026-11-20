@@ -1,4 +1,6 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_GeneralViewLayoutStrategy {
+    private import SysML2ToolsCore_ExposeScopeResolver::*;
+    private import SysML2ToolsCore_LayoutWarnings::*;
     private import SoftwareItemMetadata::*;
 
     part def GeneralViewLayoutStrategy {
@@ -16,8 +18,8 @@ package SysML2ToolsCore {
         // conditions through the language library, and places the graph with the off-the-shelf layout engine.
         dependency GeneralViewLayoutStrategy to ExposeScopeResolver;
         dependency GeneralViewLayoutStrategy to LayoutWarnings;
-        dependency GeneralViewLayoutStrategy to SysML2ToolsLanguage::NameResolver;
-        dependency GeneralViewLayoutStrategy to SysML2ToolsLanguage::FilterExpressionEvaluator;
+        dependency GeneralViewLayoutStrategy to SysML2ToolsLanguage_NameResolver::NameResolver;
+        dependency GeneralViewLayoutStrategy to SysML2ToolsLanguage_FilterExpressionEvaluator::FilterExpressionEvaluator;
         dependency GeneralViewLayoutStrategy to OtsDependencies::DemaRendering;
     }
 }

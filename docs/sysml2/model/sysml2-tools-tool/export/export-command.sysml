@@ -1,4 +1,5 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_ExportCommand {
+    private import SysML2ToolsTool_Context::*;
     private import SoftwareItemMetadata::*;
 
     part def ExportCommand {
@@ -14,11 +15,11 @@ package SysML2ToolsTool {
 
         // Exporting loads the workspace and dumps its nodes, resolved edges, and diagnostics.
         dependency ExportCommand to Context;
-        dependency ExportCommand to SysML2ToolsCore::GlobFileCollector;
-        dependency ExportCommand to SysML2ToolsStdlib::StdlibProvider;
-        dependency ExportCommand to SysML2ToolsLanguage::WorkspaceLoader;
-        dependency ExportCommand to SysML2ToolsLanguage::SemanticIndex;
-        dependency ExportCommand to SysML2ToolsLanguage::SysmlNode;
-        dependency ExportCommand to SysML2ToolsLanguage::SysmlEdge;
+        dependency ExportCommand to SysML2ToolsCore_GlobFileCollector::GlobFileCollector;
+        dependency ExportCommand to SysML2ToolsStdlib_StdlibProvider::StdlibProvider;
+        dependency ExportCommand to SysML2ToolsLanguage_WorkspaceLoader::WorkspaceLoader;
+        dependency ExportCommand to SysML2ToolsLanguage_SemanticIndex::SemanticIndex;
+        dependency ExportCommand to SysML2ToolsLanguage_SysmlNode::SysmlNode;
+        dependency ExportCommand to SysML2ToolsLanguage_SysmlEdge::SysmlEdge;
     }
 }

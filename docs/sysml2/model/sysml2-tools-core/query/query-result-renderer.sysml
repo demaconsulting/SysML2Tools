@@ -1,4 +1,7 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_QueryResultRenderer {
+    private import SysML2ToolsCore_QualifiedNameShortener::*;
+    private import SysML2ToolsCore_QueryResult::*;
+    private import SysML2ToolsCore_QueryResultSerializerContext::*;
     private import SoftwareItemMetadata::*;
 
     part def QueryResultRenderer {

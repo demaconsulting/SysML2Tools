@@ -1,4 +1,5 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_LayoutSubsystem {
+    private import SysML2ToolsCore_LayoutInternalSubsystem::*;
     private import SoftwareItemMetadata::*;
 
     part def LayoutSubsystem {

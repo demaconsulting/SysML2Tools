@@ -1,4 +1,5 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_QueryResultSerializerContext {
+    private import SysML2ToolsCore_QueryResult::*;
     private import SoftwareItemMetadata::*;
 
     part def QueryResultSerializerContext {

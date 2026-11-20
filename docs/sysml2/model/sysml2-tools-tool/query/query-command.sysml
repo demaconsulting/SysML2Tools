@@ -1,4 +1,6 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_QueryCommand {
+    private import SysML2ToolsTool_Context::*;
+    private import SysML2ToolsTool_DiagnosticFormatter::*;
     private import SoftwareItemMetadata::*;
 
     part def QueryCommand {
@@ -16,11 +18,11 @@ package SysML2ToolsTool {
         // uniform result.
         dependency QueryCommand to Context;
         dependency QueryCommand to DiagnosticFormatter;
-        dependency QueryCommand to SysML2ToolsCore::QueryEngine;
-        dependency QueryCommand to SysML2ToolsCore::QueryResultRenderer;
-        dependency QueryCommand to SysML2ToolsCore::QueryResultExporter;
-        dependency QueryCommand to SysML2ToolsCore::GlobFileCollector;
-        dependency QueryCommand to SysML2ToolsStdlib::StdlibProvider;
-        dependency QueryCommand to SysML2ToolsLanguage::WorkspaceLoader;
+        dependency QueryCommand to SysML2ToolsCore_QueryEngine::QueryEngine;
+        dependency QueryCommand to SysML2ToolsCore_QueryResultRenderer::QueryResultRenderer;
+        dependency QueryCommand to SysML2ToolsCore_QueryResultExporter::QueryResultExporter;
+        dependency QueryCommand to SysML2ToolsCore_GlobFileCollector::GlobFileCollector;
+        dependency QueryCommand to SysML2ToolsStdlib_StdlibProvider::StdlibProvider;
+        dependency QueryCommand to SysML2ToolsLanguage_WorkspaceLoader::WorkspaceLoader;
     }
 }

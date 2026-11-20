@@ -1,4 +1,4 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_SysmlAnnotation {
     private import SoftwareItemMetadata::*;
 
     part def SysmlAnnotation {

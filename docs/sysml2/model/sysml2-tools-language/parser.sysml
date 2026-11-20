@@ -1,4 +1,6 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_ParserSubsystem {
+    private import SysML2ToolsLanguage_ParserInternalSubsystem::*;
+    private import SysML2ToolsLanguage_WorkspaceParser::*;
     private import SoftwareItemMetadata::*;
 
     part def ParserSubsystem {

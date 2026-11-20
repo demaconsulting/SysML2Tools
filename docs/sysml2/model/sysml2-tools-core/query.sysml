@@ -1,4 +1,13 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_QuerySubsystem {
+    private import SysML2ToolsCore_QualifiedNameShortener::*;
+    private import SysML2ToolsCore_QueryArgumentParser::*;
+    private import SysML2ToolsCore_QueryEngine::*;
+    private import SysML2ToolsCore_QueryOptions::*;
+    private import SysML2ToolsCore_QueryResult::*;
+    private import SysML2ToolsCore_QueryResultExporter::*;
+    private import SysML2ToolsCore_QueryResultRenderer::*;
+    private import SysML2ToolsCore_QueryResultSerializerContext::*;
+    private import SysML2ToolsCore_QueryVerb::*;
     private import SoftwareItemMetadata::*;
 
     part def QuerySubsystem {

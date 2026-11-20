@@ -1,4 +1,5 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_SelfTestSubsystem {
+    private import SysML2ToolsTool_Validation::*;
     private import SoftwareItemMetadata::*;
 
     part def SelfTestSubsystem {

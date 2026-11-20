@@ -1,4 +1,11 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_DiagramTypeRouter {
+    private import SysML2ToolsCore_ActionFlowViewLayoutStrategy::*;
+    private import SysML2ToolsCore_BrowserViewLayoutStrategy::*;
+    private import SysML2ToolsCore_GeneralViewLayoutStrategy::*;
+    private import SysML2ToolsCore_GridViewLayoutStrategy::*;
+    private import SysML2ToolsCore_InterconnectionViewLayoutStrategy::*;
+    private import SysML2ToolsCore_SequenceViewLayoutStrategy::*;
+    private import SysML2ToolsCore_StateTransitionViewLayoutStrategy::*;
     private import SoftwareItemMetadata::*;
 
     part def DiagramTypeRouter {

@@ -1,4 +1,6 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_RenderCommand {
+    private import SysML2ToolsTool_Context::*;
+    private import SysML2ToolsTool_DiagnosticFormatter::*;
     private import SoftwareItemMetadata::*;
 
     part def RenderCommand {
@@ -16,10 +18,10 @@ package SysML2ToolsTool {
         // the off-the-shelf SVG or PNG renderer.
         dependency RenderCommand to Context;
         dependency RenderCommand to DiagnosticFormatter;
-        dependency RenderCommand to SysML2ToolsCore::DiagramRenderer;
+        dependency RenderCommand to SysML2ToolsCore_DiagramRenderer::DiagramRenderer;
         dependency RenderCommand to OtsDependencies::DemaRendering;
-        dependency RenderCommand to SysML2ToolsCore::GlobFileCollector;
-        dependency RenderCommand to SysML2ToolsStdlib::StdlibProvider;
-        dependency RenderCommand to SysML2ToolsLanguage::WorkspaceLoader;
+        dependency RenderCommand to SysML2ToolsCore_GlobFileCollector::GlobFileCollector;
+        dependency RenderCommand to SysML2ToolsStdlib_StdlibProvider::StdlibProvider;
+        dependency RenderCommand to SysML2ToolsLanguage_WorkspaceLoader::WorkspaceLoader;
     }
 }

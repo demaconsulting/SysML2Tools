@@ -1,4 +1,5 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_GridViewLayoutStrategy {
+    private import SysML2ToolsCore_ExposeScopeResolver::*;
     private import SoftwareItemMetadata::*;
 
     part def GridViewLayoutStrategy {

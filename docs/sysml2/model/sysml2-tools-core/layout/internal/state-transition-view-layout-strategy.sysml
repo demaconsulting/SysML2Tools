@@ -1,4 +1,8 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_StateTransitionViewLayoutStrategy {
+    private import SysML2ToolsCore_ExposeScopeResolver::*;
+    private import SysML2ToolsCore_GeneralViewLayoutStrategy::*;
+    private import SysML2ToolsCore_LayeredPlacement::*;
+    private import SysML2ToolsCore_LayoutWarnings::*;
     private import SoftwareItemMetadata::*;
 
     part def StateTransitionViewLayoutStrategy {

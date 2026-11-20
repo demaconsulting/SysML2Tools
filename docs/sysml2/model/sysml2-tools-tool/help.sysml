@@ -1,4 +1,5 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_HelpSubsystem {
+    private import SysML2ToolsTool_HelpCommand::*;
     private import SoftwareItemMetadata::*;
 
     part def HelpSubsystem {

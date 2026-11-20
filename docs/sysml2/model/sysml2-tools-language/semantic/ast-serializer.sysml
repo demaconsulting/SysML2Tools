@@ -1,4 +1,8 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_AstSerializer {
+    private import SysML2ToolsLanguage_AstSerializerContext::*;
+    private import SysML2ToolsLanguage_SerializedStdlib::*;
+    private import SysML2ToolsLanguage_SymbolTable::*;
+    private import SysML2ToolsLanguage_SysmlNode::*;
     private import SoftwareItemMetadata::*;
 
     part def AstSerializer {

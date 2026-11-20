@@ -1,4 +1,5 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_RenderSubsystem {
+    private import SysML2ToolsTool_RenderCommand::*;
     private import SoftwareItemMetadata::*;
 
     part def RenderSubsystem {

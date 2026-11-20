@@ -1,4 +1,7 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_AstBuilder {
+    private import SysML2ToolsLanguage_SysmlAnnotation::*;
+    private import SysML2ToolsLanguage_SysmlMetadataNode::*;
+    private import SysML2ToolsLanguage_SysmlNode::*;
     private import SoftwareItemMetadata::*;
 
     part def AstBuilder {

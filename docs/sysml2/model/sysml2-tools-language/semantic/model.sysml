@@ -1,4 +1,16 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_ModelSubsystem {
+    private import SysML2ToolsLanguage_AstBuilder::*;
+    private import SysML2ToolsLanguage_AstSerializerContext::*;
+    private import SysML2ToolsLanguage_NameResolver::*;
+    private import SysML2ToolsLanguage_ReferenceResolver::*;
+    private import SysML2ToolsLanguage_SemanticIndex::*;
+    private import SysML2ToolsLanguage_SerializedStdlib::*;
+    private import SysML2ToolsLanguage_SupertypeWalker::*;
+    private import SysML2ToolsLanguage_SymbolTable::*;
+    private import SysML2ToolsLanguage_SysmlAnnotation::*;
+    private import SysML2ToolsLanguage_SysmlEdge::*;
+    private import SysML2ToolsLanguage_SysmlMetadataNode::*;
+    private import SysML2ToolsLanguage_SysmlNode::*;
     private import SoftwareItemMetadata::*;
 
     part def ModelSubsystem {

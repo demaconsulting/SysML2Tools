@@ -1,4 +1,6 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_UtilitiesSubsystem {
+    private import SysML2ToolsTool_DiagnosticFormatter::*;
+    private import SysML2ToolsTool_PathHelpers::*;
     private import SoftwareItemMetadata::*;
 
     part def UtilitiesSubsystem {

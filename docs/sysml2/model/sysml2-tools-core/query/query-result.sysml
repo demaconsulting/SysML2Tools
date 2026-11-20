@@ -1,4 +1,4 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_QueryResult {
     private import SoftwareItemMetadata::*;
 
     part def QueryResult {
@@ -29,7 +29,7 @@ package SysML2ToolsCore {
         attribute notes : String [0..*];
         attribute direction : QueryEntryDirection [0..1];
         attribute depth : Integer [0..1];
-        attribute relation : SysML2ToolsLanguage::SysmlEdgeKind [0..1];
+        attribute relation : SysML2ToolsLanguage_SysmlEdge::SysmlEdgeKind [0..1];
         attribute viaQualifiedName : String [0..1];
     }
 

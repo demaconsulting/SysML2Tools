@@ -1,4 +1,11 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_Program {
+    private import SysML2ToolsTool_Context::*;
+    private import SysML2ToolsTool_ExportCommand::*;
+    private import SysML2ToolsTool_HelpCommand::*;
+    private import SysML2ToolsTool_LintCommand::*;
+    private import SysML2ToolsTool_QueryCommand::*;
+    private import SysML2ToolsTool_RenderCommand::*;
+    private import SysML2ToolsTool_Validation::*;
     private import SoftwareItemMetadata::*;
 
     part def Program {

@@ -1,4 +1,5 @@
-package SysML2ToolsLanguage {
+package SysML2ToolsLanguage_SerializedStdlib {
+    private import SysML2ToolsLanguage_SysmlNode::*;
     private import SoftwareItemMetadata::*;
 
     part def SerializedStdlib {

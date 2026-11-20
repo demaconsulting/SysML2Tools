@@ -16,30 +16,30 @@ package SysML2ToolsDesignViews {
 
     view SoftwareStructureView : GeneralView {
         expose SysML2ToolsLanguage::SysML2ToolsLanguageSystem;
-        expose SysML2ToolsLanguage::ParserSubsystem;
-        expose SysML2ToolsLanguage::ParserInternalSubsystem;
-        expose SysML2ToolsLanguage::SemanticSubsystem;
-        expose SysML2ToolsLanguage::ModelSubsystem;
-        expose SysML2ToolsLanguage::FilteringSubsystem;
+        expose SysML2ToolsLanguage_ParserSubsystem::ParserSubsystem;
+        expose SysML2ToolsLanguage_ParserInternalSubsystem::ParserInternalSubsystem;
+        expose SysML2ToolsLanguage_SemanticSubsystem::SemanticSubsystem;
+        expose SysML2ToolsLanguage_ModelSubsystem::ModelSubsystem;
+        expose SysML2ToolsLanguage_FilteringSubsystem::FilteringSubsystem;
         expose SysML2ToolsStdlib::SysML2ToolsStdlibSystem;
         expose SysML2ToolsCore::SysML2ToolsCoreSystem;
-        expose SysML2ToolsCore::LayoutSubsystem;
-        expose SysML2ToolsCore::LayoutInternalSubsystem;
-        expose SysML2ToolsCore::RenderingSubsystem;
-        expose SysML2ToolsCore::RenderingInternalSubsystem;
-        expose SysML2ToolsCore::IoSubsystem;
-        expose SysML2ToolsCore::QuerySubsystem;
+        expose SysML2ToolsCore_LayoutSubsystem::LayoutSubsystem;
+        expose SysML2ToolsCore_LayoutInternalSubsystem::LayoutInternalSubsystem;
+        expose SysML2ToolsCore_RenderingSubsystem::RenderingSubsystem;
+        expose SysML2ToolsCore_RenderingInternalSubsystem::RenderingInternalSubsystem;
+        expose SysML2ToolsCore_IoSubsystem::IoSubsystem;
+        expose SysML2ToolsCore_QuerySubsystem::QuerySubsystem;
         expose SysML2ToolsTool::SysML2ToolsToolSystem;
-        expose SysML2ToolsTool::CliSubsystem;
-        expose SysML2ToolsTool::LintSubsystem;
-        expose SysML2ToolsTool::RenderSubsystem;
-        expose SysML2ToolsTool::HelpSubsystem;
-        expose SysML2ToolsTool::QuerySubsystem;
-        expose SysML2ToolsTool::ExportSubsystem;
-        expose SysML2ToolsTool::SelfTestSubsystem;
-        expose SysML2ToolsTool::UtilitiesSubsystem;
+        expose SysML2ToolsTool_CliSubsystem::CliSubsystem;
+        expose SysML2ToolsTool_LintSubsystem::LintSubsystem;
+        expose SysML2ToolsTool_RenderSubsystem::RenderSubsystem;
+        expose SysML2ToolsTool_HelpSubsystem::HelpSubsystem;
+        expose SysML2ToolsTool_QuerySubsystem::QuerySubsystem;
+        expose SysML2ToolsTool_ExportSubsystem::ExportSubsystem;
+        expose SysML2ToolsTool_SelfTestSubsystem::SelfTestSubsystem;
+        expose SysML2ToolsTool_UtilitiesSubsystem::UtilitiesSubsystem;
         expose OtsDependencies::**;
-        filter not @SysML::Documentation;
+        filter not (@SysML::Documentation);
     }
 
     view LanguageView {
@@ -59,78 +59,78 @@ package SysML2ToolsDesignViews {
     }
 
     view LanguageParserView {
-        expose SysML2ToolsLanguage::ParserSubsystem;
+        expose SysML2ToolsLanguage_ParserSubsystem::ParserSubsystem;
     }
 
     view LanguageParserInternalView {
-        expose SysML2ToolsLanguage::ParserInternalSubsystem;
+        expose SysML2ToolsLanguage_ParserInternalSubsystem::ParserInternalSubsystem;
     }
 
     view LanguageSemanticView {
-        expose SysML2ToolsLanguage::SemanticSubsystem;
+        expose SysML2ToolsLanguage_SemanticSubsystem::SemanticSubsystem;
     }
 
     view LanguageSemanticModelView {
-        expose SysML2ToolsLanguage::ModelSubsystem;
+        expose SysML2ToolsLanguage_ModelSubsystem::ModelSubsystem;
     }
 
     view LanguageFilteringView {
-        expose SysML2ToolsLanguage::FilteringSubsystem;
+        expose SysML2ToolsLanguage_FilteringSubsystem::FilteringSubsystem;
     }
 
     view CoreLayoutView {
-        expose SysML2ToolsCore::LayoutSubsystem;
+        expose SysML2ToolsCore_LayoutSubsystem::LayoutSubsystem;
     }
 
     view CoreLayoutInternalView {
-        expose SysML2ToolsCore::LayoutInternalSubsystem;
+        expose SysML2ToolsCore_LayoutInternalSubsystem::LayoutInternalSubsystem;
     }
 
     view CoreRenderingView {
-        expose SysML2ToolsCore::RenderingSubsystem;
+        expose SysML2ToolsCore_RenderingSubsystem::RenderingSubsystem;
     }
 
     view CoreRenderingInternalView {
-        expose SysML2ToolsCore::RenderingInternalSubsystem;
+        expose SysML2ToolsCore_RenderingInternalSubsystem::RenderingInternalSubsystem;
     }
 
     view CoreIoView {
-        expose SysML2ToolsCore::IoSubsystem;
+        expose SysML2ToolsCore_IoSubsystem::IoSubsystem;
     }
 
     view CoreQueryView {
-        expose SysML2ToolsCore::QuerySubsystem;
+        expose SysML2ToolsCore_QuerySubsystem::QuerySubsystem;
     }
 
     view ToolCliView {
-        expose SysML2ToolsTool::CliSubsystem;
+        expose SysML2ToolsTool_CliSubsystem::CliSubsystem;
     }
 
     view ToolLintView {
-        expose SysML2ToolsTool::LintSubsystem;
+        expose SysML2ToolsTool_LintSubsystem::LintSubsystem;
     }
 
     view ToolRenderView {
-        expose SysML2ToolsTool::RenderSubsystem;
+        expose SysML2ToolsTool_RenderSubsystem::RenderSubsystem;
     }
 
     view ToolHelpView {
-        expose SysML2ToolsTool::HelpSubsystem;
+        expose SysML2ToolsTool_HelpSubsystem::HelpSubsystem;
     }
 
     view ToolQueryView {
-        expose SysML2ToolsTool::QuerySubsystem;
+        expose SysML2ToolsTool_QuerySubsystem::QuerySubsystem;
     }
 
     view ToolExportView {
-        expose SysML2ToolsTool::ExportSubsystem;
+        expose SysML2ToolsTool_ExportSubsystem::ExportSubsystem;
     }
 
     view ToolSelfTestView {
-        expose SysML2ToolsTool::SelfTestSubsystem;
+        expose SysML2ToolsTool_SelfTestSubsystem::SelfTestSubsystem;
     }
 
     view ToolUtilitiesView {
-        expose SysML2ToolsTool::UtilitiesSubsystem;
+        expose SysML2ToolsTool_UtilitiesSubsystem::UtilitiesSubsystem;
     }
 }

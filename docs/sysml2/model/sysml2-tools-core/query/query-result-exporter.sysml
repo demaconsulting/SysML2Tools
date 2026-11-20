@@ -1,4 +1,5 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_QueryResultExporter {
+    private import SysML2ToolsCore_QueryResultRenderer::*;
     private import SoftwareItemMetadata::*;
 
     part def QueryResultExporter {

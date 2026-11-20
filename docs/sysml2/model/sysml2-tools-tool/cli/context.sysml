@@ -1,4 +1,4 @@
-package SysML2ToolsTool {
+package SysML2ToolsTool_Context {
     private import SoftwareItemMetadata::*;
 
     part def Context {

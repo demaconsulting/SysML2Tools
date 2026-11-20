@@ -1,4 +1,6 @@
-package SysML2ToolsCore {
+package SysML2ToolsCore_QueryArgumentParser {
+    private import SysML2ToolsCore_QueryOptions::*;
+    private import SysML2ToolsCore_QueryVerb::*;
     private import SoftwareItemMetadata::*;
 
     part def QueryArgumentParser {
