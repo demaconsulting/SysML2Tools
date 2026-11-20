@@ -23,6 +23,7 @@ needs-review:
   - "docs/design/**/*.md"         # Design documentation files
   - "docs/verification/**/*.md"   # Verification documentation files
   - "docs/user_guide/**/*.md"     # User guide documentation
+  - "docs/sysml2/**/*.sysml"      # SysML2 architecture model
   - "!**/obj/**"                  # Exclude build output
   - "!**/bin/**"                  # Exclude build output
   - "!**/generated/**"            # Exclude generated documentation
@@ -66,6 +67,7 @@ reviews:
       - requirements.yaml
       - docs/reqstream/quality.yaml
       - docs/design/introduction.md
+      - "docs/sysml2/**/*.sysml"
 
   # SysML2Tools Tool - Specials
   - id: SysML2Tools-Tool-Architecture
@@ -1111,6 +1113,13 @@ reviews:
       - "docs/reqstream/ots/sonarmark.yaml"
       - "docs/design/ots/sonarmark.md"
       - "docs/verification/ots/sonarmark.md"
+
+  - id: OTS-SysML2Tools
+    title: Review of SysML2Tools OTS verification evidence
+    paths:
+      - "docs/reqstream/ots/sysml2tools.yaml"
+      - "docs/design/ots/sysml2tools.md"
+      - "docs/verification/ots/sysml2tools.md"
 
   - id: OTS-VersionMark
     title: Review of VersionMark OTS verification evidence

@@ -1,5 +1,7 @@
 #### ReferenceResolver
 
+![Language Semantic Model Structure](LanguageSemanticModelView.svg)
+
 ##### Overview
 
 `ReferenceResolver` performs four analyses over the loaded files:

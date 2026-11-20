@@ -1,5 +1,7 @@
 ### AstSerializer
 
+![Language Semantic Structure](LanguageSemanticView.svg)
+
 #### Purpose
 
 `AstSerializer` converts a populated `SymbolTable` and its diagnostics into a portable UTF-8 JSON

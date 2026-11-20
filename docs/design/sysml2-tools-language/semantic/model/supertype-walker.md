@@ -1,5 +1,7 @@
 #### SupertypeWalker
 
+![Language Semantic Model Structure](LanguageSemanticModelView.svg)
+
 ##### Overview
 
 `SupertypeWalker` traverses the specialization chains of all symbols registered in the

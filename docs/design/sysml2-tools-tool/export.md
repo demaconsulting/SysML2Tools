@@ -1,5 +1,7 @@
 ## DemaConsulting.SysML2Tools.Tool — Export Subsystem
 
+![Tool Export Structure](ToolExportView.svg)
+
 ### Overview
 
 The Export subsystem implements the `export` CLI command: a single-purpose command that

@@ -1,5 +1,7 @@
 ### GlobFileCollector
 
+![Core Io Structure](CoreIoView.svg)
+
 #### Purpose
 
 `GlobFileCollector` is the single, shared entry point for resolving file glob patterns into

@@ -1,5 +1,7 @@
 ## DemaConsulting.SysML2Tools — Io Subsystem
 
+![Core Io Structure](CoreIoView.svg)
+
 ### Overview
 
 The Io subsystem provides shared filesystem file-discovery behavior for the Tool project's

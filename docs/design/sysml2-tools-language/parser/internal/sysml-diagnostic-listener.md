@@ -1,5 +1,7 @@
 ### SysmlDiagnosticListener
 
+![Language Parser Internal Structure](LanguageParserInternalView.svg)
+
 #### Purpose
 
 `SysmlDiagnosticListener` is the internal error listener of the Parser subsystem. It adapts the

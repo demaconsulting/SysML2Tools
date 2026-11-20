@@ -1,5 +1,7 @@
 # DemaConsulting.SysML2Tools.Language
 
+![Language Structure](LanguageView.svg)
+
 ## Architecture
 
 The `DemaConsulting.SysML2Tools.Language` library provides the SysML v2 parsing engine,

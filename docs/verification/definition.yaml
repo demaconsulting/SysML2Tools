@@ -92,6 +92,7 @@ input-files:
   - docs/verification/ots/reviewmark.md
   - docs/verification/ots/sarifmark.md
   - docs/verification/ots/sonarmark.md
+  - docs/verification/ots/sysml2tools.md
   - docs/verification/ots/versionmark.md
   - docs/verification/ots/weasyprint.md
   - docs/verification/ots/xunit.md

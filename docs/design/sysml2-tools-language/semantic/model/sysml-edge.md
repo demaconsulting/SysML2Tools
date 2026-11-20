@@ -1,5 +1,7 @@
 #### SysmlEdge
 
+![Language Semantic Model Structure](LanguageSemanticModelView.svg)
+
 ##### Overview
 
 `SysmlEdge` and `SysmlEdgeKind` model a single resolved directed reference between two

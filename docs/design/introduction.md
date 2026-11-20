@@ -28,187 +28,49 @@ The following topics are out of scope:
 - **`src/Tools/StdlibGen`** is a standalone pre-compiler tool that parses the stdlib source
   files and writes `stdlib.json.gz` (invoked as a plain, sequential step by `build.ps1`, not
   part of the MSBuild graph). Like the build pipeline, it is not part of the delivered
-  software and is therefore excluded from the software-items requirements, design, and verification
-  tree. It is listed under *Software Structure* for navigation only; the absence of requirements,
-  design, and verification artifacts for it is intentional, not a decomposition gap.
+  software and is therefore excluded from the software-items requirements, design, verification,
+  and SysML2 model tree. The absence of requirements, design, verification, and model artifacts
+  for it is intentional, not a decomposition gap.
+
+The OTS software items whose integration design is covered are ANTLR4, BuildMark,
+DemaConsulting.Rendering, FileAssert, Pandoc, ReqStream, ReviewMark, SarifMark, SonarMark,
+SysML2Tools, VersionMark, WeasyPrint, and xUnit.
 
 ## Software Structure
 
-The following list shows how the SysML2 Tools software items are organized across the
-system, subsystem, and unit levels:
+The SysML2 Tools software structure is modeled in SysML v2 under `docs/sysml2/`. The model is the
+authoritative, machine-queryable source for every software item: its purpose, its dependencies, and the
+location of its source, test, design, verification, and requirements artifacts. It has one SysML
+package per system (`SysML2ToolsLanguage`, `SysML2ToolsStdlib`, `SysML2ToolsCore`, and
+`SysML2ToolsTool`) plus the shared `OtsDependencies` package, and is organized as follows:
 
-- **DemaConsulting.SysML2Tools.Language** (System) — language library: SysML v2 parsing engine,
-  AST node types, semantic analysis, and AST serialization/deserialization
-  - **Parser** (Subsystem) — SysML v2 parsing engine
-    - **WorkspaceParser** (Unit) — public API: parses source strings; exposes internal `ParseSourceToCst`
-    - **Internal** (Subsystem) — internal implementation details
-      - **SysmlDiagnosticListener** (Unit) — collects ANTLR4 syntax errors as SysmlDiagnostic records
-  - **Semantic** (Subsystem) — SysML/KerML semantic model: symbol table, reference resolution, supertype walking
-    - **WorkspaceLoader** (Unit) — public API: loads SysML/KerML files into a semantic workspace with optional seed
-    - **AstSerializer** (Unit) — serializes SymbolTable + diagnostics to UTF-8 JSON bytes
-    - **AstDeserializer** (Unit) — deserializes bytes back to SymbolTable + diagnostics
-    - **Model** (Subsystem) — semantic model: public model types plus internal build/resolve implementation
-      - **SysmlNode** (Unit) — public AST node hierarchy: named-element and view/import node types
-      - **SysmlMetadataNode** (Unit) — applied metadata annotation node with raw type reference and
-        captured scalar attribute values
-      - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names, metadata
-        annotations, raw view filter text, and the source position of each declaration and
-        reference
-      - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
-      - **ReferenceResolver** (Unit) — resolves supertype, typing, metadata-type,
-        redefinition, import, satisfy, verify, allocate, expose, and (in a final pass) connect/
-        binding/transition references — any of them possibly a dotted feature chain — by KerML
-        8.2.3.5 name resolution (delegating
-        to `NameResolver`: member visibility, filtered imports, import scoping, feature chains);
-        detects circular
-        imports; returns a `SemanticIndex` of resolved edges; also resolves the references written
-        inside expressions (guards, triggers, effects, `accept`/`send` payloads, constraints, `render`
-        targets) and reports each unresolved one at its token position; chooses the unresolved-reference
-        severity by origin (Warning by default, Error for user files under `strictUnresolved`;
-        Warning always for the standard library) and warns when a `render` target names a
-        SysML2Tools extension selector
-      - **NameResolver** (Unit) — public KerML 8.2.3.5 name resolver (owned, imported, inherited
-        — including the implicit specializations of every element kind, which are lookup input
-        only and never edges —, aliased, and short-named memberships; full and visible resolution;
-        dotted feature chains resolved segment by segment through the previous feature's own and
-        inherited members)
-        used by `ReferenceResolver` (in an internal resolving mode) and by layout strategies for
-        references the semantic model did not resolve
-      - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
-      - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/MetadataType/
-        Import/Expose/Redefinition/Satisfy/Verify/Allocate/Connect/Transition), carrying the raw
-        reference text of single-reference edges
-      - **SemanticIndex** (Unit) — public reverse-lookup index over resolved `SysmlEdge` instances
-      - **SysmlAnnotation** (Unit) — public captured-comment/documentation record
-        (Comment/Documentation)
-      - **SerializedStdlib** (Unit) — DTO for stdlib binary serialization
-      - **AstSerializerContext** (Unit) — source-generated JSON context for AOT-safe serialization
-  - **Filtering** (Subsystem) — parses and evaluates the Phase 1 subset of standalone view
-    `filter [<expr>];` expressions (and import/`expose` bracket filters) over metadata
-    annotations; lives in the Language library so `ReferenceResolver` can evaluate filtered imports
-    - **FilterExpressionEvaluator** (Unit) — filter-expression AST, parser adaptation, and
-      evaluator for metadata classification tests, boolean connectives, and metadata-attribute reads
-- **DemaConsulting.SysML2Tools.Stdlib** (System) — stdlib library: pre-compiled SysML v2 standard
+- `docs/sysml2/common/` — the shared `SoftwareInfo` metadata definition
+- `docs/sysml2/model/` — one file per system, subsystem, and unit, mirroring the design tree, plus
+  `ots.sysml` for the OTS items
+- `docs/sysml2/views/` — the named views rendered into this document
+
+The diagram below is rendered from the model and shows the four systems, their subsystems, and the OTS
+items. Every system and subsystem chapter that follows opens with the diagram of its own system or
+subsystem, and every unit chapter with the diagram of its parent. To learn what a software item is,
+why it exists, and what it depends on, query the model (for example `sysml2tools query describe` or
+`sysml2tools query dependencies` over `'docs/sysml2/**/*.sysml'`) before reading the source code.
+
+![Software Structure](SoftwareStructureView.svg)
+
+The four systems are:
+
+- **`DemaConsulting.SysML2Tools.Language`** — language library: SysML v2 parsing engine, AST node
+  types, semantic analysis, and AST serialization and deserialization
+- **`DemaConsulting.SysML2Tools.Stdlib`** — stdlib library: the pre-compiled SysML v2 standard
   library JSON embedded as a gzip-compressed managed resource
-  - **StdlibProvider** (Unit) — lazy-cached GetSymbolTable() decompressed/deserialized from
-    embedded stdlib.json.gz
-- **StdlibGen** (Standalone tool) — console tool that parses stdlib source files and writes
-  stdlib.json.gz (invoked by build.ps1, not part of the MSBuild graph; excluded from the
-  software-items requirements/design/verification tree — see *Scope*)
-  - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes and compresses to stdlib.json.gz
-- **DemaConsulting.SysML2Tools.Core** (System) — core library: layout strategies,
-  rendering orchestration, and the SysML-coupled rendering pipeline
-  - **Layout** (Subsystem) — maps the SysML semantic model onto the off-the-shelf `LayoutTree`
-    intermediate representation and delegates geometric placement and routing to the off-the-shelf
-    `DemaConsulting.Rendering.Layout` layered algorithm
-    - **Internal** (Subsystem) — per-view layout strategies
-      - **GeneralViewLayoutStrategy** (Unit) — general view: definitions and usage nodes grouped by
-        package and placed top-to-bottom by the automatic layered/containment selection, with the
-        notation glyphs for specialization, feature membership, typing, subsetting, redefinition,
-        satisfy, verify, and import edges
-      - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested usages, declared ports,
-        and connectors (connection, binding, interface, flow) with end labels
-      - **StateTransitionViewLayoutStrategy** (Unit) — state machine: states and guarded transitions
-        placed top-to-bottom by the layered algorithm (DOWN direction) with orthogonal transitions
-      - **ActionFlowViewLayoutStrategy** (Unit) — action flow with start/done markers, placed
-        top-to-bottom by the layered algorithm (DOWN direction) with orthogonal successions
-      - **SequenceViewLayoutStrategy** (Unit) — typed lifelines with rounded usage headers and
-        event-ordered messages labeled with their payload
-      - **GridViewLayoutStrategy** (Unit) — specialization/relationship matrix
-      - **BrowserViewLayoutStrategy** (Unit) — indented membership tree
-      - **LayoutWarnings** (Unit) — builder for layout diagnostic warning messages
-      - **ExposeScopeResolver** (Unit) — shared helper resolving a view's `expose`-statement
-        qualified-name containment-subtree scope, used by every strategy above
-      - **LayeredPlacement** (Unit) — thin helper that adapts the off-the-shelf
-        `DemaConsulting.Rendering.Layout` layered algorithm, returning placed rectangles and routed
-        polylines to the strategies
-  - **Rendering** (Subsystem) — rendering pipeline: consumes the off-the-shelf `IRenderer`, `Theme`,
-    `RenderOptions`, and `RenderOutput` contracts from `DemaConsulting.Rendering.Abstractions` and
-    retains the SysML-coupled `ILayoutStrategy`/`ViewContext` contract, the `DiagramRenderer`
-    orchestrator, the `StdlibFilter` helper that excludes standard-library elements from diagrams,
-    and the public `SysmlThemes` preset provider (`Rendering/SysmlThemes.cs`) that derives
-    SysML-notation themes from the off-the-shelf `Theme`
-    - **DiagramRenderer** (Unit) — high-level rendering orchestrator: for each view, builds a
-      `LayoutTree` via an `ILayoutStrategy` and renders it via an `IRenderer`
-    - **Internal** (Subsystem) — internal rendering implementation
-      - **DiagramTypeRouter** (Unit) — selects a layout strategy from a view's resolved kind
-  - **Io** (Subsystem) — shared file glob pattern resolution used by the Tool project's
-    lint/render/query commands
-    - **GlobFileCollector** (Unit) — resolves ordered glob patterns (with `!` exclusions,
-      recursive `**` matching, and bare-`*` extension filtering) to a sorted, deduplicated
-      list of absolute file paths
-  - **Query** (Subsystem) — public, reusable model-analysis API answering 12 fixed questions
-    over an already-loaded semantic workspace and returning a uniform `QueryResult` that
-    callers can render as Markdown or JSON or write to a file
-    - **QueryVerb** (Unit) — fixed 12-verb vocabulary, token conversion, and the
-      `RequiresElement` rule
-    - **QueryOptions** (Unit) — immutable option record shared by every verb
-    - **QueryArgumentParser** (Unit) — parses a token list into `(QueryOptions?, Files)` for
-      callers that accept the same verb/option grammar as the CLI
-    - **QueryEngine** (Unit) — public execution surface: 12 verb methods plus `Execute`,
-      centralizing the verb switch used by both library callers and the CLI adapter
-    - **QueryResult** (Unit) — verb-agnostic result model (`QueryResult`, `QueryResultEntry`,
-      `QueryEntryDirection`)
-    - **QueryResultRenderer** (Unit) — shared Markdown/JSON rendering and deterministic
-      sorting layer
-    - **QueryResultSerializerContext** (Unit) — source-generated `System.Text.Json` context
-      used by `RenderJson`
-    - **QueryResultExporter** (Unit) — synchronous and asynchronous file-writing wrappers
-      around the renderer
-    - **QualifiedNameShortener** (Unit) — strips the longest shared leading `::`-segment
-      prefix across a pool of qualified names, used only by the `dependencies` verb's
-      Markdown rendering
-- **DemaConsulting.SysML2Tools.Tool** (System) — dotnet tool: thin CLI wrapper and
+- **`DemaConsulting.SysML2Tools.Core`** — core library: layout strategies, rendering
+  orchestration, file collection, and the model-analysis query API
+- **`DemaConsulting.SysML2Tools.Tool`** — dotnet tool: thin command-line wrapper and
   orchestration
-  - **Program** (Unit) — entry point and execution orchestrator
-  - **Cli** (Subsystem) — command-line argument parsing and I/O
-    - **Context** (Unit) — argument parser and I/O owner
-  - **Lint** (Subsystem) — lint command implementation
-    - **LintCommand** (Unit) — delegates glob pattern resolution to `GlobFileCollector`,
-      invokes WorkspaceLoader with stdlib seed (honoring `--strict-unresolved`), reports diagnostics
-  - **Render** (Subsystem) — render command implementation
-    - **RenderCommand** (Unit) — delegates glob pattern resolution to `GlobFileCollector`,
-      loads workspace with stdlib seed, selects renderer, writes diagram output files
-  - **Help** (Subsystem) — help command implementation; pure dispatch to the single source of
-    truth for each command's help text (`Program.PrintTopLevelHelp`, `LintCommand.PrintHelp`,
-    `RenderCommand.PrintHelp`, `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp`)
-    - **HelpCommand** (Unit) — parses the optional target command/verb and dispatches to that
-      command's help-printing method
-  - **Query** (Subsystem) — query command implementation: resolves a workspace, runs one of the
-    query verbs (`uses`, `used-by`, `dependencies`, `impact`, `describe`, `hierarchy`,
-    `requirements`, `interface`, `connections`, `states`, `list`, `find`) against it, and renders
-    the result as a Markdown or JSON `QueryResult`
-    - **QueryCommand** (Unit) — delegates glob pattern resolution to `GlobFileCollector`, loads
-      workspace with stdlib seed, dispatches to `QueryEngine` and `QueryResultRenderer`
-  - **SelfTest** (Subsystem) — self-validation test runner
-    - **Validation** (Unit) — self-validation test runner
-  - **Utilities** (Subsystem) — shared utilities
-    - **PathHelpers** (Unit) — safe path combination utilities
-    - **DiagnosticFormatter** (Unit) — shared `path(line,col): severity: message` console-line
-      formatter used by the lint, render, and query commands
 
-**OTS Dependencies:**
+`src/Tools/StdlibGen` is deliberately not part of the model (see *Scope*).
 
-- ANTLR4 (OTS) — ANTLR4 runtime (Antlr4.Runtime.Standard)
-- BuildMark (OTS) — build-notes documentation tool
-- DemaConsulting.Rendering (OTS) — SysML-agnostic layout intermediate representation, layered
-  and containment layout algorithms with automatic selection, notation styling (box appearance,
-  compartment title style, extended end markers, SysML port glyphs, connection end labels, lifeline
-  headers), and SVG/PNG
-  renderers
-- FileAssert (OTS) — document assertion tool
-- Pandoc (OTS) — Markdown-to-HTML conversion tool
-- ReqStream (OTS) — requirements traceability tool
-- ReviewMark (OTS) — file review enforcement tool
-- SarifMark (OTS) — SARIF report conversion tool
-- SonarMark (OTS) — SonarCloud quality report tool
-- VersionMark (OTS) — tool-version documentation tool
-- WeasyPrint (OTS) — HTML-to-PDF conversion tool
-- xUnit (OTS) — unit-testing framework
-
-Each local unit is described in detail in its own chapter within this document.
-
-The diagram below complements the structure list by showing how the systems relate at run
+The diagram below complements the structure model by showing how the systems relate at run
 time: the Tool's commands call into the Core library, which builds on the Language library
 seeded with the pre-compiled Stdlib, to turn `.sysml` model files into diagnostics, diagrams,
 query results, and model JSON.
@@ -240,6 +102,8 @@ reviewers an explicit navigation aid from design to code:
     - **Layout/** — layout strategies mapping the model to the off-the-shelf `LayoutTree`
       - **Internal/** — per-view layout strategies and the `LayeredPlacement` helper
     - **Rendering/** — SysML-coupled rendering pipeline (`ILayoutStrategy`, `DiagramRenderer`)
+      - **Internal/** — internal rendering implementation (`DiagramTypeRouter`,
+        `DynamicViewSynthesizer`, `StdlibFilter`)
     - **Io/** — shared file glob pattern resolution used by the Tool project's
       lint/render/query commands (`GlobFileCollector`)
     - **Query/** — public, reusable model-analysis API (`QueryVerb`, `QueryOptions`,
@@ -252,6 +116,7 @@ reviewers an explicit navigation aid from design to code:
     - **Render/** — render command subsystem
     - **Help/** — help command subsystem
     - **Query/** — query command subsystem
+    - **Export/** — export command subsystem
     - **SelfTest/** — self-validation subsystem
     - **Utilities/** — shared utilities subsystem
   - **Tools/StdlibGen/** — build-time stdlib pre-compiler tool
@@ -265,8 +130,14 @@ reviewers an explicit navigation aid from design to code:
     - **render/** — Render subsystem design (render.md)
     - **help.md** — Help subsystem design
     - **query.md** — Query subsystem design
+    - **export.md** — Export subsystem design
     - **self-test/** — SelfTest subsystem design
     - **utilities/** — Utilities subsystem design
+- **docs/sysml2/** — SysML2 architecture model of the software structure
+  - **common/** — shared `SoftwareInfo` metadata definition
+  - **model/** — one `.sysml` file per system, subsystem, and unit (plus `ots.sysml`),
+    mirroring the design tree
+  - **views/** — named views rendered into the design document
 
 ## Document Conventions
 
@@ -284,6 +155,8 @@ Local software items have corresponding artifacts in parallel directory trees:
 
 - Requirements: `docs/reqstream/{system-name}.yaml`, `docs/reqstream/{system-name}[/{subsystem-name}...]/{item}.yaml`
 - Design: `docs/design/{system-name}.md`, `docs/design/{system-name}[/{subsystem-name}...]/{item}.md`
+- Model: `docs/sysml2/model/{system-name}.sysml`, `docs/sysml2/model/{system-name}[/{subsystem-name}...]/{item}.sysml`,
+  and `docs/sysml2/model/ots.sysml` for the OTS items
 - Verification: `docs/verification/{system-name}.md`, `docs/verification/{system-name}[/{subsystem-name}...]/{item}.md`
 - Source: `src/{SystemName}[/{SubsystemName}...]/{Item}.cs`
 - Tests: `test/{SystemName}.Tests[/{SubsystemName}...]/{Item}Tests.cs`

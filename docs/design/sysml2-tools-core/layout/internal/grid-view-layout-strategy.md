@@ -1,5 +1,7 @@
 #### GridViewLayoutStrategy
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 ##### Purpose
 
 `GridViewLayoutStrategy` lays out a Grid View as a specialization relationship matrix: the

@@ -134,3 +134,18 @@ sections:
           - SysML2Tools-OTS-DemaRendering-PortGlyphs
           - SysML2Tools-OTS-DemaRendering-EndLabels
           - SysML2Tools-OTS-DemaRendering-LifelineHeader
+
+      - id: SysML2Tools-Quality-SoftwareStructureModeling
+        title: >-
+          The repository shall rely on SysML2Tools to lint and render
+          software-structure models.
+        tags: [quality]
+        justification: |
+          Software-structure documentation depends on SysML2Tools' model-linting
+          and diagram-rendering capabilities. This grouping requirement links those
+          OTS requirements to the quality root so they participate in orphan
+          detection without being falsely reported as disconnected from SysML2Tools
+          functionality.
+        children:
+          - SysML2Tools-OTS-SysML2Tools-Lint
+          - SysML2Tools-OTS-SysML2Tools-Render

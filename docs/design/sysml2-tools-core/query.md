@@ -1,5 +1,7 @@
 ## DemaConsulting.SysML2Tools — Query Subsystem
 
+![Core Query Structure](CoreQueryView.svg)
+
 ### Overview
 
 The Query subsystem is Core's public, reusable model-analysis API. It answers 12 fixed

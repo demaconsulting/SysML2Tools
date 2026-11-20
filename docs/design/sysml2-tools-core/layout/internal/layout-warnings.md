@@ -1,5 +1,7 @@
 #### LayoutWarnings
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 ##### Purpose
 
 `LayoutWarnings` builds the non-fatal layout-quality warning messages surfaced on a `LayoutTree`

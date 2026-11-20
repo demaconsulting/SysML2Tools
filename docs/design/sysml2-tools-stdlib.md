@@ -1,5 +1,7 @@
 # DemaConsulting.SysML2Tools.Stdlib
 
+![Stdlib Structure](StdlibView.svg)
+
 ## Architecture
 
 The `DemaConsulting.SysML2Tools.Stdlib` library provides the pre-compiled SysML v2 standard

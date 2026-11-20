@@ -1,5 +1,7 @@
 #### ExposeScopeResolver
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 ##### Purpose
 
 `ExposeScopeResolver` is the single shared helper resolving the qualified-name containment-subtree

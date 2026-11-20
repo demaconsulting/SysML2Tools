@@ -1,0 +1,27 @@
+package SysML2ToolsTool_ExportCommand {
+    private import SysML2ToolsTool_Context::*;
+    private import SoftwareItemMetadata::*;
+
+    part def ExportCommand {
+        doc /* Resolves glob patterns, loads the workspace with the standard-library seed, and writes the loaded model, its edges, and its diagnostics as faithful JSON (documented in the export subsystem docs). */
+
+        metadata info : SoftwareInfo {
+            sourceFiles = ("src/DemaConsulting.SysML2Tools.Tool/Export/ExportCommand.cs", "src/DemaConsulting.SysML2Tools.Tool/Export/ExportOptions.cs", "src/DemaConsulting.SysML2Tools.Tool/Export/ExportArgumentParser.cs", "src/DemaConsulting.SysML2Tools.Tool/Export/ExportResult.cs", "src/DemaConsulting.SysML2Tools.Tool/Export/ExportResultSerializerContext.cs", "src/DemaConsulting.SysML2Tools.Tool/Export/ExportLineSerializerContext.cs", "src/DemaConsulting.SysML2Tools.Tool/Export/ExportStrings.cs");
+            testFiles = ("test/DemaConsulting.SysML2Tools.Tool.Tests/Export/ExportSubsystemTests.cs", "test/DemaConsulting.SysML2Tools.Tool.Tests/Export/ExportRenderingTests.cs");
+            designFiles = ("docs/design/sysml2-tools-tool/export.md");
+            verificationFiles = ("docs/verification/sysml2-tools-tool/export.md");
+            requirementFiles = ("docs/reqstream/sysml2-tools-tool/export.yaml");
+        }
+
+        // Exporting loads the workspace, dumps its nodes, resolved edges, and diagnostics, and narrows the
+        // declarations with the Language filter parser and evaluator when --filter is supplied.
+        dependency ExportCommand to Context;
+        dependency ExportCommand to SysML2ToolsCore_GlobFileCollector::GlobFileCollector;
+        dependency ExportCommand to SysML2ToolsStdlib_StdlibProvider::StdlibProvider;
+        dependency ExportCommand to SysML2ToolsLanguage_WorkspaceLoader::WorkspaceLoader;
+        dependency ExportCommand to SysML2ToolsLanguage_SemanticIndex::SemanticIndex;
+        dependency ExportCommand to SysML2ToolsLanguage_SysmlNode::SysmlNode;
+        dependency ExportCommand to SysML2ToolsLanguage_SysmlEdge::SysmlEdge;
+        dependency ExportCommand to SysML2ToolsLanguage_FilterExpressionEvaluator::FilterExpressionEvaluator;
+    }
+}

@@ -93,6 +93,13 @@
       ],
       "rollForward": false
     },
+    "demaconsulting.sysml2tools.tool": {
+      "version": "0.3.0-beta.3",
+      "commands": [
+        "sysml2tools"
+      ],
+      "rollForward": false
+    },
     "demaconsulting.docdown.tool": {
       "version": "0.3.0-beta.6",
       "commands": [

@@ -1,5 +1,7 @@
 #### BrowserViewLayoutStrategy
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 ##### Purpose
 
 `BrowserViewLayoutStrategy` lays out a Browser View: it presents the membership hierarchy of the

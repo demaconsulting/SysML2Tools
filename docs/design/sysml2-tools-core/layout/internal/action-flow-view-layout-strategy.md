@@ -1,5 +1,7 @@
 #### ActionFlowViewLayoutStrategy
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 ##### Purpose
 
 `ActionFlowViewLayoutStrategy` implements `ILayoutStrategy` to produce an Action Flow View

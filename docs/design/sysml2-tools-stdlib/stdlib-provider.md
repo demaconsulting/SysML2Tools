@@ -1,5 +1,7 @@
 ### StdlibProvider
 
+![Stdlib Structure](StdlibView.svg)
+
 #### Purpose
 
 `StdlibProvider` is the single unit of the `DemaConsulting.SysML2Tools.Stdlib` system. It exposes the

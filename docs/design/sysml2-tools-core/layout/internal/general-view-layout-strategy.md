@@ -1,5 +1,7 @@
 #### GeneralViewLayoutStrategy
 
+![Core Layout Internal Structure](CoreLayoutInternalView.svg)
+
 ##### Purpose
 
 `GeneralViewLayoutStrategy` implements `ILayoutStrategy` to produce a General View diagram in the

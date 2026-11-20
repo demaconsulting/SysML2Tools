@@ -1,5 +1,7 @@
 # DemaConsulting.SysML2Tools
 
+![Core Structure](CoreView.svg)
+
 ## Architecture
 
 The `DemaConsulting.SysML2Tools` core library provides the Layout, Rendering,

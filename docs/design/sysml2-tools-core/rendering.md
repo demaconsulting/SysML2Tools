@@ -1,5 +1,7 @@
 ## DemaConsulting.SysML2Tools — Rendering Subsystem
 
+![Core Rendering Structure](CoreRenderingView.svg)
+
 ### Overview
 
 The Rendering subsystem wires together the rendering pipeline for SysML2 Tools. It bridges the

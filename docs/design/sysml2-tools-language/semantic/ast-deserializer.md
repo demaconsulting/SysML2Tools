@@ -1,5 +1,7 @@
 ### AstDeserializer
 
+![Language Semantic Structure](LanguageSemanticView.svg)
+
 #### Purpose
 
 `AstDeserializer` restores a `SymbolTable` and its diagnostics from a UTF-8 JSON byte array that

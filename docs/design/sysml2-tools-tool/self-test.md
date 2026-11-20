@@ -1,5 +1,7 @@
 ## SelfTest
 
+![Tool Self Test Structure](ToolSelfTestView.svg)
+
 ### Overview
 
 The `SelfTest` subsystem provides the self-validation framework for the SysML2 Tools.

@@ -1,5 +1,7 @@
 ## DemaConsulting.SysML2Tools.Tool — Render Subsystem
 
+![Tool Render Structure](ToolRenderView.svg)
+
 ### Overview
 
 The Render subsystem implements the `render` CLI verb. It provides a single internal

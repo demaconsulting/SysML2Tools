@@ -1,5 +1,7 @@
 ### Semantic Model Subsystem
 
+![Language Semantic Model Structure](LanguageSemanticModelView.svg)
+
 #### Overview
 
 The Semantic Model subsystem provides the public semantic model types (`SysmlNode` and its

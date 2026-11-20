@@ -1,5 +1,7 @@
 #### SysmlNode — AST Node Hierarchy
 
+![Language Semantic Model Structure](LanguageSemanticModelView.svg)
+
 ##### Overview
 
 `SysmlNode` is the abstract base class for all SysML/KerML AST nodes. Concrete subtypes represent

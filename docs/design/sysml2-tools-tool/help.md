@@ -1,5 +1,7 @@
 ## DemaConsulting.SysML2Tools.Tool — Help Subsystem
 
+![Tool Help Structure](ToolHelpView.svg)
+
 ### Overview
 
 The Help subsystem implements the `help` CLI command: `sysml2tools help [command] [verb]`.

@@ -1,5 +1,7 @@
 #### NameResolver
 
+![Language Semantic Model Structure](LanguageSemanticModelView.svg)
+
 ##### Overview
 
 `NameResolver` is a public class that resolves qualified-name text against a loaded workspace's

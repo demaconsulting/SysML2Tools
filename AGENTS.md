@@ -22,6 +22,7 @@
 │   ├── requirements_doc/
 │   ├── requirements_report/
 │   ├── reqstream/
+│   ├── sysml2/
 │   ├── user_guide/
 │   └── verification/
 ├── src/
@@ -67,6 +68,7 @@ yet cover something.
 - **`.lintmark.yaml`** - Markdown formatting rules (LintMark)
 - **`.yamllint.yaml`** - YAML formatting configuration
 - **`.reviewmark.yaml`** - File review definitions and tracking
+- **`docs/sysml2/`** - SysML2 architecture model; authoritative source for software structure
 - **`nuget.config`** - NuGet package sources (if .NET)
 - **`package.json`** - Node.js dependencies for Mermaid rendering in document builds
 - **`requirements.yaml`** - Root requirements file with includes
@@ -146,7 +148,7 @@ responsibility - invoke the lint-fix agent once before submitting a pull request
 ## CI Quality Tools
 
 CI runs `lint.ps1` which checks: lintmark, textlint, yamllint, dotnet format,
-reqstream, versionmark, and reviewmark.
+reqstream, versionmark, reviewmark, and sysml2tools.
 
 # Scope Discipline (ALL Agents Must Follow)
 

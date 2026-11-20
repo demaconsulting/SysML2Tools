@@ -1,5 +1,7 @@
 ### Rendering Internal Subsystem
 
+![Core Rendering Internal Structure](CoreRenderingInternalView.svg)
+
 #### Overview
 
 The Internal sub-subsystem of Rendering holds the implementation details that the public

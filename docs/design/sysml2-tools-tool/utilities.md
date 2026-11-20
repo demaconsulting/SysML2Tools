@@ -1,5 +1,7 @@
 ## Utilities
 
+![Tool Utilities Structure](ToolUtilitiesView.svg)
+
 ### Overview
 
 The `Utilities` subsystem provides shared utility functions for the SysML2 Tools. It
