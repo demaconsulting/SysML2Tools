@@ -28,6 +28,7 @@ sections:
           - SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-ViewTypeMapping
           - SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-CompatibilityPreCheck
           - SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-NodeConstruction
+          - SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-ExcludedMembers
         tests:
           - GetStrategy_InterconnectionNamedView_ReturnsInterconnectionStrategy
           - GetStrategy_PlainView_ReturnsGeneralViewStrategy

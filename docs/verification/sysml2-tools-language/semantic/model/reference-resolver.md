@@ -126,6 +126,13 @@ external services or additional configuration are required beyond a standard .NE
   one-based column of the reference text as written (not `(0,0)`); two references on different
   lines and in different files are reported at their own positions and files; and a circular
   import is reported at the import statement that closes the cycle, in its own file.
+- Every redefinition target of a feature (`:>> a :>> b`) gets its own `Redefinition` edge, an
+  unresolved second target is reported once at its own token, and the members of an anonymous usage
+  that has a body resolve in that usage's own scope (through the usage it subsets).
+- Loading the OMG corpus in strict mode reports exactly the eight explained unresolved references
+  (three from the `Camera` name collision between two corpus files, which resolve completely when
+  the colliding file is not loaded; five from user-defined keywords whose members come from
+  semantic metadata).
 
 ##### Test Scenarios
 
@@ -146,7 +153,7 @@ external services or additional configuration are required beyond a standard .NE
 | Stdlib compile stays Warning | `GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings` |
 | Stdlib compile: no errors, warnings at most 13 | `GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling` |
 | Valid custom and test-case models load clean | `CustomAndTestCaseModels_AllModels_LoadWithZeroDiagnostics` |
-| OMG corpus within baseline (48 errors) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
+| OMG corpus within baseline (8 errors) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
 | Selector Warning at token | `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` |
 | Standard selectors — no diagnostic | `WorkspaceLoader_LoadAsync_StandardRenderSelectors_ProduceNoDiagnostics` |
 | Selector + strict | `WorkspaceLoader_LoadAsync_ToolRenderSelectorWithStrictUnresolved_StillOnlyPortabilityWarning` |
@@ -252,3 +259,9 @@ external services or additional configuration are required beyond a standard .NE
 | User-declared `start` kept | `WorkspaceLoader_LoadAsync_UserDeclaredStartState_IsNotCanonicalized` |
 | Gallery edge lists equal the baseline golden files | `SemanticGalleryModels_Edges_MatchBaselineGolden` |
 | OMG Transitions corpus fixture | `Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions` |
+| Every redefinition target resolved | `AstBuilder_MultipleRedefinitions_ResolvesEveryTargetAndInheritsFromSecond` |
+| Unresolved second target | `AstBuilder_MultipleRedefinitions_UnresolvedSecondTarget_ReportsOneDiagnostic` |
+| Anonymous owner scope | `AstBuilder_AnonymousSubsettingOwner_ResolvesRedefinedMember` |
+| OMG corpus strict baseline and explained errors | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
+| `Camera` package resolves in isolation | `SemanticOmgModels_CameraPackage_ResolvesInIsolation` |
+| Corpus diagnostics independent of file order | `SemanticOmgModels_StrictUnresolved_IndependentOfFileOrder` |

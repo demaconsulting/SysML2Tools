@@ -552,6 +552,12 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         foreach (var (qualifiedName, node) in workspace.Declarations)
         {
+            // Members modeled for name resolution only are never drawn, nor chosen as a root.
+            if (node.IsExcludedFromDiagrams)
+            {
+                continue;
+            }
+
             if (node is not SysmlDefinitionNode def)
             {
                 continue;
@@ -567,7 +573,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var transitions = def.Children.OfType<SysmlTransitionNode>().Count();
+            var transitions = def.DiagramChildren.OfType<SysmlTransitionNode>().Count();
             var scoreBetter = transitions > bestTransitions;
             var isBetter = scope is not null
                 ? ExposeScopeResolver.IsMoreSpecificCandidate(qualifiedName, bestQualifiedName, scoreBetter)
@@ -637,7 +643,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         // Entry/do/exit action features (FeatureKeyword != "state") are always skipped as ordinary
         // state boxes; a named entry action's name is additionally recorded in
         // pseudoSourceNames since it can be an implicit transition source (sub-problem 2's shape).
-        foreach (var feature in root.Children.OfType<SysmlFeatureNode>())
+        foreach (var feature in root.DiagramChildren.OfType<SysmlFeatureNode>())
         {
             if (feature.FeatureKeyword == "entry" && feature.Name is { } entryName)
             {
@@ -664,7 +670,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         // arrow computed by FindInitialTargetIndex). The target side is unaffected: a real state
         // reached only via such a transition is still a real state and must still get a box — except
         // the reserved name "done", which is the final pseudo-state and becomes a badge.
-        foreach (var transition in root.Children.OfType<SysmlTransitionNode>())
+        foreach (var transition in root.DiagramChildren.OfType<SysmlTransitionNode>())
         {
             if (LastSegment(transition.Source) is { } s && !pseudoSourceNames.Contains(s))
             {
@@ -699,7 +705,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         HashSet<string> pseudoSourceNames,
         Dictionary<string, int> index)
     {
-        foreach (var transition in root.Children.OfType<SysmlTransitionNode>())
+        foreach (var transition in root.DiagramChildren.OfType<SysmlTransitionNode>())
         {
             // "done" is the completion pseudostate: a transition leaving it is an ordinary
             // transition, never the initial one (only "start" / entry-action sources are).
@@ -726,7 +732,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<StateItem> states)
     {
         var result = new List<TransitionItem>();
-        foreach (var transition in root.Children.OfType<SysmlTransitionNode>())
+        foreach (var transition in root.DiagramChildren.OfType<SysmlTransitionNode>())
         {
             var source = LastSegment(transition.Source);
             var target = LastSegment(transition.Target);
@@ -819,7 +825,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         var compartments = new List<LayoutCompartment>();
         foreach (var keyword in new[] { "entry", "do", "exit" })
         {
-            var rows = state.Children
+            var rows = state.DiagramChildren
                 .OfType<SysmlFeatureNode>()
                 .Where(c => c.FeatureKeyword == keyword)
                 .Select(c => NormalizeText(StripActionKeyword(c.ActionText)) ?? c.Name)

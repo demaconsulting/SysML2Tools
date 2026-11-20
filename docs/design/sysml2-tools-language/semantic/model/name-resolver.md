@@ -32,9 +32,18 @@ instance serves one workspace.
   namespace (KerML 8.2.3.5.2: a Specialization's local namespace is the owning namespace of its
   owning type) and merged with the resolved targets, without duplicates. In the internal
   *resolving* mode `GeneralTypes` ignores `ResolvedEdges` entirely and derives the general types
-  only from the raw references (`SupertypeNames`, `FeatureTyping`, the view definition name, and
-  the `RedefinedFeatureName`), cached per type and guarded against re-entry (a specialization
-  cycle contributes nothing). That makes every answer independent of the order in which the
+  only from the raw references (`SupertypeNames`, `FeatureTyping`, the view definition name, the
+  `ReferenceSubsettingName`, and every redefinition target — `RedefinedFeatureName` and
+  `AdditionalRedefinedFeatureNames`),
+  cached per type and guarded against re-entry (a specialization
+  cycle contributes nothing). The reference subsetting (`::>`, or the feature a `perform`,
+  `include` or `assert` usage references) is a general type for *lookup only* (`LookupGeneralTypes`,
+  never the public `GeneralTypes`): it adds no edge and no diagnostic. A general-type reference that
+  resolves to the type itself (a usage named only by the
+  feature it references, `assert massLimitation { ... }`, finds itself under that name) is resolved
+  again from the owner's own owner (`ResolveGeneralReference`). A feature that redefines several
+  features inherits the members of each, and hides the inherited members each redefines. That makes
+  every answer independent of the order in which the
   semantic pass visits nodes and keeps the lookup cache valid while edges are still being
   attached.
 - *Lookup general types* (`LookupGeneralTypes`, internal) are `GeneralTypes` followed by the
@@ -64,6 +73,9 @@ instance serves one workspace.
     `metadata def` → `Metadata::MetadataItem`; `rendering def` → `Views::Rendering`.
   - Views: a view (definition or usage — the AST does not tell them apart) → `Views::View`; a
     viewpoint definition → `Views::ViewpointCheck`.
+  - Transitions: a transition usage (`SysmlTransitionNode`) → `Actions::transitionActions`, the
+    library feature that owns `accepter` and `effect`, so `delivering.accepter.acceptedMessage`
+    resolves.
   - KerML classifiers: `class` → `Occurrences::Occurrence`; `struct` → `Objects::Object`;
     `assoc struct` → `Objects::LinkObject`; `assoc` → `Links::Link`; `classifier`, `type` →
     `Base::Anything`; `metaclass` → `Metaobjects::Metaobject`; `behavior` →
@@ -75,8 +87,11 @@ instance serves one workspace.
     `exit`, `merge`, `decide`, `join`, `fork` → `Actions::actions`; `accept` →
     `Actions::acceptActions`; `send` → `Actions::sendActions`; `terminate` →
     `Actions::terminateActions`; `state` → `States::stateActions`; `calc` →
-    `Calculations::calculations`; `constraint`, `assume constraint`, `require constraint` →
-    `Constraints::constraintChecks`; `requirement` → `Requirements::requirementChecks`; `concern`
+    `Calculations::calculations`; `constraint`, `assume constraint`, `require constraint`,
+    `assert constraint` → `Constraints::constraintChecks`; `perform` → `Actions::actions`; `exhibit`
+    → `States::stateActions`; `include` → `UseCases::useCases`; `timeslice` →
+    `Occurrences::Occurrence::timeSlices`; `snapshot` → `Occurrences::Occurrence::snapshots`;
+    `requirement` → `Requirements::requirementChecks`; `concern`
     → `Requirements::concernChecks`; `case`, `analysis`, `verification`, `use case` →
     `Cases::cases`, `AnalysisCases::analysisCases`, `VerificationCases::verificationCases`,
     `UseCases::useCases`; `rendering` → `Views::renderings`; `occurrence`, `event occurrence` →

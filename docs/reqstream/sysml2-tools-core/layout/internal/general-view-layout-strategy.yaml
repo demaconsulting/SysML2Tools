@@ -1048,3 +1048,14 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_NestedDefinitionContainment_DepthLimitTruncatesInnerLevel
           - GeneralViewLayoutStrategy_BuildLayout_TruncatedDefinitionWithCompartments_AppendsEllipsisRow
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExcludedMembers
+        title: >-
+          GeneralViewLayoutStrategy shall not draw a member flagged IsExcludedFromDiagrams (or
+          anything nested in it): it adds no box, no compartment row, and does not turn a port
+          into a box.
+        justification: |
+          Members modeled only for name resolution (bare parameters, the bodies of behavior
+          usages) have no notation yet; drawing them would change existing diagrams.
+        tests:
+          - GeneralView_BuildLayout_ExcludedMembers_RenderIdenticallyToWorkspaceWithout

@@ -245,6 +245,12 @@ seeds a `pseudoSourceNames` set with the literal names `"start"` and `"done"` pl
 list whenever it appears in that set; the target side of any transition is never affected by this
 exclusion, since a transition's target is always a genuine state.
 
+##### Members Excluded from Diagrams
+
+Root selection ignores a declaration flagged `IsExcludedFromDiagrams`, and every count and
+enumeration of the root's children (`DiagramChildren`) skips the children flagged so; members built
+for name resolution only are neither drawn nor a reason to choose their owner as the root.
+
 ##### Error Handling
 
 Null `context` or `options` arguments throw `ArgumentNullException`. The absence of an eligible

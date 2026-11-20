@@ -312,3 +312,14 @@ sections:
           strategy declares the end marker on the layout graph so the engine sizes the approach.
         tests:
           - StateTransitionView_BuildLayout_BackEdge_OpenChevronWithFlushApproach
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ExcludedMembers
+        title: >-
+          StateTransitionViewLayoutStrategy shall ignore members flagged IsExcludedFromDiagrams:
+          they are neither states or transitions of the drawn machine nor a reason to choose their
+          owner as the root.
+        justification: |
+          Members modeled only for name resolution have no notation yet; counting or drawing them
+          would change existing diagrams.
+        tests:
+          - StateTransitionView_BuildLayout_ExcludedTransitions_RenderIdenticallyToWorkspaceWithout

@@ -167,7 +167,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         /// <summary>Returns whether <paramref name="usage"/> owns at least one named nested feature.</summary>
         private static bool HasNestedContent(SysmlFeatureNode usage) =>
-            usage.Children.Any(child => child is SysmlFeatureNode { Name: { Length: > 0 } });
+            usage.Children.Any(child => child is SysmlFeatureNode { Name: { Length: > 0 }, IsExcludedFromDiagrams: false });
     }
 
     /// <summary>The policy deciding which nested usages are nodes.</summary>
@@ -740,6 +740,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         void Visit(string qualifiedName, SysmlNode declaration)
         {
             if (declaration is not (SysmlDefinitionNode or SysmlFeatureNode) ||
+                declaration.IsExcludedFromDiagrams ||
                 (declaration is SysmlFeatureNode && declaration.Name is null) ||
                 !seen.Add(qualifiedName))
             {
@@ -1096,7 +1097,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         foreach (var child in def.Children)
         {
-            if (child is not SysmlFeatureNode feature)
+            // Members modeled for name resolution only (bare parameters, nested bodies) are not drawn.
+            if (child is not SysmlFeatureNode feature || child.IsExcludedFromDiagrams)
             {
                 continue;
             }

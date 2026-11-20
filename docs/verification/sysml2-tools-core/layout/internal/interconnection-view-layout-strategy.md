@@ -272,3 +272,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_MotorRigGalleryModel_ShowsPortNotation` | Gallery 09 notation |
 | `InterconnectionView_BuildLayout_WorkstationGalleryModel_ShowsUsageNotation` | Gallery 02 notation |
 | `InterconnectionView_BuildLayout_ComputerGalleryModel_ShowsFrameAndNestedPorts` | Gallery 08 notation |
+| `InterconnectionView_BuildLayout_ExcludedPartUsage_RenderIdenticallyToWorkspaceWithout` | Hidden part not drawn |

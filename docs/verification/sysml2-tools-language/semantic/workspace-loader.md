@@ -34,6 +34,9 @@ external services, network access, or additional configuration are required beyo
   pre-resolved and never resolved again at load time.
 - A circular import produces a `Warning`-severity diagnostic and completes in finite time; a
   circular import or cyclic specialization stays a Warning with `strictUnresolved` either way.
+- Files are processed in canonical path order: when two files declare the same top-level name,
+  the declaration in the canonically first file wins whatever order the files are supplied in,
+  and the diagnostics are identical for any supplied order.
 - A user package named like a standard-library package (`Parts`) contributes members that are
   not in `SysmlWorkspace.StdlibNames`, which holds exactly the embedded seed's qualified names.
 - The original public two-parameter overload `LoadAsync(IEnumerable<string>, SymbolTable? = null)`
@@ -63,8 +66,12 @@ external services, network access, or additional configuration are required beyo
 | `WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings` | — | Stay Warnings |
 | `WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics` | — | Seeded stdlib adds no diagnostics |
 
-Binary compatibility of the public API is verified by two further tests (listed outside the table because
-of their long names):
+Binary compatibility of the public API is verified by two further tests, and the canonical file
+order by one (listed outside the table because of their long names):
+
+- `WorkspaceLoader_LoadAsync_DuplicateTopLevelName_IsIndependentOfFileOrder` — two files whose
+  top-level declarations share a name are loaded in both orders; the declaration in the canonically
+  first file wins, `Files` is in canonical order, and the diagnostics are identical.
 
 - `WorkspaceLoader_LoadAsync_OriginalTwoParameterSignature_RemainsPublic` — a reflection tripwire
   asserting that the original public static two-parameter overload exists, returns

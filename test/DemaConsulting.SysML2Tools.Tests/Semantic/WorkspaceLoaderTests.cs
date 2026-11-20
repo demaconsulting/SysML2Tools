@@ -268,6 +268,50 @@ public sealed class WorkspaceLoaderTests
 
     // Level 10: Unreadable file produces Error diagnostic
     /// <summary>
+    ///     When two files declare the same top-level name, the declaration in the file that sorts
+    ///     first by canonical (ordinal, '/'-normalized full) path wins, and the result — winner and
+    ///     diagnostics — is the same whatever order the files are supplied in.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DuplicateTopLevelName_IsIndependentOfFileOrder()
+    {
+        // Arrange — two files in one directory whose top-level declarations share the name Dup;
+        // each references something only resolvable through its own file's declaration
+        var directory = Path.Combine(Path.GetTempPath(), "sysml-dup-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var first = Path.Combine(directory, "a.sysml");
+        var second = Path.Combine(directory, "b.sysml");
+        try
+        {
+            await File.WriteAllTextAsync(first, "part def Dup { part inner; }", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(second, "package Dup { part def Other { part x : Missing; } }", TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+
+            // Act
+            var forward = await WorkspaceLoader.LoadAsync([first, second], stdlibTable, strictUnresolved: true);
+            var reversed = await WorkspaceLoader.LoadAsync([second, first], stdlibTable, strictUnresolved: true);
+
+            // Assert — the declaration in the canonically first file wins, in both orders
+            foreach (var result in new[] { forward, reversed })
+            {
+                Assert.IsType<SysmlDefinitionNode>(result.Workspace!.Declarations["Dup"]);
+                Assert.Equal(first, result.Workspace.Declarations["Dup"].SourceFilePath);
+                Assert.Equal([first, second], result.Workspace.Files);
+            }
+
+            Assert.Equal(
+                forward.Diagnostics.Select(d => d.ToString()),
+                reversed.Diagnostics.Select(d => d.ToString()));
+            Assert.Contains(forward.Diagnostics, d => d.Message.Contains("Missing"));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    // Level 10: Unreadable file produces Error diagnostic
+    /// <summary>
     ///     A path to a file that cannot be read (non-existent) should produce an Error diagnostic.
     /// </summary>
     [Fact]
@@ -7031,11 +7075,11 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     A bare direction-only parameter (<c>in x : T;</c>) still produces no AST node, so no
-    ///     direction is captured for it (decision D1: no new nodes).
+    ///     A bare direction-only parameter (<c>in x : T;</c>) builds a <c>ref</c> feature carrying
+    ///     the direction and typing, owned by the behavior and excluded from diagrams.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_BareDirectionParameter_ProducesNoNode()
+    public async Task WorkspaceLoader_LoadAsync_BareDirectionParameter_BuildsRefNodeWithDirection()
     {
         // Arrange / Act
         var result = await LoadModelsAsync("""
@@ -7046,8 +7090,14 @@ public sealed class WorkspaceLoaderTests
             """);
 
         // Assert
-        Assert.Empty(DefinitionAt(result, "P::Act").Children);
-        Assert.DoesNotContain("P::Act::x", result.Workspace!.Declarations.Keys);
+        var x = FeatureAt(result, "P::Act::x");
+        Assert.Equal("ref", x.FeatureKeyword);
+        Assert.Equal(SysmlFeatureDirection.In, x.Direction);
+        Assert.Equal("T", x.FeatureTyping);
+        Assert.False(x.IsReference);
+        Assert.True(x.IsExcludedFromDiagrams);
+        Assert.Equal(SysmlFeatureDirection.Out, FeatureAt(result, "P::Act::y").Direction);
+        Assert.Equal(2, DefinitionAt(result, "P::Act").Children.Count);
     }
 
     /// <summary>

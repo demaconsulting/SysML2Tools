@@ -79,7 +79,33 @@ public abstract class SysmlNode
     ///     that populates <see cref="SysmlDefinitionNode"/>'s own <see cref="SupertypeNames"/>
     ///     through a different code path and is unaffected by this remark.
     /// </remarks>
-    public IReadOnlyList<string> SupertypeNames { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> SupertypeNames { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    ///     Gets or sets a value indicating whether this member is modeled for name resolution,
+    ///     query and export only: diagram strategies skip it (and, with it, its whole subtree).
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="AstBuilder"/> sets it on the nodes it builds for constructs whose diagram
+    ///     notation is not implemented yet (the bodies of action, calculation, constraint and
+    ///     case usages and definitions, bare directed parameters such as <c>in x : T;</c>,
+    ///     <c>perform</c>/<c>exhibit</c>/<c>include</c>/<c>assert</c> usages, <c>timeslice</c> and
+    ///     <c>snapshot</c> usages, and a transition's effect). Building them makes the names they
+    ///     declare resolvable; keeping them out of the diagrams leaves every existing diagram
+    ///     unchanged until the notation is added (for example, action parameters are drawn by
+    ///     issue #103, which then clears the flag for them). The query and export commands, the
+    ///     linter and the name resolver ignore the flag. Written to JSON only when
+    ///     <see langword="true"/>.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsExcludedFromDiagrams { get; set; }
+
+    /// <summary>
+    ///     Gets the children a diagram draws: <see cref="Children"/> without those flagged
+    ///     <see cref="IsExcludedFromDiagrams"/>. Computed; not serialized.
+    /// </summary>
+    [JsonIgnore]
+    public IEnumerable<SysmlNode> DiagramChildren => Children.Where(child => !child.IsExcludedFromDiagrams);
 
     /// <summary>
     ///     Gets the imported namespace names.
@@ -289,6 +315,17 @@ public sealed class SysmlFeatureNode : SysmlNode
     /// <summary>
     ///     Gets the usage keyword (e.g., "part", "port", "attribute", "ref").
     /// </summary>
+    /// <remarks>
+    ///     Besides the usage keywords of the grammar, <c>ref</c> also names a bare (default)
+    ///     reference usage such as <c>in x : T;</c> (whose <see cref="IsReference"/> stays
+    ///     <see langword="false"/> because no <c>ref</c> keyword was written), <c>timeslice</c> and
+    ///     <c>snapshot</c> name a portion usage, and <c>perform</c>, <c>exhibit</c>, <c>include</c>
+    ///     and <c>assert constraint</c> name the usages of those forms. A <c>perform</c>,
+    ///     <c>include</c> or <c>assert</c> usage declared only by reference
+    ///     (<c>perform startVehicle.turnVehicleOn;</c>) is named by the simple name of the
+    ///     feature it references, so a feature chain can pass through it, and gets a synthetic
+    ///     qualified-name segment so that it does not collide with the feature it references.
+    /// </remarks>
     public string FeatureKeyword { get; init; } = string.Empty;
 
     /// <summary>
@@ -301,7 +338,21 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     <c>:&gt;&gt; &lt;target&gt;</c> clause, or null when the feature declares no
     ///     redefinition.
     /// </summary>
-    public string? RedefinedFeatureName { get; init; }
+    public string? RedefinedFeatureName { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the raw reference texts of every redefinition target after the first one
+    ///     (<c>part :&gt;&gt; a :&gt;&gt; b</c> or <c>:&gt;&gt; a, b</c> records <c>a</c> in
+    ///     <see cref="RedefinedFeatureName"/> and <c>b</c> here), in source order, or
+    ///     <see langword="null"/> when the feature has at most one redefinition target.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="ReferenceResolver"/> resolves each target into its own
+    ///     <see cref="SysmlEdgeKind.Redefinition"/> edge, and name lookup inherits the members of
+    ///     every target. Written to JSON only when present.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? AdditionalRedefinedFeatureNames { get; set; }
 
     /// <summary>
     ///     Gets the multiplicity text (e.g., "[4]", "[0..*]"), or null when unspecified.
@@ -366,8 +417,11 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     <see langword="null"/> when none is declared.
     /// </summary>
     /// <remarks>
-    ///     Only usages that become AST nodes carry a direction; a bare parameter such as
-    ///     <c>in x : T;</c> produces no node and therefore no direction.
+    ///     A bare directed parameter such as <c>in x : T;</c> or <c>return r : T;</c> builds a
+    ///     feature with the keyword <c>ref</c> and the direction (<c>return</c> is <c>Out</c>),
+    ///     owned by the behavior that declares it, so a diagram can list the parameters of an
+    ///     action (issue #103); until then the node is excluded from diagrams
+    ///     (<see cref="SysmlNode.IsExcludedFromDiagrams"/>).
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SysmlFeatureDirection? Direction { get; set; }

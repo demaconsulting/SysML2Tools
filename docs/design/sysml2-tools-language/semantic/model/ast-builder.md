@@ -11,6 +11,11 @@ A `List<string> _namespaceStack` tracks the current nesting path. When entering 
 or definition, the name is pushed; it is popped before returning. `QualifyName(name)` joins the
 stack with `::` to form the fully-qualified name.
 
+An anonymous usage that has a body, and a `perform`/`exhibit`/`include`/`assert` usage named only by
+the feature it references, push a synthetic segment (`$anon<n>`, `$perform<n>`, ...) instead of a
+name, so their members are qualified under a scope that cannot collide with the referenced feature
+(see "Members built for name resolution only").
+
 ##### Key Methods
 
 | Method | Input Context | Output |
@@ -56,6 +61,13 @@ stack with `::` to form the fully-qualified name.
 | `VisitConstraintDefinition` | `ConstraintDefinitionContext` | def + synthesized `"constraint"` child feature |
 | `VisitRequirementVerificationMember` | `RequirementVerificationMemberContext` | `null` (suppresses hoisting) |
 | `VisitFramedConcernMember` | `FramedConcernMemberContext` | `null` (suppresses hoisting) |
+| `VisitDefaultReferenceUsage` | `DefaultReferenceUsageContext` | `SysmlFeatureNode` (`"ref"`, excluded from diagrams) |
+| `VisitPortionUsage` | `PortionUsageContext` | `SysmlFeatureNode` (`"timeslice"` / `"snapshot"`, excluded) |
+| `VisitIndividualUsage` | `IndividualUsageContext` | `SysmlFeatureNode` (`"occurrence"`, individual, excluded) |
+| `VisitPerformActionUsage` | `PerformActionUsageContext` | `SysmlFeatureNode` (`"perform"`, excluded) |
+| `VisitExhibitStateUsage` | `ExhibitStateUsageContext` | `SysmlFeatureNode` (`"exhibit"`, excluded) |
+| `VisitIncludeUseCaseUsage` | `IncludeUseCaseUsageContext` | `SysmlFeatureNode` (`"include"`, excluded) |
+| `VisitAssertConstraintUsage` | `AssertConstraintUsageContext` | `SysmlFeatureNode` (`"assert constraint"`, excluded) |
 
 `GetDeclaredName(IdentificationContext)` handles the three grammar alternatives:
 
@@ -479,13 +491,12 @@ captured neither, unlike every other usage kind built via `BuildUsageNode`.
 require/assume constraint members) and case-kind (`case`, `analysis`, `verification`, `use case`)
 and `calc` usage builders, so a `requirement r : R;` keeps `R` as its `FeatureTyping` and the
 resolver records the `Typing` edge that the General view draws as a `r : R` label and a
-feature-typing edge (#113). Redefinition and subsetting clauses of these usages are deliberately
-not captured: `NameResolver` models implicit specialization (#93) for lookup only, and capturing them
-is deferred until the remaining resolver gaps (#129) are closed, since it would now add only the
-unresolved-reference diagnostics those gaps produce for valid models. The case-kind and `calc` usage builders (`BuildCaseUsageNode`,
+feature-typing edge (#113). Redefinition and subsetting clauses of these usages are captured
+centrally by `ApplyFeatureNotation` (see "Redefinition and subsetting capture, anonymous owners").
+The case-kind and `calc` usage builders (`BuildCaseUsageNode`,
 `VisitCalculationUsage`) mirror the definition-side builders: they capture the name, the
-typing and multiplicity and (for the case kinds) the nested verified-requirement names, but do not
-collect the body's other members. Before this change those usages produced no node at all.
+typing and multiplicity, the nested verified-requirement names (case kinds) and, since #137, the
+members of the body (flagged excluded from diagrams). Before the original change those usages produced no node at all.
 The state-usage typing is also a prerequisite for `StateTransitionViewLayoutStrategy`'s expose-scoping root selection
 (which resolves an exposed usage's type via its `Typing` edge) and for
 `ReferenceResolver.TryResolveInheritedActionMember` (below) to find the enclosing usage's
@@ -699,9 +710,67 @@ unchanged.
   captures: it returns null when the context is absent or matches no tokens (epsilon rules such as
   `emptyActionUsage_`, whose `Stop` token is null or precedes `Start`).
 
-Bare direction-only parameters (`in x : T;`, grammar `defaultReferenceUsage`) still produce no AST
-node, so no direction is captured for them: creating nodes would add `Children` to many
-definitions and change compartment, layout, and stdlib symbol inputs.
+Bare direction-only parameters (`in x : T;`, `out image;`, `in :>> payload;`, grammar
+`defaultReferenceUsage`) now build a `SysmlFeatureNode` with `FeatureKeyword = "ref"`, built by
+`VisitDefaultReferenceUsage` through `BuildUsageNode`, so the direction (`ApplyLeadingModifiers`),
+typing, multiplicity, value, redefinitions and subsettings are captured like for any other usage;
+`IsReference` stays false because no `ref` keyword was written. A form with no declaration (a stray
+`;`) builds nothing. `return` parameters (`calc def` and case bodies) take the direction `Out`
+(`ApplyLeadingModifiers` treats `return` like `out`). The nodes are flagged
+`IsExcludedFromDiagrams` (see "Members built for name resolution only"), so they add no compartment
+row and no box until the parameters of an action are drawn (#103).
+
+###### Members built for name resolution only
+
+Issue #137 builds the members the OMG corpus references but the AST once lacked, so that the names
+they declare resolve. None of them has diagram notation yet, so each is flagged
+`SysmlNode.IsExcludedFromDiagrams` — the node and, via `MarkExcluded`/`Excluded`, every descendant —
+and the diagram strategies skip it (see the Core layout design documents). The flag is set on no
+member built before this change.
+
+- **Behavior bodies.** `VisitActionUsage`, `VisitCalculationUsage`, `VisitCalculationDefinition`
+  (through `BuildDefinitionFromDeclaration`'s `bodyCollector`), `VisitConstraintUsage`,
+  `VisitConstraintDefinition` (its synthesized expression child stays first and unflagged, the body's
+  members follow flagged), `BuildCaseUsageNode` and the case, analysis, verification and use case
+  definitions build the members of their bodies. Action bodies use `CollectActionBodyChildren`
+  (`CollectOrderedChildren`, which keeps the order-sensitive flow position);
+  `CollectCalculationBodyChildren` and `CollectCaseBodyChildren` collect `calculationBodyItem`s and
+  `caseBodyItem`s (the `objective` is skipped; `verify` targets are still captured by
+  `FindVerificationMembers`). Annotations (`doc`, `comment`) in these bodies are not attached, so no
+  new notes appear.
+- **`perform`, `exhibit`, `include`, `assert constraint`.** `VisitPerformActionUsage`,
+  `VisitExhibitStateUsage`, `VisitIncludeUseCaseUsage` and `VisitAssertConstraintUsage` share
+  `BuildBodyUsage`: the declared form (`perform action producerBehavior { ... }`) and the reference
+  form (`perform startVehicle.turnVehicleOn;`, `assert massLimitation { ... }`). The node is named by
+  its declared name, else the simple name of its first redefinition, else the simple name of the
+  referenced feature (so `driver.turnVehicleOn` resolves); `ReferenceSubsettingName` records the
+  reference. A usage named only by its reference lives in the namespace of the feature it references,
+  so its qualified-name segment is synthetic (`$perform<n>`, `$exhibit<n>`, `$include<n>`,
+  `$assert<n>`, from `_syntheticScopeCounter`) instead of the colliding simple name. A form with
+  neither name nor reference builds no node.
+- **Portion usages.** `VisitPortionUsage` builds `timeslice`/`snapshot` features (the keyword is the
+  portion kind); `VisitIndividualUsage` builds an `occurrence` feature (`IsIndividual` comes from the
+  central modifier pass).
+- **Transition effect.** `VisitTransitionUsage` gives a *named* transition an `effect` child
+  (`BuildTransitionEffect`) whose keyword is `send`, `accept` or `action` after its `do` clause, so
+  `delivering.effect.sentMessage` resolves through the library's send action.
+- **Synthetic names.** Anonymous action nodes inside these bodies (`then fork;`) are named from
+  `_excludedNodeCounter` while `_excludedBodyDepth > 0`, so the `$terminate0`-style names of the nodes
+  that diagrams draw do not change.
+
+###### Redefinition and subsetting capture, anonymous owners
+
+- `ExtractRedefinedFeatures` returns every redefinition target in source order, whether written
+  `:>> a :>> b` (several `featureSpecialization` clauses) or `:>> a, b`; the first goes to
+  `RedefinedFeatureName`, the rest to `AdditionalRedefinedFeatureNames` (null for at most one).
+- `ApplyFeatureNotation` calls `ApplySpecializationClauses`, which records redefinitions and
+  subsettings on every usage kind (action, calculation, state, constraint, requirement, concern, case,
+  action nodes) whose builder did not, so such a usage keeps the relationships it declares, as a
+  generic usage always has.
+- `BuildUsageNode` gives an anonymous usage that has body items a synthetic scope segment
+  (`$anon<n>`, `_syntheticScopeCounter`, apart from the action-node counter) as its qualified-name
+  segment, its `Name` staying null, so its members are named under it and `ReferenceResolver` can use
+  it as their namespace.
 
 ##### Source Position Capture
 
@@ -764,9 +833,10 @@ reference is skipped, which is what keeps valid models free of false diagnostics
   (`DeclaredPayloadNames`, usable by the same transition's guard and effect), a constraint body's
   own parameters and local usages (`NamesDeclaredWithin`), and the names of bare usages
   (`in x : T;`, `x : T;`, the grammar's `defaultReferenceUsage`) anywhere in the outermost
-  enclosing declaration (`BareUsageNames`, memoized per declaration). `AstBuilder` builds no
-  node for a bare usage, so name resolution cannot see it; the set is deliberately an
-  over-approximation, because a false warning on a valid model costs more than a missed warning
+  enclosing declaration (`BareUsageNames`, memoized per declaration). Bare usages and the bodies of
+  behavior usages are now built as nodes (see "Members built for name resolution only"), so these
+  names also resolve as declarations; the set is kept, as the over-approximation is harmless and
+  removing it is a separate change, because a false warning on a valid model costs more than a missed warning
   on a typo that coincides with a nested parameter name.
 
 The roots collected per construct: a transition's guard expression, trigger and effect

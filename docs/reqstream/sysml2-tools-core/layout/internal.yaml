@@ -145,6 +145,13 @@ sections:
           - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-UniformRowShading
           - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SpecializationMatrix
           - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SameNamedSupertypes
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExcludedMembers
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExcludedMembers
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ExcludedMembers
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExcludedMembers
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ExcludedMembers
+          - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-ExcludedMembers
+          - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-ExcludedMembers
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_OneUserPartDef_ProducesLayoutBox
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines

@@ -36,4 +36,8 @@ during pre-compilation.
 
 The binary carries the additive modifier data of the standard library source (for example
 `Parts::Part`, declared `abstract part def Part`, has `IsAbstract = true`); members at their
-defaults are omitted, so the size grows only by the modifiers actually used.
+defaults are omitted, so the size grows only by the modifiers actually used. It also carries the
+members `AstBuilder` builds for name resolution only — the bodies of behaviors and the bare
+parameters the library declares (`in :>> payload;`, `return`), which is why it is roughly a fifth
+larger (about 0.73 MB to 0.88 MB compressed, 7,243 to 9,662 symbols) since those members are built;
+such members are flagged `IsExcludedFromDiagrams` and the standard library is never drawn.

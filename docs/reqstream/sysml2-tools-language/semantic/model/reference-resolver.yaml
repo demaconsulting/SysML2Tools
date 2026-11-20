@@ -439,6 +439,37 @@ sections:
           - CustomAndTestCaseModels_AllModels_LoadWithZeroDiagnostics
           - SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline
 
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-MultipleRedefinitionEdges
+        title: >-
+          ReferenceResolver shall resolve every redefinition target of a feature (the first and
+          each of AdditionalRedefinedFeatureNames) into its own Redefinition edge, reporting each
+          target that does not resolve as its own unresolved reference located at that target's
+          token, and shall make an anonymous usage that has a body the namespace of its members.
+        justification: |
+          A feature that redefines two features relates to both; an unresolved second target is a
+          model error that must be reported where it is written, and the members of an anonymous
+          owner must be resolved against what that owner inherits.
+        tests:
+          - AstBuilder_MultipleRedefinitions_ResolvesEveryTargetAndInheritsFromSecond
+          - AstBuilder_MultipleRedefinitions_UnresolvedSecondTarget_ReportsOneDiagnostic
+          - AstBuilder_AnonymousSubsettingOwner_ResolvesRedefinedMember
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-OmgCorpusStrictBaseline
+        title: >-
+          Loading the bundled OMG example corpus in strict unresolved-reference mode shall report
+          exactly the documented unresolved references (at most the recorded baseline): the
+          user-defined keyword (semantic metadata) members and the name collision between two
+          corpus files, which resolves completely when the colliding file is not loaded.
+        justification: |
+          The corpus is the evidence that the AST covers the constructs real models use; the
+          baseline is lowered whenever a gap is closed, so a regression is caught, and each
+          remaining reference is explained so that strict reporting can later become the default.
+          The count is deterministic because the loader processes files in canonical path order.
+        tests:
+          - SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline
+          - SemanticOmgModels_StrictUnresolved_IndependentOfFileOrder
+          - SemanticOmgModels_CameraPackage_ResolvesInIsolation
+
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ToolRenderSelectorPortability
         title: >-
           ReferenceResolver.ResolveAll shall report exactly one Warning, located at the token, for

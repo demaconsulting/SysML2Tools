@@ -66,6 +66,24 @@ sections:
           - WorkspaceLoader_LoadAsync_OriginalTwoParameterSignature_RemainsPublic
           - WorkspaceLoader_LoadAsync_OriginalTwoParameterOverload_ReportsUnresolvedAsWarning
 
+      - id: SysML2Tools-Language-Semantic-WorkspaceLoader-DeterministicOrder
+        title: >-
+          WorkspaceLoader.LoadAsync shall process the user files in a canonical order, the ordinal
+          order of their full paths with directory separators normalized to '/', whatever order
+          the caller supplies them in, so that when several files declare the same top-level
+          qualified name the declaration in the canonically first file wins, and the declarations,
+          file list and diagnostics are identical on every platform.
+        justification: |
+          The symbol table keeps the first registration of a qualified name, and KerML leaves
+          unspecified which of several same-named top-level declarations is meant. Without a
+          stable rule the result would depend on the caller's file order (for example a platform's
+          directory enumeration order), so identical inputs would give different diagnostics on
+          Windows and Linux. A canonical processing order makes the winner, and therefore every
+          diagnostic, deterministic.
+        tests:
+          - WorkspaceLoader_LoadAsync_DuplicateTopLevelName_IsIndependentOfFileOrder
+          - SemanticOmgModels_StrictUnresolved_IndependentOfFileOrder
+
       - id: SysML2Tools-Language-Semantic-WorkspaceLoader-StdlibOrigin
         title: >-
           WorkspaceLoader.LoadAsync shall record the standard-library origin of an element by its

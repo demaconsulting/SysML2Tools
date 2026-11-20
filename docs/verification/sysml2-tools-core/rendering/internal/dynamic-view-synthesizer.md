@@ -57,3 +57,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `Synthesize_FilterExpression_PassedThroughUnchanged` | Filter text passed through |
 | `Synthesize_NoFilterExpression_ResultsInNullFilterExpressionText` | Null filter stays null |
 | `Synthesize_NameCollision_Fails` | Pre-existing `$`-prefixed name collision rejected |
+| `DynamicViewSynthesizer_Synthesize_OnlyExcludedChildren_FailsCompatibilityCheck` | Hidden children fail the check |

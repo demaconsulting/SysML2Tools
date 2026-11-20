@@ -299,3 +299,14 @@ sections:
           strategy declares the end marker on the layout graph so the engine sizes the approach.
         tests:
           - ActionFlowView_BuildLayout_BackEdge_OpenChevronWithFlushApproach
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExcludedMembers
+        title: >-
+          ActionFlowViewLayoutStrategy shall ignore members flagged IsExcludedFromDiagrams: they are
+          neither actions or successions of the drawn flow nor a reason to choose their owner as
+          the root.
+        justification: |
+          The bodies of calculation, constraint and case definitions and usages are built for name
+          resolution only; counting them would change which definition is drawn.
+        tests:
+          - ActionFlowView_BuildLayout_ExcludedBodies_RenderIdenticallyToWorkspaceWithout

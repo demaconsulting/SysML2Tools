@@ -194,3 +194,36 @@ sections:
           declares package PowerTrain and imports 'PowerTrain' is valid.
         tests:
           - NameResolver_Resolve_QuotedAndUnquotedSimpleName_AreEquivalent
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-ReferenceSubsettingLookup
+        title: >-
+          NameResolver shall treat the target of a usage's reference subsetting (`::>`/`references`,
+          or the referenced feature of `perform`, `include` and `assert`) as a general type for
+          member lookup, without adding an edge or a diagnostic, and shall not let a general-type
+          reference resolve to the usage itself: a usage named like the feature it references finds
+          that feature from its owner's own owner.
+        justification: |
+          Members of a performed or referenced feature (`perform vehicleMassTest.collectData { in
+          part :>> testVehicle; }`) are visible through the reference; a `perform`/`assert` usage
+          lives in the namespace of the feature it names, so it would otherwise find itself.
+        tests:
+          - NameResolver_ReferenceSubsetting_IsLookupGeneralType
+          - AstBuilder_PerformAndAssertSameNameAsReferenced_DoNotCollide
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-BehaviorImplicitSpecialization
+        title: >-
+          NameResolver shall add to the implicit general types of a transition usage the library's
+          transition action, of `perform`, `exhibit`, `include` and `assert constraint` usages the
+          library's actions, state actions, use cases and constraint checks, and of `timeslice` and
+          `snapshot` usages the library's time slices and snapshots, and shall resolve a redefinition
+          against every redefinition target of a feature.
+        justification: |
+          Members such as a transition's `accepter` and `effect` or a portion's `start` are
+          declared by library types the elements implicitly specialize; a feature redefining two
+          features inherits members from both.
+        tests:
+          - NameResolver_Transition_ImplicitlySpecializesTransitionActions
+          - NameResolver_ImplicitSpecialization_NewUsageKinds_AddLibraryGeneralType
+          - NameResolver_PortionUsage_ImplicitSpecialization_MemberResolves
+          - AstBuilder_MultipleRedefinitions_ResolvesEveryTargetAndInheritsFromSecond
+          - NameResolver_ImplicitSpecialization_PerKind_MemberResolves

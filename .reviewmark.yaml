@@ -177,6 +177,7 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/NameResolverTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/KermlLibraryIndexingTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstBodyCoverageTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstSerializerTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionParserTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionEvaluatorTests.cs"
@@ -383,6 +384,7 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/NameResolverTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/KermlLibraryIndexingTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstBodyCoverageTests.cs"
 
   - id: SysML2Tools-Language-Semantic-WorkspaceLoader
     title: Review of DemaConsulting.SysML2Tools.Language WorkspaceLoader Unit Implementation
@@ -662,6 +664,7 @@ reviews:
       - "docs/verification/sysml2-tools-core/layout/internal/general-view-layout-strategy.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/GeneralViewLayoutStrategy.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/GeneralViewLayoutStrategyTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ExcludedMembersLayoutTests.cs"
 
   - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy
     title: >-
@@ -678,6 +681,7 @@ reviews:
       - "docs/verification/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/InterconnectionViewLayoutStrategy.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/InterconnectionViewLayoutStrategyTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ExcludedMembersLayoutTests.cs"
 
   - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy
     title: >-
@@ -694,6 +698,7 @@ reviews:
       - "docs/verification/sysml2-tools-core/layout/internal/state-transition-view-layout-strategy.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/StateTransitionViewLayoutStrategy.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/StateTransitionViewLayoutStrategyTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ExcludedMembersLayoutTests.cs"
 
   - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy
     title: Review that DemaConsulting.SysML2Tools Layout Internal ActionFlowViewLayoutStrategy Implementation is Correct
@@ -708,6 +713,7 @@ reviews:
       - "docs/verification/sysml2-tools-core/layout/internal/action-flow-view-layout-strategy.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/ActionFlowViewLayoutStrategy.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/ActionFlowViewLayoutStrategyTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ExcludedMembersLayoutTests.cs"
 
   - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy
     title: Review that DemaConsulting.SysML2Tools Layout Internal SequenceViewLayoutStrategy Implementation is Correct
@@ -722,6 +728,7 @@ reviews:
       - "docs/verification/sysml2-tools-core/layout/internal/sequence-view-layout-strategy.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/SequenceViewLayoutStrategy.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/SequenceViewLayoutStrategyTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ExcludedMembersLayoutTests.cs"
 
   - id: SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy
     title: Review that DemaConsulting.SysML2Tools Layout Internal GridViewLayoutStrategy Implementation is Correct
@@ -736,6 +743,7 @@ reviews:
       - "docs/verification/sysml2-tools-core/layout/internal/grid-view-layout-strategy.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/GridViewLayoutStrategy.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/BrowserAndGridViewLayoutStrategyTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ExcludedMembersLayoutTests.cs"
 
   - id: SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy
     title: Review that DemaConsulting.SysML2Tools Layout Internal BrowserViewLayoutStrategy Implementation is Correct
@@ -750,6 +758,7 @@ reviews:
       - "docs/verification/sysml2-tools-core/layout/internal/browser-view-layout-strategy.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/BrowserViewLayoutStrategy.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/BrowserAndGridViewLayoutStrategyTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ExcludedMembersLayoutTests.cs"
 
   - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings
     title: Review that DemaConsulting.SysML2Tools Layout Internal LayoutWarnings Implementation is Correct
@@ -791,6 +800,7 @@ reviews:
       - "docs/verification/sysml2-tools-core/rendering/diagram-renderer.md"
       - "src/DemaConsulting.SysML2Tools.Core/Rendering/DiagramRenderer.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Rendering/RenderIntegrationTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ExcludedMembersLayoutTests.cs"
 
   # Covers the SysML-coupled rendering contract and helper code that stays in the core library
   # after the SysML-agnostic contracts (IRenderer, RenderOptions, RenderOutput, Theme) moved to
@@ -847,6 +857,7 @@ reviews:
       - "docs/verification/sysml2-tools-core/rendering/internal/dynamic-view-synthesizer.md"
       - "src/DemaConsulting.SysML2Tools.Core/Rendering/Internal/DynamicViewSynthesizer.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Rendering/DynamicViewSynthesizerTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ExcludedMembersLayoutTests.cs"
 
   - id: OTS-Verification
     title: Review of OTS software verification evidence

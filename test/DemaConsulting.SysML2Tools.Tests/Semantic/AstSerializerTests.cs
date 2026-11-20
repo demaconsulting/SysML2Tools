@@ -644,4 +644,44 @@ public sealed class AstSerializerTests
         Assert.False(feat.IsConjugated);
         Assert.Null(feat.ActionText);
     }
+
+    /// <summary>
+    ///     The additional redefinition targets and the diagram-exclusion flag of a feature survive a
+    ///     serialization round trip, and are absent (default) on a feature that sets neither.
+    /// </summary>
+    [Fact]
+    public void Serialize_AdditionalRedefinitionsAndExcludedFlag_RoundTrip()
+    {
+        var table = new SymbolTable();
+        var package = new SysmlPackageNode
+        {
+            Name = "P",
+            QualifiedName = "P",
+            Children =
+            [
+                new SysmlFeatureNode
+                {
+                    Name = "f",
+                    QualifiedName = "P::f",
+                    FeatureKeyword = "ref",
+                    RedefinedFeatureName = "a",
+                    AdditionalRedefinedFeatureNames = ["b", "c"],
+                    IsExcludedFromDiagrams = true,
+                    Direction = SysmlFeatureDirection.Out,
+                },
+                new SysmlFeatureNode { Name = "g", QualifiedName = "P::g", FeatureKeyword = "part" },
+            ],
+        };
+        table.RegisterAll(package);
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var f = Assert.IsType<SysmlFeatureNode>(result.Symbols["P::f"]);
+        Assert.Equal(["b", "c"], f.AdditionalRedefinedFeatureNames);
+        Assert.True(f.IsExcludedFromDiagrams);
+        var g = Assert.IsType<SysmlFeatureNode>(result.Symbols["P::g"]);
+        Assert.Null(g.AdditionalRedefinedFeatureNames);
+        Assert.False(g.IsExcludedFromDiagrams);
+    }
 }

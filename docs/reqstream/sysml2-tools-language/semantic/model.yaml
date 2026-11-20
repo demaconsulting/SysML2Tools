@@ -86,6 +86,15 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceOccurrences
           - SysML2Tools-Language-Semantic-Model-AstBuilder-KermlDeclarations
           - SysML2Tools-Language-Semantic-Model-AstBuilder-SatisfyRequirementName
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-AdditionalRedefinedFeatureNames
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-IsExcludedFromDiagrams
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-BareUsages
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-PortionUsages
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-BehaviorBodies
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-PerformExhibitIncludeAssert
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-MultipleRedefinitions
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-AnonymousOwnerScope
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-DiagramExclusion
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
@@ -134,6 +143,10 @@ sections:
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-UnresolvedPositions
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-UnresolvedSeverity
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ToolRenderSelectorPortability
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-MultipleRedefinitionEdges
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-OmgCorpusStrictBaseline
+          - SysML2Tools-Language-Semantic-Model-NameResolver-ReferenceSubsettingLookup
+          - SysML2Tools-Language-Semantic-Model-NameResolver-BehaviorImplicitSpecialization
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered

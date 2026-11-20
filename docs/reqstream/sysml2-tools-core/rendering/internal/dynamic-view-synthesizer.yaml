@@ -91,3 +91,13 @@ sections:
           - Synthesize_FilterExpression_PassedThroughUnchanged
           - Synthesize_NoFilterExpression_ResultsInNullFilterExpressionText
           - Synthesize_NameCollision_Fails
+
+      - id: SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-ExcludedMembers
+        title: >-
+          DynamicViewSynthesizer shall run its structural compatibility pre-check over the target's
+          children that a diagram draws only, ignoring members flagged IsExcludedFromDiagrams.
+        justification: |
+          A target whose only matching members are modeled for name resolution cannot render
+          anything, so the check must fail it as it did before those members were built.
+        tests:
+          - DynamicViewSynthesizer_Synthesize_OnlyExcludedChildren_FailsCompatibilityCheck

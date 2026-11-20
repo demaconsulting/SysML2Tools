@@ -29,8 +29,16 @@ default so that the two overloads never overlap and `LoadAsync(files)` and
 1. Creates a `SymbolTable` seeded from `seedSymbolTable` via the copy constructor
    `new SymbolTable(seedSymbolTable.Symbols)` when a seed is provided, or creates an
    empty `SymbolTable` when `seedSymbolTable` is `null`.
-2. Dispatches all user file paths to `ParseUserFileAsync` in parallel via `Task.WhenAll`.
-3. Collects all AST roots and registers them into a shared `SymbolTable`.
+2. Dispatches all user file paths to `ParseUserFileAsync` in parallel via `Task.WhenAll`, then
+   orders the results canonically: a stable ordinal sort on each file's full path with directory
+   separators normalized to `/` (`CanonicalPathKey`). The order of the supplied paths is
+   therefore irrelevant, and so is the platform's directory enumeration order.
+3. Collects all AST roots, in that canonical order, and registers them into a shared
+   `SymbolTable`. The table keeps the first registration of a qualified name (as does the
+   file-root-import registration in `NameResolver`), so when several files declare the same
+   top-level name (KerML leaves which one is meant unspecified) the declaration in the
+   canonically first file wins, deterministically. The `SysmlWorkspace.Files` list and the
+   diagnostics follow the same order.
 4. Runs `ReferenceResolver.ResolveAll` on all user file roots, constructing the resolver with the
    unresolved severity — `DiagnosticSeverity.Error` when `strictUnresolved` is `true`, otherwise
    `WorkspaceLoader.DefaultUserUnresolvedSeverity` (`Warning`) —

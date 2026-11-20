@@ -89,6 +89,12 @@ methods synthesize a view node outside the normal parse pipeline, but the two di
 `docs/design/sysml2-tools-core/rendering/internal/dynamic-view-synthesizer.md` for the full
 per-kind compatibility rules and known limitations.
 
+#### Members Excluded from Diagrams
+
+`SynthesizeAutoView` never chooses a definition flagged `IsExcludedFromDiagrams` and compares part
+definitions by the number of their `DiagramChildren` (the children not flagged), so members built for
+name resolution only do not change which definition is the automatic view's target.
+
 #### Error Handling
 
 `RenderWorkspace`, `GetViewNames`, `SynthesizeAutoView`, and `SynthesizeDynamicView` throw

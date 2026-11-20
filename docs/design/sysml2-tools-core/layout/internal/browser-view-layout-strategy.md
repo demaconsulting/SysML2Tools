@@ -61,6 +61,11 @@ their subtrees, since `IsInSubjectScope` matches against every resolved subject.
 `expose` statement (including the synthesized `--auto` view, whose `ViewNode` is `null`) resolves no
 scope and renders the full membership forest, unchanged from the pre-scoping behavior.
 
+##### Members Excluded from Diagrams
+
+`BuildForest` does not list a declaration flagged `IsExcludedFromDiagrams` (a member modeled for
+name resolution only, such as a bare parameter or the body of an action usage).
+
 ##### Error Handling
 
 Null `context` or `options` arguments throw `ArgumentNullException`. An empty workspace does not

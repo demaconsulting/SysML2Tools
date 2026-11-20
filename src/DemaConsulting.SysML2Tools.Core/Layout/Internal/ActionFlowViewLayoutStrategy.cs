@@ -228,6 +228,12 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
 
         foreach (var (qualifiedName, node) in workspace.Declarations)
         {
+            // Members modeled for name resolution only are never drawn, nor chosen as a root.
+            if (node.IsExcludedFromDiagrams)
+            {
+                continue;
+            }
+
             if (node is not SysmlDefinitionNode def)
             {
                 continue;
@@ -243,8 +249,8 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var successions = def.Children.OfType<SysmlTransitionNode>().Count();
-            var actions = def.Children.OfType<SysmlFeatureNode>().Count(f => IsActionFlowKeyword(f.FeatureKeyword));
+            var successions = def.DiagramChildren.OfType<SysmlTransitionNode>().Count();
+            var actions = def.DiagramChildren.OfType<SysmlFeatureNode>().Count(f => IsActionFlowKeyword(f.FeatureKeyword));
             var score = (successions * 100) + actions;
             var scoreBetter = score > bestScore;
             var isBetter = scope is not null
@@ -290,7 +296,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             actions.Add(BuildActionItem(name, kind, declaration, theme));
         }
 
-        foreach (var feature in root.Children.OfType<SysmlFeatureNode>())
+        foreach (var feature in root.DiagramChildren.OfType<SysmlFeatureNode>())
         {
             if (!IsActionFlowKeyword(feature.FeatureKeyword) || feature.Name is null)
             {
@@ -306,7 +312,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             Add(feature.Name, feature.FeatureKeyword, feature);
         }
 
-        foreach (var succession in root.Children.OfType<SysmlTransitionNode>())
+        foreach (var succession in root.DiagramChildren.OfType<SysmlTransitionNode>())
         {
             if (LastSegment(succession.Source) is { } s)
             {
@@ -336,7 +342,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         var result = new List<SuccessionItem>();
         var startTargets = new List<int>();
         var doneSources = new List<int>();
-        foreach (var succession in root.Children.OfType<SysmlTransitionNode>())
+        foreach (var succession in root.DiagramChildren.OfType<SysmlTransitionNode>())
         {
             var source = LastSegment(succession.Source);
             var target = LastSegment(succession.Target);

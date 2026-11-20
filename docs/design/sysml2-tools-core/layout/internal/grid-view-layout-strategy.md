@@ -82,6 +82,11 @@ supertype indices against the full index, and keeps the union of the directly-in
 any definition connected to it by a specialization edge in either direction, before returning the
 kept definitions in their original deterministic order.
 
+##### Members Excluded from Diagrams
+
+A definition flagged `IsExcludedFromDiagrams` (nested in a member modeled for name resolution only)
+gets no row or column.
+
 ##### Error Handling
 
 Null `context` or `options` arguments throw `ArgumentNullException`. An empty workspace does not

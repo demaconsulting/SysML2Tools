@@ -182,6 +182,16 @@ supertype
 use plain `Resolve(name, scope)`, whose local resolution in the owning namespace already includes
 the memberships the owner inherits.
 
+A feature may redefine several features (`part :>> driver :>> driver_b`, `:>> a, b`): every target —
+`RedefinedFeatureName`, then each of `AdditionalRedefinedFeatureNames` — is resolved this way into
+its own `Redefinition` edge, and each one that does not resolve is reported as its own unresolved
+reference located at that target's token. `NameResolver` inherits the members of every target, so a
+member that belongs only to the second target resolves.
+
+`ChildScope` makes an anonymous usage that owns members (qualified name `…::$anon<n>`, `Name` null)
+the local namespace of those members, so they resolve against what the anonymous usage inherits
+(its subsetting and typing) instead of against the enclosing namespace.
+
 Because `NameResolver`'s resolving mode derives every type's general types from the type's *raw
 references* (supertype names, typing, view definition, redefined feature) rather than from
 `ResolvedEdges`, an inherited member resolves in this single pass wherever its ancestor is
@@ -504,7 +514,8 @@ names a member `AstBuilder` does not record, so there is nothing for a name to r
   `AHFNorway_LocalCloudDD.APISConsumer`).
 - A corpus artifact: `examples/CameraExample/Camera.sysml` declares a top-level `part def Camera`
   that collides with `package Camera` of `training/17.Control/Camera.sysml`: 3 errors
-  (`Scene`, `Picture`, `Image`).
+  (`Scene`, `Picture`, `Image`). The loader processes files in canonical path order, so the first
+  file's declaration (`examples/…`) wins on every platform.
 
 `WorkspaceLoader.DefaultUserUnresolvedSeverity` is the single place to change the
 default. Once the OMG corpus produces close to zero strict-mode errors, the constant is flipped to

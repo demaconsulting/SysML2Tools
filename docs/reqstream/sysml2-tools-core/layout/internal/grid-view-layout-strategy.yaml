@@ -88,3 +88,13 @@ sections:
           - GridView_BuildLayout_UnresolvedSupertypeBeforeAlias_MarksOnlyTheAliasTarget
           - GridView_BuildLayout_PrivateSupertype_IsNotMarked
           - GridView_BuildLayout_FilteredOutAndSiblingImportSupertypes_AreNotMarked
+
+      - id: SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-ExcludedMembers
+        title: >-
+          GridViewLayoutStrategy shall not give a definition flagged IsExcludedFromDiagrams a row
+          or column.
+        justification: |
+          Definitions nested in members modeled only for name resolution have no notation yet;
+          showing them would change existing diagrams.
+        tests:
+          - GridView_BuildLayout_ExcludedDefinition_RenderIdenticallyToWorkspaceWithout

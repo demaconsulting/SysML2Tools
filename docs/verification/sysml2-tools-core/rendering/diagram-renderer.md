@@ -53,3 +53,4 @@ external services are required.
 | `RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic` | Produces scoped output |
 | `Synthesize_GeneralKind_ResolvableTarget_Succeeds` (via `SynthesizeDynamicView`) | Delegates successfully |
 | `Synthesize_UnresolvedTarget_Fails` (via `SynthesizeDynamicView`) | Delegates diagnostic on failure |
+| `DiagramRenderer_SynthesizeAutoView_ExcludedMembers_DoNotChangeTarget` | Auto view ignores hidden members |

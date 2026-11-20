@@ -49,3 +49,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `GridView_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree` | Usage resolves via `Typing` |
 | `GridView_BuildLayout_ExposeMultipleTargets_UnionsBothSubtrees` | Two `expose` targets union both subtrees |
 | `GridView_BuildLayout_ExposeOneSideOfSpecialization_KeepsBothRowAndColumn` | Keeps `A` and `Sub`, excludes `B` |
+| `GridView_BuildLayout_ExcludedDefinition_RenderIdenticallyToWorkspaceWithout` | Hidden definition gets no row/column |

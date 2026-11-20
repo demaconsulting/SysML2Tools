@@ -82,3 +82,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `SequenceView_BuildLayout_ExposeBothLifelines_UnionsSubtreesKeepsMessages` | Two lifelines union, keep messages |
 | `SequenceView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
 | `SequenceView_BuildLayout_ExposeInnerLifelineOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
+| `SequenceView_BuildLayout_ExcludedMessagesAndLifelines_RenderIdenticallyToWorkspaceWithout` | Hidden not drawn |

@@ -79,6 +79,8 @@ public sealed class NameResolver
     private readonly HashSet<(string Name, string Namespace, Scope Scope)> _inProgress = new();
     private readonly Dictionary<string, IReadOnlyList<string>> _declaredGeneralTypes = new(StringComparer.Ordinal);
     private readonly HashSet<string> _declaredGeneralTypesInProgress = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _referenceSubsettingTargets = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _referenceSubsettingInProgress = new(StringComparer.Ordinal);
     private int _generalTypeReentries;
     private readonly Dictionary<string, HashSet<string>> _redefinedMembers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _redefinedMembersInProgress = new(StringComparer.Ordinal);
@@ -96,6 +98,9 @@ public sealed class NameResolver
 
     /// <summary>The library type every viewpoint definition implicitly specializes.</summary>
     private const string ViewpointImplicitType = "Views::ViewpointCheck";
+
+    /// <summary>The library feature every transition usage implicitly subsets (it owns <c>accepter</c> and <c>effect</c>).</summary>
+    private const string TransitionImplicitType = "Actions::transitionActions";
 
     /// <summary>The library feature a usage with no keyword row implicitly subsets.</summary>
     private const string UnmappedFeatureType = "Base::things";
@@ -163,6 +168,12 @@ public sealed class NameResolver
         ["send"] = ["Actions::sendActions"],
         ["terminate"] = ["Actions::terminateActions"],
         ["state"] = ["States::stateActions"],
+        ["exhibit"] = ["States::stateActions"],
+        ["perform"] = ["Actions::actions"],
+        ["include"] = ["UseCases::useCases"],
+        ["assert constraint"] = ["Constraints::constraintChecks"],
+        ["timeslice"] = ["Occurrences::Occurrence::timeSlices"],
+        ["snapshot"] = ["Occurrences::Occurrence::snapshots"],
         ["calc"] = ["Calculations::calculations"],
         ["constraint"] = ["Constraints::constraintChecks"],
         ["assume constraint"] = ["Constraints::constraintChecks"],
@@ -520,7 +531,7 @@ public sealed class NameResolver
         var owner = OwnerOf(typeName);
         var rootImports = RootImportsOf(typeName);
         return resolved
-            .Concat(raw.Select(reference => Resolve(reference, owner, rootImports)).OfType<string>())
+            .Concat(raw.Select(reference => ResolveGeneralReference(reference, typeName, owner, rootImports)).OfType<string>())
             .Where(target => target != typeName)
             .Distinct(StringComparer.Ordinal)
             .ToList();
@@ -539,6 +550,7 @@ public sealed class NameResolver
             .Append(UnmappedFeatureType)
             .Append(ViewImplicitType)
             .Append(ViewpointImplicitType)
+            .Append(TransitionImplicitType)
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
@@ -566,6 +578,12 @@ public sealed class NameResolver
         }
 
         List<string>? result = null;
+        if (ReferenceSubsettingLookupType(typeName, node) is { } referenceSubsetting &&
+            !declared.Contains(referenceSubsetting))
+        {
+            result = [.. declared, referenceSubsetting];
+        }
+
         foreach (var candidate in ImplicitGeneralTypes(typeName, node))
         {
             if (candidate == typeName || !_declarations.ContainsKey(candidate) || declared.Contains(candidate) ||
@@ -605,6 +623,9 @@ public sealed class NameResolver
 
             case SysmlViewpointNode:
                 return [ViewpointImplicitType];
+
+            case SysmlTransitionNode:
+                return [TransitionImplicitType];
 
             case SysmlFeatureNode feature:
                 return ImplicitFeatureGeneralTypes(typeName, feature);
@@ -654,7 +675,29 @@ public sealed class NameResolver
     private IReadOnlyList<SysmlImportNode>? RootImportsOf(string typeName) =>
         _rootImportsByDeclaration.GetValueOrDefault(typeName);
 
-    /// <summary>The raw supertype, typing, and view-definition references that name a type's general types.</summary>
+    /// <summary>
+    ///     Returns the raw text of every redefinition target of <paramref name="feature"/>: the
+    ///     first one followed by any further ones (<see cref="SysmlFeatureNode.AdditionalRedefinedFeatureNames"/>).
+    /// </summary>
+    internal static IEnumerable<string> AllRedefinedFeatureNames(SysmlFeatureNode feature)
+    {
+        if (feature.RedefinedFeatureName is { Length: > 0 } first)
+        {
+            yield return first;
+        }
+
+        foreach (var additional in feature.AdditionalRedefinedFeatureNames ?? [])
+        {
+            yield return additional;
+        }
+    }
+
+    /// <summary>
+    ///     The raw supertype, typing, and view-definition references that name a type's declared
+    ///     general types. A reference subsetting is deliberately not among them: it specializes for
+    ///     lookup purposes only (see <see cref="ReferenceSubsettingLookupType"/>), so it is never
+    ///     part of the public <see cref="GeneralTypes"/>.
+    /// </summary>
     private static List<string> RawGeneralReferences(SysmlNode node)
     {
         var raw = new List<string>(node.SupertypeNames);
@@ -668,6 +711,61 @@ public sealed class NameResolver
         }
 
         return raw;
+    }
+
+    /// <summary>
+    ///     The qualified name of the feature a feature references by reference subsetting
+    ///     (<c>::&gt;</c>, <c>perform</c>, <c>assert</c>, ...), resolved relative to its owning
+    ///     namespace, or null when it has none, it does not resolve, or it resolves to the feature
+    ///     itself. It specializes for name lookup only: it adds no edge and no diagnostic and is
+    ///     not part of <see cref="GeneralTypes"/>. A feature reached again while its own reference
+    ///     is being resolved contributes nothing.
+    /// </summary>
+    private string? ReferenceSubsettingLookupType(string typeName, SysmlNode node)
+    {
+        if (node is not SysmlFeatureNode { ReferenceSubsettingName: { Length: > 0 } reference })
+        {
+            return null;
+        }
+
+        if (_referenceSubsettingTargets.TryGetValue(typeName, out var cached))
+        {
+            return cached;
+        }
+
+        if (!_referenceSubsettingInProgress.Add(typeName))
+        {
+            _generalTypeReentries++;
+            return null;
+        }
+
+        try
+        {
+            var target = ResolveGeneralReference(reference, typeName, OwnerOf(typeName), RootImportsOf(typeName));
+            var result = target == typeName ? null : target;
+            _referenceSubsettingTargets[typeName] = result;
+            return result;
+        }
+        finally
+        {
+            _referenceSubsettingInProgress.Remove(typeName);
+        }
+    }
+
+    /// <summary>
+    ///     Resolves a general-type reference of the type <paramref name="typeName"/> relative to its
+    ///     owning namespace. A reference that resolves to the type itself (a usage named only by the
+    ///     feature it references, <c>assert massLimitation { ... }</c>, finds itself under that
+    ///     name) is resolved again from the owner's own owner, mirroring
+    ///     <see cref="ResolveRedefinition"/>.
+    /// </summary>
+    private string? ResolveGeneralReference(
+        string reference, string typeName, string? owner, IReadOnlyList<SysmlImportNode>? rootImports)
+    {
+        var resolved = Resolve(reference, owner, rootImports);
+        return resolved == typeName && owner is not null
+            ? Resolve(reference, OwnerOf(owner), rootImports)
+            : resolved;
     }
 
     /// <summary>
@@ -695,13 +793,20 @@ public sealed class NameResolver
             var owner = OwnerOf(typeName);
             var rootImports = RootImportsOf(typeName);
             var general = RawGeneralReferences(node)
-                .Select(reference => Resolve(reference, owner, rootImports))
+                .Select(reference => ResolveGeneralReference(reference, typeName, owner, rootImports))
                 .OfType<string>()
                 .ToList();
-            if (node is SysmlFeatureNode { RedefinedFeatureName: { Length: > 0 } redefined } &&
-                ResolveRedefinition(redefined, owner ?? string.Empty, typeName, rootImports) is { } redefinedFeature)
+            if (node is SysmlFeatureNode { RedefinedFeatureName.Length: > 0 } feature)
             {
-                general.Add(redefinedFeature);
+                // Every redefinition target is a general type: the feature inherits the members of
+                // each (`part :>> a :>> b` sees the members of both).
+                foreach (var reference in AllRedefinedFeatureNames(feature))
+                {
+                    if (ResolveRedefinition(reference, owner ?? string.Empty, typeName, rootImports) is { } redefinedFeature)
+                    {
+                        general.Add(redefinedFeature);
+                    }
+                }
             }
 
             var result = general
@@ -924,10 +1029,17 @@ public sealed class NameResolver
                 redefined = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var child in ns.Children)
                 {
-                    if (child is SysmlFeatureNode { RedefinedFeatureName: { Length: > 0 } reference, Name: { Length: > 0 } } &&
-                        ResolveRedefinedFeature(reference, namespaceName) is { } target)
+                    if (child is not SysmlFeatureNode { RedefinedFeatureName.Length: > 0, Name.Length: > 0 } redefiningFeature)
                     {
-                        redefined.Add(target);
+                        continue;
+                    }
+
+                    foreach (var reference in AllRedefinedFeatureNames(redefiningFeature))
+                    {
+                        if (ResolveRedefinedFeature(reference, namespaceName) is { } target)
+                        {
+                            redefined.Add(target);
+                        }
                     }
                 }
 
