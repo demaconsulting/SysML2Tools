@@ -760,11 +760,12 @@ public sealed class GeneralViewLayoutStrategyTests
             package Diagrams { view V { expose Lib::*; expose App::*; } }
             """);
 
-        // Assert: both definitions are drawn, with no composition edge and no layout warning
+        // Assert: both definitions are drawn, the part is a node of its owner with no typing edge to
+        // the unrelated same-named definition, and the layout reports no warning
         var boxes = CollectBoxes(layout.Nodes);
         Assert.Contains(boxes, b => b.Label == "TurboEngineX");
         Assert.Contains(boxes, b => b.Label == "Consumer");
-        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
         Assert.Empty(layout.Warnings);
     }
 
@@ -5200,12 +5201,12 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A recursive expose (<c>P::**</c>) includes the usages owned by the exposed definition, which are
-    ///     drawn as nodes; a namespace expose (<c>P::*</c>) exposes only the definition, so its usages
-    ///     are not rendered and stay rows of the definition.
+    ///     A recursive expose (<c>P::**</c>) and a namespace expose (<c>P::*</c>) both draw the usage
+    ///     owned by the exposed definition as a node of its own joined to the definition by a filled
+    ///     diamond, and neither lists it a second time as a <c>parts</c> row.
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_RecursiveIncludesUsageNodes_NamespaceKeepsRows()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_RecursiveAndNamespace_BothDrawUsageNodesAsNodes()
     {
         // Arrange
         const string model = """
@@ -5221,10 +5222,227 @@ public sealed class GeneralViewLayoutStrategyTests
         var shallow = await LayOutDeclaredViewAsync(model, "Shallow");
 
         // Assert
-        Assert.Contains(CollectBoxes(deep.Nodes), b => IsNamed(b, "p"));
-        Assert.DoesNotContain(CollectBoxes(shallow.Nodes), b => IsNamed(b, "p"));
-        Assert.Contains(FindBox(shallow.Nodes, "V").Compartments, c => c.Title == "parts" && c.Rows.Contains("p : W"));
+        foreach (var layout in new[] { deep, shallow })
+        {
+            var p = FindBox(layout.Nodes, "p");
+            var v = FindBox(layout.Nodes, "V");
+            Assert.Contains(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond && RunsBetween(l, p, v));
+            Assert.DoesNotContain(v.Compartments, c => c.Title == "parts");
+        }
     }
+
+    /// <summary>
+    ///     An exposed part definition (<c>expose V;</c>) is drawn with each part it owns as a rounded
+    ///     node joined to it by a filled diamond, instead of as <c>parts</c> rows; its attribute stays a
+    ///     row, and the definitions that the parts are typed by are not pulled into the diagram.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposedPartDef_DrawsOwnedPartsAsNodesJoinedByFilledDiamond()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(PartTreeModel("expose V;"), "Tree");
+
+        // Assert: both parts are rounded nodes joined to V by filled diamonds
+        var v = FindBox(layout.Nodes, "V");
+        foreach (var name in new[] { "a", "b" })
+        {
+            var node = FindBox(layout.Nodes, name);
+            Assert.Equal(BoxShape.RoundedRectangle, node.Shape);
+            Assert.Contains(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond && RunsBetween(l, node, v));
+        }
+
+        // Assert: no parts rows, the attribute stays a row, and the typing definitions are absent
+        Assert.DoesNotContain(v.Compartments, c => c.Title == "parts");
+        Assert.Contains(v.Compartments, c => c.Title == "attributes" && c.Rows.Contains("m : Real"));
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => b.Label is "A" or "B" or "R");
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+    }
+
+    /// <summary>
+    ///     When the definitions that an exposed definition's parts are typed by are exposed as well, each
+    ///     part is joined to its definition by a feature-typing edge (hollow triangle with two dots).
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposedPartDefAndItsTypes_DrawsTypingEdgeFromUsageToDefinition()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(PartTreeModel("expose V; expose A;"), "Tree");
+
+        // Assert: a is typed by the exposed A; b is typed by B, which is not exposed, so no edge
+        var typing = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typing, FindBox(layout.Nodes, "a"), FindBox(layout.Nodes, "A")));
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => b.Label == "B");
+    }
+
+    /// <summary>
+    ///     A reference part owned by an exposed definition is a dashed node joined to its owner by a
+    ///     hollow diamond.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposedPartDef_ReferencePartUsesHollowDiamondAndDashedNode()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(PartTreeModel("expose V;"), "Tree");
+
+        // Assert
+        var r = FindBox(layout.Nodes, "r");
+        Assert.Equal(LineStyle.Dashed, r.Appearance?.OutlineStyle);
+        Assert.Contains(
+            CollectLines(layout.Nodes),
+            l => l.TargetEnd == EndMarkerStyle.HollowDiamond && RunsBetween(l, r, FindBox(layout.Nodes, "V")));
+    }
+
+    /// <summary>
+    ///     A part nested inline in a part of an exposed definition is drawn too, chained to its owner:
+    ///     the closure follows ownership one usage after the other.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposedPartDef_NestedInlineUsageChainsOwners()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync("""
+            part def V { part e { part c; } }
+            package Diagrams { view Tree { expose V; } }
+            """, "Tree");
+
+        // Assert
+        var diamonds = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond).ToList();
+        Assert.Equal(2, diamonds.Count);
+        Assert.Contains(diamonds, l => RunsBetween(l, FindBox(layout.Nodes, "e"), FindBox(layout.Nodes, "V")));
+        Assert.Contains(diamonds, l => RunsBetween(l, FindBox(layout.Nodes, "c"), FindBox(layout.Nodes, "e")));
+    }
+
+    /// <summary>
+    ///     A recursive expose draws every box exactly once — an owned part is a node, never also a
+    ///     <c>parts</c> row — and combining it with the exposed owner (<c>expose V; expose V::**;</c>)
+    ///     does not draw anything twice.
+    /// </summary>
+    [Theory]
+    [InlineData("expose V::**;")]
+    [InlineData("expose V; expose V::**;")]
+    [InlineData("expose V::**; expose V;")]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_RecursiveExpose_DoesNotDuplicateUsageNodes(string exposes)
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(PartTreeModel(exposes), "Tree");
+
+        // Assert: each box label occurs once, and the parts are not also rows
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.Equal(boxes.Count, boxes.Select(b => b.Label).Distinct().Count());
+        foreach (var name in new[] { "a", "b", "r" })
+        {
+            FindBox(layout.Nodes, name);
+        }
+
+        var v = FindBox(layout.Nodes, "V");
+        Assert.DoesNotContain(v.Compartments, c => c.Title is "parts" or "references");
+        Assert.Equal(3, CollectLines(layout.Nodes).Count(l => l.TargetEnd is EndMarkerStyle.FilledDiamond or EndMarkerStyle.HollowDiamond));
+    }
+
+    /// <summary>
+    ///     An exposed part usage draws the parts it owns as nodes, in the same way an exposed definition does.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_DrawsOwnedPartsAsNodes()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync("""
+            part def Car;
+            part car : Car { part engine; part wheels; }
+            package Diagrams { view Tree { expose car; } }
+            """, "Tree");
+
+        // Assert
+        var car = FindBox(layout.Nodes, "car");
+        foreach (var name in new[] { "engine", "wheels" })
+        {
+            Assert.Contains(
+                CollectLines(layout.Nodes),
+                l => l.TargetEnd == EndMarkerStyle.FilledDiamond && RunsBetween(l, FindBox(layout.Nodes, name), car));
+        }
+
+        Assert.DoesNotContain(car.Compartments, c => c.Title == "parts");
+    }
+
+    /// <summary>
+    ///     A bracket-filtered expose is a precise selection: the selected definition is drawn but its
+    ///     parts, which the filter does not select, stay rows of it.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_BracketFilteredExpose_KeepsUnselectedUsagesAsRows()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync("""
+            package P {
+                metadata def Safety;
+                part def W;
+                part def Safe { @Safety; part w : W; }
+                part def Other { part x : W; }
+            }
+            package Diagrams { view Tree { expose P::**[@Safety]; } }
+            """, "Tree");
+
+        // Assert
+        var safe = FindBox(layout.Nodes, "Safe");
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "w") || b.Label == "Other");
+        Assert.Contains(safe.Compartments, c => c.Title == "parts" && c.Rows.Contains("w : W"));
+    }
+
+    /// <summary>
+    ///     Part trees follow the depth limit exactly as unscoped views do: an exposed definition at depth
+    ///     one is a leaf with a trailing <c>…</c> row and no part node while the limit does not reach its
+    ///     parts (limits one and two), and the parts are drawn once the limit does (three).
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_DepthLimit_ExposedDefWithUsageNodes_TruncatesToEllipsisThenDrawsNodes()
+    {
+        // Arrange
+        var model = PartTreeModel("expose V;");
+
+        // Act
+        var limitOne = await LayOutDeclaredViewAsync(model, "Tree", depthLimit: 1);
+        var limitTwo = await LayOutDeclaredViewAsync(model, "Tree", depthLimit: 2);
+        var limitThree = await LayOutDeclaredViewAsync(model, "Tree", depthLimit: 3);
+
+        // Assert
+        foreach (var truncated in new[] { limitOne, limitTwo })
+        {
+            Assert.DoesNotContain(CollectBoxes(truncated.Nodes), b => IsNamed(b, "a"));
+            Assert.Equal("\u2026", FindBox(truncated.Nodes, "V").Compartments[^1].Rows[^1]);
+        }
+
+        Assert.Contains(CollectBoxes(limitThree.Nodes), b => IsNamed(b, "a"));
+    }
+
+    /// <summary>
+    ///     A view condition that rejects the usages (here: keeping only part definitions) drops the part
+    ///     nodes again, and the owner lists its parts as rows.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ViewConditionRejectingUsage_KeepsItAsRow()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(
+            PartTreeModel("expose V; filter @SysML::PartDefinition;"), "Tree");
+
+        // Assert
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "a") || IsNamed(b, "b"));
+        Assert.Contains(FindBox(layout.Nodes, "V").Compartments, c => c.Title == "parts" && c.Rows.Contains("a : A"));
+    }
+
+    /// <summary>The part-tree model with a view <c>Tree</c> carrying the given <paramref name="viewBody"/> statements.</summary>
+    private static string PartTreeModel(string viewBody) => $$"""
+        part def A;
+        part def B;
+        part def R;
+        part def V {
+            part a : A;
+            part b : B;
+            ref part r : R;
+            attribute m : Real;
+        }
+        package Diagrams { view Tree { {{viewBody}} } }
+        """;
 
     /// <summary>
     ///     Two usage nodes of different owners that read exactly alike (<c>data : P</c>) are both drawn

@@ -77,8 +77,39 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_PortWithNestedContent_IsNodeAndPlainPortStaysRow
           - GeneralViewLayoutStrategy_BuildLayout_IdenticalUsageNodesOfDifferentOwners_AreBothDrawn
           - GeneralViewLayoutStrategy_BuildLayout_DepthLimit_OwnerWithUsageNodes_StaysLeafWithEllipsisRow
-          - GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_RecursiveIncludesUsageNodes_NamespaceKeepsRows
+          - GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_RecursiveAndNamespace_BothDrawUsageNodesAsNodes
           - GeneralViewLayoutStrategy_BuildLayout_NoFilter_RendersDeeplyNestedGrandchildUsageWhenIntermediateParentExcluded
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposedElementUsageNodes
+        title: >-
+          When a view exposes a definition or a node-kind usage through an `expose` entry,
+          GeneralViewLayoutStrategy shall draw each node-kind usage that the element owns —
+          and, in turn, each node-kind usage those usages own, but never a definition that a
+          usage is typed by — as a box of its own joined to its owner, even when the expose
+          form does not itself reach the owned usage, and shall draw every element either as
+          such a box or as a compartment row, never both and never twice; a bracket-filtered
+          expose entry shall not draw the usages of the elements it selects as boxes.
+        justification: |
+          The OMG SysML v2 reference implementation draws an exposed definition as a part tree:
+          the definition with each part it owns as a node joined by a composition edge, and a
+          feature-typing edge to a definition only when that definition is in the diagram too.
+          Without this rule `expose V;` and `expose P::*;`, the commonest expose forms, would list
+          the parts of the exposed definition as `parts` rows and so lose the structure that the
+          view exists to show. Following ownership but not typing keeps the diagram bounded by what
+          the model's author wrote, and a recursive expose already reaches every owned usage, so
+          the rule must not draw it a second time. A bracket filter is a precise selection of
+          specific elements, so it does not widen to their parts.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_RecursiveAndNamespace_BothDrawUsageNodesAsNodes
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedPartDef_DrawsOwnedPartsAsNodesJoinedByFilledDiamond
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedPartDefAndItsTypes_DrawsTypingEdgeFromUsageToDefinition
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedPartDef_ReferencePartUsesHollowDiamondAndDashedNode
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedPartDef_NestedInlineUsageChainsOwners
+          - GeneralViewLayoutStrategy_BuildLayout_RecursiveExpose_DoesNotDuplicateUsageNodes
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_DrawsOwnedPartsAsNodes
+          - GeneralViewLayoutStrategy_BuildLayout_BracketFilteredExpose_KeepsUnselectedUsagesAsRows
+          - GeneralViewLayoutStrategy_BuildLayout_DepthLimit_ExposedDefWithUsageNodes_TruncatesToEllipsisThenDrawsNodes
+          - GeneralViewLayoutStrategy_BuildLayout_ViewConditionRejectingUsage_KeepsItAsRow
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NodePolicy
         title: >-
@@ -638,6 +669,8 @@ sections:
           a definition, its own containment subtree is typically empty — the real content lives
           under its type's subtree — so the target's own resolved type reference is additionally
           followed to include that type's subtree, fixing the usage-vs-definition containment gap.
+          The usages owned by an exposed element are drawn as part-tree nodes as specified for
+          ExposedElementUsageNodes.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree
           - GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree

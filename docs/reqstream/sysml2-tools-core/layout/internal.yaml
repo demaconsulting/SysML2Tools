@@ -27,6 +27,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NameLine
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageShape
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageNodes
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposedElementUsageNodes
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NodePolicy
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageNameLine
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FeatureRows

@@ -64,8 +64,11 @@ configuration are required beyond a standard .NET SDK installation.
   expression are never nodes.
 - Two usage nodes of different owners that read exactly alike are both drawn and the layout completes.
 - With a depth limit that does not permit an owner's usage nodes, the owner stays a leaf box whose last
-  compartment is the untitled `…` row, and no usage node or edge is drawn. A recursive `expose` includes
-  the usage nodes of the exposed definition; a namespace `expose` shows them as rows.
+  compartment is the untitled `…` row, and no usage node or edge is drawn. A recursive `expose`, a
+  namespace `expose`, and an exact `expose` of a definition or node-kind usage all draw the node usages the
+  exposed element owns as nodes joined to it (and the node usages those own in turn), with no `parts` row;
+  a typing edge appears only to a definition that is exposed too; a bracket-filtered `expose` leaves the
+  parts of the selected elements as rows; and no element is drawn both as a node and as a row, or twice.
 - A package folder that has content carries its name in the tab (`FolderTitlePlacement.Tab`) and keeps
   the `Folder` shape; an exposed package without content and a depth-truncated package keep the name
   inside the body.
@@ -305,9 +308,15 @@ every change by `GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_MeetsBl
   chevrons; C10). Four connector crossings remain, all engine routing outcomes that are not asserted: the
   `connect` line from `controller` to `battery` crosses the typing connector of `motors`, the
   subsetting connector of `frontMotors`, and the composition connector of `RacingDrone`, and the dashed
-  dependency from `FlightController` crosses the specialization from `RacingMotor`.
+  dependency from `FlightController` (labeled `«depend»`, the label sitting clear on the horizontal leg of
+  the dashed line) crosses the specialization from `RacingMotor`.
 - `01`, `BatterySubsystemView`: scoped view; `doc`, attributes, and ports compartments; note below its
   element with a dashed link.
+- `17`, `VehicleStructureGeneralView` (569×546, 5 usage nodes and 2 definitions): `expose Vehicle;
+  expose Engine;` draws `Vehicle` with its parts `engine`, `wheels`, and the dashed `driver` (◇) as nodes,
+  `hub` chained below `wheels`, and `cylinders` below `Engine`; `mass` and `displacement` stay rows;
+  the typing glyph appears only for `engine : Engine`, since `Wheel` and `Driver` are not exposed; the
+  named dependency shows its name `fueling` clear of every line. No overlap or clipped label.
 - `10`, `MissionControlGeneralView` and `GroundSegmentRecursiveView`: nested folders and containers with
   names in tabs, no edges.
 - `11`, `VehiclePackagesGeneralView`: nested folders, cross-package specialization, typing glyph at
@@ -431,8 +440,31 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_DepthLimit_OwnerWithUsageNodes_StaysLeafWithEllipsisRow`:
   A depth limit that does not permit the usage nodes leaves the owner a leaf with a trailing `…` row and
   draws no usage node or edge
-- `GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_RecursiveIncludesUsageNodes_NamespaceKeepsRows`:
-  `expose P::**` draws the exposed definition's usage nodes; `expose P::*` keeps them as rows
+- `GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_RecursiveAndNamespace_BothDrawUsageNodesAsNodes`:
+  `expose P::**` and `expose P::*` both draw the exposed definition's usage as a node joined by a filled
+  diamond, with no `parts` row
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedPartDef_DrawsOwnedPartsAsNodesJoinedByFilledDiamond`:
+  `expose V;` draws each part of `V` as a rounded node joined by a filled diamond; the attribute stays a
+  row, there is no `parts` compartment, and the typing definitions are not pulled into the diagram
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedPartDefAndItsTypes_DrawsTypingEdgeFromUsageToDefinition`:
+  A typing edge (hollow triangle with two dots) joins a part to its definition only when the definition
+  is exposed too
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedPartDef_ReferencePartUsesHollowDiamondAndDashedNode`:
+  A `ref part` of an exposed definition is a dashed node joined by a hollow diamond
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedPartDef_NestedInlineUsageChainsOwners`:
+  A part nested inline in a part of an exposed definition is drawn too, chained to its owner
+- `GeneralViewLayoutStrategy_BuildLayout_RecursiveExpose_DoesNotDuplicateUsageNodes`:
+  A recursive expose, alone or combined with the exposed owner in either order, draws every box once and
+  no part also as a row
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_DrawsOwnedPartsAsNodes`:
+  An exposed part usage draws the parts it owns as nodes
+- `GeneralViewLayoutStrategy_BuildLayout_BracketFilteredExpose_KeepsUnselectedUsagesAsRows`:
+  A bracket-filtered expose selects the definition but leaves its parts as `parts` rows
+- `GeneralViewLayoutStrategy_BuildLayout_DepthLimit_ExposedDefWithUsageNodes_TruncatesToEllipsisThenDrawsNodes`:
+  The depth limit applies to part trees as to unscoped views: a leaf with a trailing `…` row at limits one
+  and two, the part nodes at limit three
+- `GeneralViewLayoutStrategy_BuildLayout_ViewConditionRejectingUsage_KeepsItAsRow`:
+  A view condition that rejects the usages drops the part nodes and the owner lists them as rows
 - `GeneralViewLayoutStrategy_BuildLayout_IdenticalUsageNodesOfDifferentOwners_AreBothDrawn`:
   Two usage nodes that read exactly alike (`data : P`) are both drawn and the layout completes
 - `GeneralViewLayoutStrategy_BuildLayout_TopDown_OwnerAndGeneralAboveUsageAndDefinitionBelow`:
@@ -702,7 +734,7 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   its own two boxes (no cross-package wiring to the first same-named definition)
 - `GeneralViewLayoutStrategy_BuildLayout_SameSimpleNameInUnrelatedPackage_DrawsNoEdge`:
   A type reference that does not resolve by SysML v2 name resolution (a same-named definition
-  exists only in an unrelated package, no import) draws no composition edge and no layout warning
+  exists only in an unrelated package, no import) draws no typing edge and no layout warning
 - `GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName`:
   A dependency endpoint outside the exposed scope is not re-mapped to a same-named rendered box
 - `GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndRedefinition_DrawNoEdge`:

@@ -8,7 +8,8 @@ renders every user-defined definition (part, port, interface, requirement, actio
 square-cornered, keyword-labeled box, and every named usage that the node policy (see *Data Model*)
 selects as a rounded box of its own, placed beside its owner. By default the selected usages are the
 occurrence-kind usages (part, item, occurrence, action, state, requirement, concern, and so on) and
-each port that owns nested features.
+each port that owns nested features. An exposed definition or usage is drawn as a part tree: the
+usages it owns are nodes joined to it, whatever `expose` form exposed it (see `CollectDefinitions`).
 
 A box's name line shows the declared short name and name, followed by the specialization (`:>`) of a
 definition or by the typing, multiplicity, and subsetting/redefinition of a usage. Its keyword carries
@@ -63,7 +64,10 @@ Pilot default is the intended presentation (see `ROADMAP.md` for the planned pub
 
 An unnamed usage, a usage without a keyword, and a usage that carries an expression are never nodes,
 in any mode: there is nothing to key or label a box with. A usage that has no rendered owner (its owner
-is outside the view's scope, for example) stays a standalone box whatever the policy says.
+is outside the view's scope, for example) stays a standalone box whatever the policy says. The policy
+decides *whether* a usage is a node; *whether the owner's usages are admitted into a scoped view at
+all* is the admission rule of `CollectDefinitions` (part trees), which uses the policy to pick the usages
+it admits.
 
 **Private records.**
 
@@ -181,7 +185,7 @@ returned tree's `Warnings` concatenates
 filters that failed), and `ForDroppedRelationshipEdges` via the `LayoutTree with { Warnings = … }`
 record-copy idiom.
 
-###### `CollectDefinitions(workspace, scope, annotationVisible)` and `CreateBox`
+###### `CollectDefinitions(workspace, scope, annotationVisible, policy)` and `CreateBox`
 
 Visits `workspace.Declarations` and, recursively, the named usages in each declaration's `Children`
 (each qualified name admitted once): a real workspace registers every nested usage in `Declarations`,
@@ -193,6 +197,53 @@ usage is excluded, since it has no stable qualified name to key a box on; an unn
 admitted under its qualified name. The admission is deliberately a superset used as the
 filter-candidate pool, so a metaclass filter such as `filter @SysML::PartUsage;` has usages to narrow;
 `RemoveRowUsages` later reduces it to the rendered set.
+
+**Part trees: the depth rule.** In a scoped view, a definition or node-kind usage (`NodePolicy.IsNode`)
+that is in scope through an `expose` *subject* also admits the node-kind usages it owns, and every
+node-kind usage admitted that way admits the node-kind usages it owns in turn. The visit threads an
+"owner is exposed" flag down the `Children` recursion, and the visit record remembers the flag per
+qualified name, so a usage first reached directly from `Declarations` is reconsidered when its exposed
+owner reaches it later: the result does not depend on the order of `Declarations`. The rule is:
+
+- *Closure over ownership.* Inline nesting (`part a { part b; }`) is followed to any depth, because a
+  usage that is a node needs a box in which its own parts can hang; the diagram stays bounded by the
+  usages the model's author wrote under the exposed element.
+- *Never over typing.* A definition that an owned usage is typed by is not admitted: the usage's typing
+  edge (hollow triangle, two dots) is drawn only when the view exposes that definition itself. Pulling
+  typed definitions in recursively would make `expose Vehicle;` draw the whole transitive model, and it
+  is what the OMG Pilot does not do either: the Pilot's tree follows the owned members of each element
+  and draws a typing relation only to an element that is already in the diagram.
+- *Never definitions or rows.* A nested definition is admitted only by a recursive expose, as before;
+  attributes, plain references, plain ports, enumeration values, and constraints stay rows of their
+  owner (`NodePolicy.IsNode` is false for them, so they are not admitted, and `BuildCompartments` lists
+  them).
+- *Nothing twice.* The admission test only widens *which* qualified names are admitted; each name is
+  still added to the result once (an `admitted` set), so `expose V::**;`, `expose V; expose V::**;`, and
+  `expose P::**;` draw each usage once, as a node, and never also as a row (`FinalizeBoxes` omits a
+  usage that is a box from its owner's compartments, and a usage that is not admitted stays a row).
+- *Bracket filters select, they do not widen.* The test of "in scope through a subject" ignores
+  `ExposedScope.ExplicitMembers` (it uses a copy of the scope that has only the subjects), so a
+  definition selected by `expose P::**[expr];` keeps its usages as rows.
+- *Later narrowing still applies.* The standalone view `filter` conditions and the depth limit run
+  after admission. A usage node that fails a condition is removed, and `RemoveRowUsages` and
+  `FinalizeBoxes` then list it as a row of its owner; the depth limit applies to part trees exactly as
+  to unscoped views (see *Depth limit* below).
+- *Annotations are unchanged.* A usage admitted by this rule is exposed by its owner, not as a member of
+  an expose: its `doc` and `comment` are drawn only when an expose also exposes the owner's members
+  (`::*`, `::**`), as `ExposeScopeResolver.IsAnnotationExposed` decides for any element.
+
+The dynamic views (`--view-type`/`--view-target`) are unaffected: `DynamicViewSynthesizer` synthesizes a
+recursive expose of the target, which already reaches every owned usage.
+
+**No per-element cap.** The closure is bounded by the model text, so the strategy imposes no cap on
+the number of nodes an exposed element draws. A view that exposes many elements, such as an overview of a
+whole system, grows with the usages they own; the remedy is to expose fewer elements (the per-system and
+per-subsystem views exist for that) or to apply the depth limit, and a cap would be a separate decision.
+
+**Depth limit.** A usage node is one level below its owner, so the owner is a leaf with a trailing `…`
+row while `RenderOptions.DepthLimit` does not permit that level (`PlaceDef`). For an exposed definition at
+the root, limits 1 and 2 show the `…` row and limit 3 shows the part nodes; each enclosing package folder
+shifts this by one, exactly as in an unscoped view.
 
 `CreateBox` builds the not-yet-sized box:
 
@@ -224,7 +275,8 @@ standalone box. A top-level usage and every definition are never removed by this
 
 `FinalizeBoxes` builds, for every box, the compartments of its owned features that are not nodes of
 their own (a feature that is a node of the box is listed in `drawnAsNodes`, so a node-kind feature that
-is not rendered, for example under `expose P::*;`, stays a row), prepends the `doc` compartment when
+is not rendered — depth-truncated, removed by a view condition, outside the scope, or owned by an element
+that a bracket filter selected — stays a row), prepends the `doc` compartment when
 documentation is visible, and computes the box size with `ComputeBoxSize`.
 
 `BuildCompartments` groups the owned features by keyword and emits the groups in a fixed order: the
