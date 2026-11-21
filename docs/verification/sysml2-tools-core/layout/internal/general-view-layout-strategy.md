@@ -639,6 +639,15 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning`:
   Unsupported filter text emits the "could not be evaluated" warning while the unfiltered scope
   still renders
+- `GeneralViewLayoutStrategy_BuildLayout_OversizeScope_PassesEngineReducedEffortWarningThrough`:
+  A package whose connectors between nested folders exceed the engine's full-effort work limit
+  (60 definitions in six folders, each specializing one in the next folder) keeps the engine's
+  "work limit" reduced-effort hint in `Warnings`, exactly once, and still draws every box
+- `GeneralViewLayoutStrategy_BuildLayout_SmallScope_HasNoEngineWarning`:
+  A small cross-folder model draws with no warning, so the pass-through adds none
+- `GeneralViewLayoutStrategy_BuildLayout_OversizeScopeWithOwnWarning_ReportsBothWarnings`:
+  The oversize model laid out by a view whose filter cannot be evaluated reports the strategy's own
+  "could not be evaluated" warning first and the engine's hint after it, neither replacing the other
 - `GeneralViewLayoutStrategy_BuildLayout_FilterExpressionMatchesNothing_RendersEmpty`:
   A supported filter expression that matches no candidates narrows the diagram to an empty canvas
 - `GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged`:

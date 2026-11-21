@@ -138,6 +138,13 @@ code 0, writes a PNG whose header width and height are within the limit, and pri
 `warning: Diagram 'WideView' (...) exceeds the 8192 px PNG limit; scaled to <w>×<h> px.` line whose
 scaled size matches the written image.
 
+#### RenderSubsystem_OversizeScope_ReportsEngineReducedEffortWarningAndExitsZero
+
+Verifies that rendering a package of 60 definitions in six folders, each specializing one in the next
+folder (more cross-folder connectors than the layout engine routes at full effort), succeeds with exit
+code 0, writes the SVG, and prints exactly one `  warning:` line carrying the engine's "work limit"
+reduced-routing-effort hint.
+
 #### RenderSubsystem_NoOutputDir_UsesCurrentDirectory
 
 Verifies that omitting `--output` causes files to be written to the current working

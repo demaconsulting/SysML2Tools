@@ -963,6 +963,19 @@ The scaled image is smaller, so its text is smaller too. For a full-size diagram
 (which has no size limit) or narrow the view with `expose` or `--view-target`. The warning does not
 change the exit code.
 
+A General View of a very large package (many connectors between boxes nested in different folders,
+as in the OMG SysML v2 Annex A `SimpleVehicleModel`) is routed with a bounded amount of work so that it
+finishes in seconds. When a scope is too large for the full routing effort, `render` still draws every
+connector and prints the layout engine's hint after that view's output file; a few connectors in that
+scope may then take an elbow that crosses a box:
+
+```text
+  warning: Edge routing of the scope of 14 node(s) starting at 'folder:SimpleVehicleModel::Definitions::PartDefinitions' reached its work limit: its connectors were routed without the extra quality searches (and those of the scopes inside it).
+```
+
+The warning does not change the exit code; to avoid the reduced effort, narrow the view with `expose`
+or `--view-target`.
+
 # Querying
 
 The `query` command loads a workspace, resolves the semantic model, and answers

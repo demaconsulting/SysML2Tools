@@ -315,6 +315,7 @@ sections:
         children:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FilterFallbackWarning
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-DroppedRelationshipEdgeWarning
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-EngineWarningPassThrough
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-NoCrossings
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-CrossingWarning
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedFilter

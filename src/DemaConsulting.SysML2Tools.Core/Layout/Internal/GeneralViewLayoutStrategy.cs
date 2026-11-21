@@ -640,12 +640,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // for each `expose <path>::**[<expr>]` bracket filter that failed to parse or evaluate
         // (see ExposeScopeResolver.ResolveExposedScope's ExposedScope.Failures) — a
         // successfully-evaluated bracket filter already narrowed `scope` above and needs no
-        // warning — through the standard layout-warnings channel.
+        // warning — through the standard layout-warnings channel. The layout engine's own warnings
+        // (for example the hint that a very large scope was routed with a reduced effort) ride on
+        // the placed tree and are kept, listed after ours rather than replaced by them.
         var warnings = conditionWarnings
             .Concat(LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? []))
             .Concat(LayoutWarnings.ForDroppedRelationshipEdges(context.ViewName, droppedEdges
                 .Select(d => (d.Kind, d.Source, d.Target, d.Reason))
                 .ToList()))
+            .Concat(placed.Warnings)
             .ToList();
         return warnings.Count == 0 ? placed : placed with { Warnings = warnings };
     }

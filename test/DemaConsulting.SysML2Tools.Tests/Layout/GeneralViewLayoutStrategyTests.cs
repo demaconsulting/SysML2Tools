@@ -1886,6 +1886,96 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Builds a model of <c>packageCount</c> sibling packages inside one root package, each holding
+    ///     <c>definitionsPerPackage</c> part definitions, in which every definition of package
+    ///     <c>n</c> specializes the same-numbered definition of package <c>n + 1</c> (wrapping around),
+    ///     so the root scope carries <c>packageCount * definitionsPerPackage</c> connectors between
+    ///     nested boxes of different folders — the shape of the OMG Annex A "General" views. The
+    ///     text depends only on the arguments, so every run lays out the same model.
+    /// </summary>
+    private static string BuildCrossPackageModel(int packageCount, int definitionsPerPackage)
+    {
+        var text = new System.Text.StringBuilder("package Root {\n");
+        for (var p = 0; p < packageCount; p++)
+        {
+            text.Append($"  package P{p} {{\n");
+            for (var d = 0; d < definitionsPerPackage; d++)
+            {
+                text.Append($"    part def D{d} :> Root::P{(p + 1) % packageCount}::D{d};\n");
+            }
+
+            text.Append("  }\n");
+        }
+
+        return text.Append("}\n").ToString();
+    }
+
+    /// <summary>
+    ///     A model with so many connectors between boxes nested in different folders that the layout
+    ///     engine draws them with a reduced routing effort reports that through
+    ///     <see cref="LayoutTree.Warnings"/>: the strategy passes the engine's own warning on instead
+    ///     of replacing it with its own.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_OversizeScope_PassesEngineReducedEffortWarningThrough()
+    {
+        // Arrange / Act: six folders of ten definitions, every definition specializing one in the next folder
+        var layout = await LayOutUnscopedAsync(BuildCrossPackageModel(6, 10));
+
+        // Assert: the engine's reduced-effort hint is reported, exactly once, and the diagram is still drawn
+        var hint = Assert.Single(layout.Warnings, w => w.Contains("work limit", StringComparison.Ordinal));
+        Assert.Contains("without the extra quality searches", hint, StringComparison.Ordinal);
+        Assert.Equal(60, CollectBoxes(layout.Nodes).Count(b => b.Label!.StartsWith('D')));
+    }
+
+    /// <summary>
+    ///     A model small enough for the full routing effort draws without any warning, so the pass-through
+    ///     does not invent one.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_SmallScope_HasNoEngineWarning()
+    {
+        // Arrange / Act
+        var layout = await LayOutUnscopedAsync(BuildCrossPackageModel(2, 2));
+
+        // Assert
+        Assert.Empty(layout.Warnings);
+    }
+
+    /// <summary>
+    ///     A view condition that cannot be evaluated gives the strategy a warning of its own; it and the engine's
+    ///     hint both reach <see cref="LayoutTree.Warnings"/>, ours first.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_OversizeScopeWithOwnWarning_ReportsBothWarnings()
+    {
+        // Arrange: the oversize model, laid out by a view whose filter expression cannot be evaluated
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, BuildCrossPackageModel(6, 10), TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var viewNode = new SysmlViewNode { Name = "V", QualifiedName = "Root::V", FilterExpressionText = "1 + 2" };
+
+            // Act
+            var layout = new GeneralViewLayoutStrategy().BuildLayout(
+                new ViewContext("v", result.Workspace, viewNode), new RenderOptions(Themes.Light));
+
+            // Assert
+            var ours = layout.Warnings.ToList().FindIndex(w => w.Contains("could not be evaluated", StringComparison.Ordinal));
+            var engine = layout.Warnings.ToList().FindIndex(w => w.Contains("work limit", StringComparison.Ordinal));
+            Assert.True(ours >= 0, "the strategy's own warning is kept");
+            Assert.True(engine > ours, "the engine's warning follows it");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A view whose <c>FilterExpressionText</c> is a Phase 1 classification-test expression
     ///     that matches no candidate's metadata annotations narrows the rendered scope to nothing,
     ///     confirming standalone <c>filter</c> evaluation actually applies (as opposed to the
