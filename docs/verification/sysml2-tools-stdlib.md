@@ -29,6 +29,6 @@ Primary acceptance evidence is provided by:
 - `StdlibProviderTests.GetSymbolTable_ReturnsNonEmpty` — stdlib table is not empty.
 - `StdlibProviderTests.GetSymbolTable_IsCached` — two calls return the same instance.
 - `StdlibProviderTests.GetSymbolTable_RepeatedCalls_ReturnSameDiagnostics` — repeated calls return the same table and
-  equal diagnostics.
+  the same diagnostics instance.
 - `StdlibProviderTests.GetSymbolTable_ContainsKnownStdlibTypes` — table has > 50 declarations.
 - `StdlibProviderTests.GetSymbolTable_DiagnosticsNotNull` — diagnostics list is not null.

@@ -34,7 +34,7 @@ public sealed class StdlibProviderTests
     }
 
     /// <summary>
-    ///     Repeated calls to GetSymbolTable return the same diagnostics list as well as the same table.
+    ///     Repeated calls to GetSymbolTable return the same diagnostics list instance as well as the same table.
     /// </summary>
     [Fact]
     public void GetSymbolTable_RepeatedCalls_ReturnSameDiagnostics()
@@ -43,7 +43,7 @@ public sealed class StdlibProviderTests
         var (table2, diagnostics2) = StdlibProvider.GetSymbolTable();
 
         Assert.Same(table1, table2);
-        Assert.Equal(diagnostics1, diagnostics2);
+        Assert.Same(diagnostics1, diagnostics2);
     }
 
     /// <summary>

@@ -31,7 +31,7 @@ beyond a standard .NET SDK installation.
 | `GetSymbolTable_ReturnsNonEmpty` | The returned symbol table is non-empty |
 | `GetSymbolTable_ContainsKnownStdlibTypes` | Known standard library types are present |
 | `GetSymbolTable_IsCached` | Repeated calls return the same instance |
-| `GetSymbolTable_RepeatedCalls_ReturnSameDiagnostics` | Repeated calls return the same table and equal diagnostics |
+| `GetSymbolTable_RepeatedCalls_ReturnSameDiagnostics` | Repeated calls return the same table and diagnostics |
 | `GetSymbolTable_DiagnosticsNotNull` | A non-null diagnostics list is returned |
 | `GetSymbolTable_RegeneratedStdlib_CarriesModifiers` | `Parts::Part` is abstract (stale resource fails) |
 | `GetSymbolTable_Diagnostics_ContainNoErrors` | No diagnostic has error severity |
