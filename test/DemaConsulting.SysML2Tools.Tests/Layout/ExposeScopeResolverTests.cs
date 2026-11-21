@@ -955,4 +955,23 @@ public sealed class ExposeScopeResolverTests
         Assert.False(ExposeScopeResolver.IsAnnotationExposed(workspace, "P::A", "Documentation", ScopeOf(ExposeRecursionKind.MembershipExact)));
         Assert.False(ExposeScopeResolver.IsAnnotationExposed(workspace, "P::Other", "Documentation", ScopeOf(ExposeRecursionKind.MembershipRecursive)));
     }
+
+    /// <summary>
+    ///     An element is exposed by name only by a written membership subject (exact or recursive) that
+    ///     names it: not by a namespace-form subject, not as an ancestor of the exposed element and not
+    ///     as the typing target added for an exposed usage.
+    /// </summary>
+    [Fact]
+    public void ExposesByName_DependsOnSubjectKindAndOrigin()
+    {
+        // Arrange
+        ExposedScope ScopeOf(ExposeSubject subject) => new([subject], []);
+
+        // Act / Assert
+        Assert.True(ExposeScopeResolver.ExposesByName("P::A", ScopeOf(new ExposeSubject("P::A", ExposeRecursionKind.MembershipExact))));
+        Assert.True(ExposeScopeResolver.ExposesByName("P::A", ScopeOf(new ExposeSubject("P::A", ExposeRecursionKind.MembershipRecursive))));
+        Assert.False(ExposeScopeResolver.ExposesByName("P::A", ScopeOf(new ExposeSubject("P::A", ExposeRecursionKind.NamespaceDirectChildren))));
+        Assert.False(ExposeScopeResolver.ExposesByName("P::A", ScopeOf(new ExposeSubject("P::A", ExposeRecursionKind.MembershipExact, IsTypingTarget: true))));
+        Assert.False(ExposeScopeResolver.ExposesByName("P", ScopeOf(new ExposeSubject("P::A", ExposeRecursionKind.MembershipExact))));
+    }
 }

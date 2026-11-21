@@ -270,6 +270,14 @@ sections:
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-SpecificityTieBreak
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-BracketFilterUsageLevelCandidates
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-UnlimitedSubjectMatch
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeFollowsImports
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportVisibility
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportBracketFilter
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportCycleSafe
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposesByName
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ImportedMembersOutsideImporterFrame
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposedDefinitionDrawsOwnStructure
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposedUsageIsRoot
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExposeScopingRootSelection
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExposeScopingActionFiltering
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExposeScopingSuccessionEndpointRetention

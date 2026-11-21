@@ -2,6 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+// cspell:ignore Dpart Epart Xpart Ypart
+
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.Rendering.Layout;
@@ -660,6 +662,412 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Equal("Pkg", folder.Label);
         Assert.Contains(folder.Children.OfType<LayoutBox>(), b => b.Label == "Block1");
         Assert.Contains(folder.Children.OfType<LayoutBox>(), b => b.Label == "Block2");
+    }
+
+    /// <summary>
+    ///     Model for the expose-through-import tests. <c>A</c> re-exports <c>B</c> through a
+    ///     <c>public import</c> and uses <c>C</c> through a <c>private import</c>; an expose ignores
+    ///     visibility (<c>isImportAll = true</c>), so both count, as do <c>A</c>'s private members and,
+    ///     for a recursive expose, the private imports of its nested packages (<c>Nested</c> imports
+    ///     <c>N</c>, the private package <c>Secret</c> imports <c>J</c>). <c>A2</c> publicly imports
+    ///     one member, <c>A3</c> imports <c>B</c> recursively, <c>A4</c> reaches <c>D</c> through the
+    ///     public import of <c>B2</c> (which also privately imports <c>E</c>, not exposed because
+    ///     the <c>A4</c>→<c>B2</c> import is not an <c>import all</c>), and <c>X</c> and <c>Y</c>
+    ///     import each other. <c>A5</c> imports <c>R</c> non-recursively and <c>A6</c> recursively;
+    ///     <c>R</c>'s nested <c>RSub</c> publicly imports <c>V</c> and privately imports <c>W</c>.
+    /// </summary>
+    private const string ExposeImportsSysml = """
+        package B {
+            part def Widget;
+            part def Gadget;
+            private part def Hidden;
+            package Inner { part def Deep; }
+        }
+        package C { part def Cee; private part def CeeHidden; }
+        package N { part def Npart; }
+        package J { part def Lever; }
+        package A {
+            public import B::*;
+            private import C::*;
+            part def Owner;
+            private part def OwnerSecret;
+            package Nested { part def NestedPart; private import N::*; }
+            private package Secret { part def SecretPart; private import J::*; }
+        }
+        package A2 { public import B::Widget; part def Owner2; }
+        package A3 { public import B::**; part def Owner3; }
+        package D { part def Dpart; }
+        package E { part def Epart; }
+        package B2 { public import D::*; private import E::*; part def B2own; }
+        package A4 { public import B2::*; part def Owner4; }
+        package X { private import Y::*; part def Xpart; }
+        package Y { public import X::*; part def Ypart; }
+        package V { part def Valve; }
+        package W { part def Washer; }
+        package R {
+            part def Rotor;
+            package RSub { part def RSubPart; public import V::*; private import W::*; }
+        }
+        package A5 { public import R::*; part def Owner5; }
+        package A6 { public import R::**; part def Owner6; }
+        package Diagrams {
+            view Members { expose A::*; }
+            view Recursive { expose A::**; }
+            view MembershipImport { expose A2::*; }
+            view RecursiveImport { expose A3::*; }
+            view Transitive { expose A4::*; }
+            view Cycle { expose X::**; }
+            view BareNamespace { expose A; }
+            view FrameAndMembers { expose A; expose A::*; }
+            view ImportedNamespaceRecursive { expose A5::**; }
+            view ImportedRecursiveImport { expose A6::*; }
+        }
+        """;
+
+    /// <summary>Returns the labels of every box in <paramref name="layout"/>.</summary>
+    private static List<string?> LabelsOf(LayoutTree layout) => CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+
+    /// <summary>
+    ///     <c>expose A::*;</c> draws the members <c>A</c> re-exports through <c>public import B::*;</c>
+    ///     next to its own members (issue #148).
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicWildcardImport_DrawsImportedMembers()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Members");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Owner", labels);
+        Assert.Contains("Widget", labels);
+        Assert.Contains("Gadget", labels);
+        Assert.Contains("Inner", labels);
+    }
+
+    /// <summary>
+    ///     An expose ignores visibility (SysML v2 §8.3.26.2, <c>isImportAll = true</c>): <c>expose A::*;</c>
+    ///     also draws what <c>A</c> brings in through <c>private import C::*;</c> — as the OMG Pilot does
+    ///     — but the import <c>A</c>→<c>C</c> is an ordinary import, so <c>C</c>'s own private member
+    ///     and a private member of an imported package are not drawn.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateImportOfExposedNamespace_DrawsImportedPublicMembers()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Members");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Cee", labels);
+        Assert.DoesNotContain("CeeHidden", labels);
+        Assert.DoesNotContain("Hidden", labels);
+    }
+
+    /// <summary>
+    ///     Visibility is ignored for the exposed namespace's own members too: <c>expose A::*;</c> draws
+    ///     a <c>private</c> part definition and a <c>private</c> nested package of <c>A</c>.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateOwnedMembers_AreDrawn()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Members");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("OwnerSecret", labels);
+        Assert.Contains("Secret", labels);
+    }
+
+    /// <summary>
+    ///     A non-recursive <c>expose A::*;</c> stops at <c>A</c>'s own imports: the private imports of
+    ///     its nested packages (<c>Nested</c>→<c>N</c>, <c>Secret</c>→<c>J</c>) bring nothing in.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_ImportsOfNestedPackages_AreNotFollowed()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Members");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.DoesNotContain("Npart", labels);
+        Assert.DoesNotContain("Lever", labels);
+    }
+
+    /// <summary>
+    ///     A public membership import (<c>public import B::Widget;</c>) brings in exactly that member.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicMembershipImport_DrawsOnlyThatMember()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "MembershipImport");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Owner2", labels);
+        Assert.Contains("Widget", labels);
+        Assert.DoesNotContain("Gadget", labels);
+    }
+
+    /// <summary>
+    ///     A public recursive import (<c>public import B::**;</c>) brings in the imported package and
+    ///     everything below it.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicRecursiveImport_DrawsWholeImportedTree()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "RecursiveImport");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Owner3", labels);
+        Assert.Contains("B", labels);
+        Assert.Contains("Widget", labels);
+        Assert.Contains("Deep", labels);
+    }
+
+    /// <summary>
+    ///     Imports are followed transitively through <c>public</c> imports only below the exposed
+    ///     namespace: <c>A4</c> reaches <c>Dpart</c> through <c>B2</c>'s public import, but not
+    ///     <c>Epart</c> through its private one (the <c>A4</c>→<c>B2</c> import is not an
+    ///     <c>import all</c>).
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Transitive");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("B2own", labels);
+        Assert.Contains("Dpart", labels);
+        Assert.DoesNotContain("Epart", labels);
+    }
+
+    /// <summary>
+    ///     <c>expose A::**;</c> follows the imports of <c>A</c> and, because the expose ignores
+    ///     visibility all the way down, of every nested package including the private one — the
+    ///     private imports <c>Nested</c>→<c>N</c> and <c>Secret</c>→<c>J</c> bring <c>Npart</c> and
+    ///     <c>Lever</c> in — and draws the imported packages' contents (<c>Deep</c> inside the
+    ///     imported <c>Inner</c>).
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_FollowsPrivateImportsOfNestedPackages()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Recursive");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("NestedPart", labels);
+        Assert.Contains("Widget", labels);
+        var inner = Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "Inner");
+        Assert.Contains(inner.Children.OfType<LayoutBox>(), b => b.Label == "Deep");
+        Assert.Contains("Cee", labels);
+        Assert.Contains("Npart", labels);
+        Assert.Contains("Lever", labels);
+    }
+
+    /// <summary>
+    ///     The expose's ignore-visibility flag reaches the nested packages of the exposed namespace
+    ///     but not the packages its imports lead to: <c>expose A5::**;</c> (<c>A5</c> imports
+    ///     <c>R::*</c>) draws <c>R</c>'s public members and the contents of <c>RSub</c>, but neither
+    ///     descends into <c>RSub</c> to follow its imports (<c>public import V::*;</c>,
+    ///     <c>private import W::*;</c>) — recursion covers only what the exposed namespace owns.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_DoesNotDescendIntoImportedNamespaces()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "ImportedNamespaceRecursive");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Rotor", labels);
+        Assert.Contains("RSub", labels);
+        Assert.Contains("RSubPart", labels);
+        Assert.DoesNotContain("Valve", labels);
+        Assert.DoesNotContain("Washer", labels);
+    }
+
+    /// <summary>
+    ///     A recursive import (<c>public import R::**;</c>) does descend into the imported package, but
+    ///     as an ordinary import it ignores visibility no further: <c>RSub</c>'s public import brings
+    ///     <c>Valve</c> in, its private import of <c>W</c> does not.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_RecursiveImport_FollowsOnlyPublicImportsBelow()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "ImportedRecursiveImport");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Owner6", labels);
+        Assert.Contains("RSubPart", labels);
+        Assert.Contains("Valve", labels);
+        Assert.DoesNotContain("Washer", labels);
+    }
+
+    /// <summary>
+    ///     Model for the imported-visibility and imported-filter tests: <c>Lib::Widget</c> owns a public
+    ///     <c>Gear</c> and a private <c>Secret</c> (which owns <c>Cog</c>); <c>Reach</c> imports
+    ///     <c>Lib</c> publicly, <c>ReachAll</c> through <c>import all</c>. <c>Marks::Flagged</c> and
+    ///     <c>Marks::Host::Inner</c> carry <c>@Safety</c>; <c>Filtered</c> imports <c>Marks</c>
+    ///     recursively through <c>[@Safety]</c>.
+    /// </summary>
+    private const string ExposeImportFiltersSysml = """
+        metadata def Safety { }
+        package Lib {
+            part def Widget {
+                part def Gear;
+                private part def Secret { part def Cog; }
+            }
+        }
+        package Reach { public import Lib::*; }
+        package ReachAll { public import all Lib::*; }
+        package Other { part def OtherMarked { @Safety; } part def OtherPlain; }
+        package Marks {
+            public import Other::*;
+            part def Flagged { @Safety; part def FlaggedChild; }
+            part def Plain;
+            part def Host {
+                part def Inner { @Safety; }
+                part def Unmarked;
+            }
+        }
+        package Filtered { public import Marks::**[@Safety]; }
+        package Diagrams {
+            view Visibility { expose Reach::**; }
+            view VisibilityAll { expose ReachAll::**; }
+            view Marked { expose Filtered::**; }
+        }
+        """;
+
+    /// <summary>
+    ///     A recursive expose of a package that publicly imports another keeps the imported side's
+    ///     visibility (KerML <c>visibleMemberships</c>): the public <c>Widget</c> and its public
+    ///     <c>Gear</c> are drawn, its private nested <c>Secret</c> and everything below it are not.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportedPrivateNestedMember_IsNotDrawn()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportFiltersSysml, "Visibility");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Widget", labels);
+        Assert.Contains("Gear", labels);
+        Assert.DoesNotContain("Secret", labels);
+        Assert.DoesNotContain("Cog", labels);
+    }
+
+    /// <summary>
+    ///     An <c>import all</c> ignores visibility on the imported side, so the same recursive expose
+    ///     does draw the private nested <c>Secret</c> and its <c>Cog</c>.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportAll_DrawsImportedPrivateNestedMember()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportFiltersSysml, "VisibilityAll");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Widget", labels);
+        Assert.Contains("Secret", labels);
+        Assert.Contains("Cog", labels);
+    }
+
+    /// <summary>
+    ///     The bracket filter of a recursive import is applied to every candidate the import reaches,
+    ///     nested ones included (as name resolution does): <c>import Marks::**[@Safety];</c> exposes the
+    ///     <c>@Safety</c> elements <c>Flagged</c> and the nested <c>Inner</c>, and rejects <c>Plain</c>,
+    ///     <c>Host</c>, <c>Unmarked</c> and the unmarked <c>FlaggedChild</c>.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToNestedCandidates()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportFiltersSysml, "Marked");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Flagged", labels);
+        Assert.Contains("Inner", labels);
+        Assert.DoesNotContain("Plain", labels);
+        Assert.DoesNotContain("Unmarked", labels);
+        Assert.DoesNotContain("FlaggedChild", labels);
+    }
+
+    /// <summary>
+    ///     The bracket filter of a recursive import is carried through the imports of its target too:
+    ///     <c>Marks</c> publicly imports the unmarked package <c>Other</c>, so
+    ///     <c>import Marks::**[@Safety];</c> exposes its <c>@Safety</c> member <c>OtherMarked</c> and
+    ///     rejects <c>OtherPlain</c>.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToTransitiveImports()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportFiltersSysml, "Marked");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("OtherMarked", labels);
+        Assert.DoesNotContain("OtherPlain", labels);
+    }
+
+    /// <summary>
+    ///     Packages that import each other (one privately, one publicly) do not make the expose loop: it terminates and
+    ///     draws each member once.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportCycle_TerminatesWithoutDuplicates()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Cycle");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Single(labels, l => l == "Xpart");
+        Assert.Single(labels, l => l == "Ypart");
+    }
+
+    /// <summary>A bare <c>expose A;</c> exposes only the package itself, so nothing it imports is drawn.</summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_BareNamespaceExpose_DrawsNoImportedMember()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "BareNamespace");
+
+        // Assert
+        var box = Assert.Single(CollectBoxes(layout.Nodes));
+        Assert.Equal("A", box.Label);
+    }
+
+    /// <summary>
+    ///     With the package exposed as well (<c>expose A; expose A::*;</c>) its frame holds only the
+    ///     members it owns; the imported members belong to their own package and are drawn outside it.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposePackageAndMembers_DrawsImportedMembersOutsideFrame()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "FrameAndMembers");
+
+        // Assert
+        var frame = Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "A");
+        var framed = frame.Children.OfType<LayoutBox>().Select(b => b.Label).ToList();
+        Assert.Contains("Owner", framed);
+        Assert.DoesNotContain("Widget", framed);
+        Assert.Contains(layout.Nodes.OfType<LayoutBox>(), b => b.Label == "Widget");
     }
 
     /// <summary>

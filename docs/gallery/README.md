@@ -528,6 +528,37 @@ SVG: [`svg/VehicleStructureGeneralView.svg`](svg/VehicleStructureGeneralView.svg
 
 ---
 
+## 18. Expose Through Imports and an Exposed Part Definition
+
+Two `expose` behaviors in one model. In the General View `expose RoverSystem; expose RoverSystem::*;`
+draws the `RoverSystem` frame with the members it owns (`RoverController` and the `private`
+`RoverDiagnostics`, since an `expose` ignores visibility) and, outside the frame, the members the package
+brings in through `public import RoverPropulsion::*;` (`Motor`, `Gearbox`),
+`public import RoverSensing::Camera;` (`Camera`, joined to the frame by the `«import»` dependency a
+membership import draws) and `private import RoverInternals::*;` (`Bracket`). An imported member is owned by
+its own package, so it is never drawn inside the frame of the package that imports it. The imported side is
+limited to what the imported package makes public: `RoverSensing::Lidar` is not imported and
+`RoverInternals::Fastener` is private, so neither is drawn.
+
+An Interconnection View that exposes a part definition (`expose Rover;`) draws the definition as the frame
+with its parts (`battery`, `drive`, `mast`), the interface between the power ports and the connection
+inside it, and its port `charge` on the border; it does not need `expose Rover::**;`. Exposing the part
+usage (`expose rover;`) draws the usage `rover : Rover` as a rounded frame with the structure its type
+provides.
+
+Model: [`models/18-expose-imports-and-interconnection.sysml`](models/18-expose-imports-and-interconnection.sysml) ·
+SVG: [`svg/ImportedUnitsGeneralView.svg`](svg/ImportedUnitsGeneralView.svg),
+[`svg/RoverInterconnectionView.svg`](svg/RoverInterconnectionView.svg),
+[`svg/RoverUsageInterconnectionView.svg`](svg/RoverUsageInterconnectionView.svg)
+
+![Imported Units General View: the RoverSystem frame holding RoverController and RoverDiagnostics, with Camera joined to it by an import dependency and Motor, Gearbox and Bracket drawn outside the frame](png/ImportedUnitsGeneralView.png)
+
+![Rover Interconnection View: the Rover part definition frame with the battery, drive and mast parts, the interface between their power ports, and the charge port on its border](png/RoverInterconnectionView.png)
+
+![Rover Usage Interconnection View: the rover : Rover usage frame with the same parts, interface, connection and port](png/RoverUsageInterconnectionView.png)
+
+---
+
 ## Known deviation: the diagram-quality fill criterion (B5)
 
 The gallery images are checked against the project's diagram-quality criteria. Every image passes
@@ -636,3 +667,4 @@ The interconnection models were extended to exercise the notation of the Interco
 | 15 | General View — Documentation and Comments on Nested Parts | Charging Station | ✅ |
 | 16 | General View — Nested Packages and Feature Typing | Vehicle Typing | ✅ |
 | 17 | General View — Part Tree of an Exposed Definition | Vehicle Structure | ✅ |
+| 18 | General View — Expose Through Imports; Interconnection View — Exposed Part Definition and Usage | Rover | ✅ |

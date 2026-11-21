@@ -164,13 +164,47 @@ sections:
           The Interconnection View renders exactly one selected root's interior, so `expose`
           scoping cannot narrow a workspace-wide collection directly; instead it restricts which
           root is selected — accepting the current heuristic root itself, an inner part of it, a
-          definition containing the heuristic default, or the resolved type of an exposed usage —
+          definition containing the heuristic default, or an exposed part usage —
           and selecting no root at all when nothing in the workspace is relevant to the scope.
         tests:
           - InterconnectionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
           - InterconnectionView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot
           - InterconnectionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas
-          - InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposedDefinitionDrawsOwnStructure
+        title: >-
+          When a view exposes a part definition by name (expose Car;),
+          InterconnectionViewLayoutStrategy shall draw that definition as the root frame with its
+          direct nested parts, its ports and the connections between its parts inside it, expanding
+          a nested container part only for a recursive expose, and shall draw nothing for a
+          definition that has no nested parts.
+        justification: |
+          StandardViewDefinitions::InterconnectionView presents exposed features as nodes and their
+          nested features as nested nodes; nothing requires expose Car::** for the nested parts, and
+          the OMG Pilot draws them for expose Car;. Re-applying the expose scope to the exposed
+          element's own parts left the interconnection compartment empty (issue #145). Exposing a
+          nested part of a definition still narrows its owner's frame to that part.
+        tests:
+          - InterconnectionView_BuildLayout_ExposePartDef_DrawsFrameWithNestedParts
+          - InterconnectionView_BuildLayout_ExposePartDef_DrawsPortsAndConnections
+          - InterconnectionView_BuildLayout_ExposePartDef_NestedContainerPartStaysLeaf
+          - InterconnectionView_BuildLayout_ExposePartDefRecursive_DrawsEachNestedPartOnce
+          - InterconnectionView_BuildLayout_ExposeNestedPart_StillNarrowsToThatPart
+          - InterconnectionView_BuildLayout_ExposePartDefWithoutParts_DrawsNothing
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposedUsageIsRoot
+        title: >-
+          When a view exposes a top-level part usage by name (expose car;),
+          InterconnectionViewLayoutStrategy shall draw that usage as the root frame — labeled with
+          its name and type, not the definition — with the nested parts, ports and connections its
+          type provides.
+        justification: |
+          The exposed element is the usage, so the frame is the usage; its interior is inherited
+          from its type, as it is when the usage is drawn as a nested container part. Choosing the
+          typing target's definition as the root drew the wrong element (issue #145).
+        tests:
+          - InterconnectionView_BuildLayout_ExposePartUsage_DrawsUsageFrameWithTypeStructure
+          - InterconnectionView_BuildLayout_ExposedUsage_DrawsUsageWithTypeInteriorAsRoot
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScopingPartFiltering
         title: >-

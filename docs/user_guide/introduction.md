@@ -594,6 +594,15 @@ rounded box headed `«part» name : Type` for a part usage declared in a package
 parts and connectors (a usage is a root only when there is no part definition to show, or when the view
 exposes it). An italic `interconnection` title separates the heading from the contents.
 
+A view that exposes a part definition by name draws that definition as the frame, with its own parts,
+ports and connections inside it — `expose Car;` for `part def Car { port fuelIn : FuelPort; part engine :
+Engine; part wheels : Wheel [4]; connect engine to wheels; }` draws `Car` with `engine` and `wheels` joined
+by the connection and the `fuelIn` port on its border; `expose Car::**;` additionally expands the nested
+parts that are themselves containers. Exposing a part usage (`part car : Car;` and `expose car;`) draws the
+usage `car : Car` as a rounded frame with the parts, ports and connections its type provides — the
+OMG Pilot draws only the empty usage here, and this tool deliberately shows the structure the usage
+inherits, as it does for every nested container part.
+
 Ports are small white rounded squares on the border of the part, with the label `name : Type` outside it:
 
 | Textual form | Drawn as |
@@ -688,6 +697,32 @@ entire workspace:
     itself** (a NamespaceExpose only ever exposes `X`'s Memberships — its members — never `X` as
     a member of itself), but additionally includes descendants beyond direct children, at any
     depth — unlike `NamespaceDirectChildren`, which stops at one level.
+
+  **Imported members.** `expose A::*;`, `expose A::*::**;` and `expose A::**;` are namespace imports of
+  `A`, so they also include the members `A` **brings in through its imports** — a wildcard
+  import (`public import B::*;`) adds `B`'s public members, a membership import
+  (`public import B::Widget;`) adds that member, and a recursive import (`public import B::**;`) adds
+  the member and everything below it. With `expose A::**;` and `expose A::*::**;` the imported members'
+  contents are drawn too (for example the elements inside an imported package). An `expose` always ignores
+  visibility (SysML v2 §8.3.26.2, `isImportAll = true`), exactly as the OMG Pilot implementation does
+  (KerML 1.0 §8.3.2.4.5, `Namespace::visibleMemberships` with `includeAll = true`). So for the exposed
+  package `A`: its `private` members are exposed, **every one of its imports counts whether `public` or
+  `private`** (`private import C::*;` brings in `C`'s members), and — for `A::**` and `A::*::**` — the
+  private members and private imports of the packages nested in `A`, private ones included, count too. The
+  imports themselves are ordinary imports, so the other side is limited: an imported package contributes
+  only its **public** members and follows only its **public** imports (transitively), unless the import is
+  `import all`. A recursive expose descends into the packages `A` owns, not into packages that arrived
+  through an import (a recursive import such as `import B::**;` does descend, again public-only: a
+  `private` nested member of an imported member is not exposed). A bracket filter on an import
+  (`public import B::**[@Safety];`) is tested against every member the import reaches, nested ones
+  and those `B` itself imports included. Standard
+  library imports (for instance `private import StandardViewDefinitions::*;`) add nothing, and an import
+  cycle between packages terminates. To keep a library's members out of a view, qualify the reference
+  instead of importing the library into the exposed package. A bare `expose A;` exposes only `A` and
+  follows no import. In a General View an imported member is owned
+  by its own package, so it is drawn in that package's folder — at the top level when that package is not
+  exposed itself — and **never inside `A`'s frame**, which holds the members `A` owns. Imports through an
+  alias, and imports of a package that an `expose` with a bracket filter selects, are not followed.
 
   If `X` does not resolve to any declaration in the workspace (for example, a typo), the tool
   falls back to rendering the full workspace for that view — but now also reports a diagnostic

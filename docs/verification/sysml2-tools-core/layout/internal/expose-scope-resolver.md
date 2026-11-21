@@ -79,6 +79,21 @@ configuration are required beyond a standard .NET SDK installation.
 - `IsRootRelevantToScope` returns `false` for an unrelated candidate.
 - (Phase 2a) `IsRootRelevantToScope` returns `true` when the candidate exactly equals an
   `ExplicitMembers` entry.
+- A `MembershipExact` subject, a `MembershipRecursive` subject and nothing else names an element by name
+  (`ExposesByName`): a namespace-form subject, an ancestor and a typing target do not.
+- For a namespace-valued entry (`expose A::*;`, `A::*::**;`, `A::**;`) `Subjects` also holds the memberships `A` brings
+  in through its imports — each member of a wildcard import (exact, or whole subtree when the expose or the import is
+  recursive), the member of a membership import, and, transitively, those of the public imports of every imported
+  namespace — added once, with import cycles terminating. An expose ignores visibility (`isImportAll = true`): all of
+  `A`'s own imports are followed whatever their visibility, as are those of every namespace `A` owns for a recursive
+  expose, while a namespace reached through an import contributes only public members and public imports and is
+  descended into only through a recursive import. Standard library targets add nothing, and a bare `expose A;` adds
+  nothing. A subtree reached through an import keeps that import's visibility — an ordinary import covers only public
+  descendants, an `import all` every one — and an import's bracket filter is tested against every candidate the import
+  reaches, nested ones and those reached through the imported namespace's own imports included. A descendant of a
+  recursive subject that the imported side's visibility hides is neither in scope nor root-relevant
+  (`IsRootRelevantToScope`). These imported-membership rules are verified through the laid-out diagram in
+  `GeneralViewLayoutStrategyTests` and `InterconnectionViewLayoutStrategyTests`.
 - With no current best candidate, `IsMoreSpecificCandidate` returns `true` for any candidate.
 - `IsMoreSpecificCandidate` returns `true` for a candidate with a longer qualified name than the
   current best, regardless of score.
@@ -196,3 +211,23 @@ configuration are required beyond a standard .NET SDK installation.
 - `IsAnnotationExposed_DependsOnExposeForm`:
   Annotations are exposed by `::*`/`::**` exposes of the owner (or recursive ancestors) and by an
   unscoped view, but not by a bare membership expose
+- `ExposesByName_DependsOnSubjectKindAndOrigin`:
+  Only an exact or recursive membership subject that names the element exposes it by name; a
+  namespace-form subject, a typing target and an ancestor do not
+- Imported-membership expansion (`GeneralViewLayoutStrategyTests`, through the laid-out diagram):
+  `..._ExposeNamespace_PublicWildcardImport_DrawsImportedMembers`,
+  `..._ExposeNamespace_PublicMembershipImport_DrawsOnlyThatMember`,
+  `..._ExposeNamespace_PublicRecursiveImport_DrawsWholeImportedTree`,
+  `..._ExposeNamespace_PrivateImportOfExposedNamespace_DrawsImportedPublicMembers`,
+  `..._ExposeNamespace_PrivateOwnedMembers_AreDrawn`,
+  `..._ExposeNamespace_ImportsOfNestedPackages_AreNotFollowed`,
+  `..._ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly`,
+  `..._ExposeNamespace_RecursiveImport_FollowsOnlyPublicImportsBelow`,
+  `..._ExposeRecursive_FollowsPrivateImportsOfNestedPackages`,
+  `..._ExposeRecursive_DoesNotDescendIntoImportedNamespaces`,
+  `..._ExposeRecursive_ImportedPrivateNestedMember_IsNotDrawn`,
+  `..._ExposeRecursive_ImportAll_DrawsImportedPrivateNestedMember`,
+  `..._ExposeRecursive_ImportBracketFilter_AppliesToNestedCandidates`,
+  `..._ExposeRecursive_ImportCycle_TerminatesWithoutDuplicates` and
+  `..._BareNamespaceExpose_DrawsNoImportedMember` (the full names are listed in the
+  `GeneralViewLayoutStrategy` verification)

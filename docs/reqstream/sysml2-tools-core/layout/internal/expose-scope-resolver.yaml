@@ -234,3 +234,92 @@ sections:
           define which memberships each expose form imports.
         tests:
           - IsAnnotationExposed_DependsOnExposeForm
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeFollowsImports
+        title: >-
+          ExposeScopeResolver.ResolveExposedScope shall add, for a namespace-valued expose entry
+          (expose A::*;, expose A::*::**; or expose A::**;), the memberships the exposed namespace
+          brings in through its imports — a wildcard import adds the imported namespace's members, a
+          membership import adds that member, a recursive import adds the member and its subtree,
+          and a recursive expose adds imported members as subtrees — while a bare expose A;
+          follows no import.
+        justification: |
+          A namespace expose is a namespace import of A (formal-26-03-02.md §8.3.26.4), and a
+          namespace import brings in the memberships A's own imports provide
+          (Namespace::visibleMemberships, KerML 1.0 §8.3.2.4.5). Models cannot merge
+          packages, so they split content into packages and re-export it through a system package;
+          without this, exposing that package drew only its owned members (issue #148).
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicWildcardImport_DrawsImportedMembers
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicMembershipImport_DrawsOnlyThatMember
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicRecursiveImport_DrawsWholeImportedTree
+          - GeneralViewLayoutStrategy_BuildLayout_BareNamespaceExpose_DrawsNoImportedMember
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportVisibility
+        title: >-
+          ExposeScopeResolver shall ignore visibility for the exposed namespace — following every
+          import of it, whatever its visibility, and, for a recursive expose, every import of each
+          namespace it owns at any depth, private ones included, and drawing its private members —
+          while a namespace reached through an import shall contribute only its public members and
+          follow only its public imports (unless the import is an import all), and recursion shall
+          descend into an imported namespace only through a recursive import; the subtree an
+          import brings in shall keep the import's visibility, so a non-public nested member of an
+          imported membership is not exposed unless the import is an import all, and such a hidden
+          nested container shall not be selected as the root of a single-root view.
+        justification: |
+          An Expose has isImportAll = true, so visibility is always ignored for it (SysML v2
+          §8.3.26.2, validateExposeIsImportAll). The exposed namespace's memberships are therefore
+          visibleMemberships(excluded, isRecursive, includeAll = true) (KerML 1.0 §8.3.2.4.5,
+          §8.3.2.4.6): all owned memberships and all owned imports, with includeAll passed through
+          to the recursion into owned namespaces. The import from the exposed namespace is an
+          ordinary Import with isImportAll = false (KerML 1.0 §8.3.2.4.2), so the imported side is
+          limited to public memberships and public imports, and the recursion into owned
+          namespaces never descends into imported ones. This is exactly what the OMG Pilot draws.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateImportOfExposedNamespace_DrawsImportedPublicMembers
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateOwnedMembers_AreDrawn
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_ImportsOfNestedPackages_AreNotFollowed
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_FollowsPrivateImportsOfNestedPackages
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_DoesNotDescendIntoImportedNamespaces
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_RecursiveImport_FollowsOnlyPublicImportsBelow
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportedPrivateNestedMember_IsNotDrawn
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportAll_DrawsImportedPrivateNestedMember
+          - InterconnectionView_BuildLayout_ExposeImportedMember_HiddenPrivateContainerIsNotRoot
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportBracketFilter
+        title: >-
+          ExposeScopeResolver shall apply the bracket filter of an import followed by an expose to
+          every candidate the import reaches — nested members of a recursive import and the members
+          reached through the imported namespace's own imports included — and expose exactly the
+          candidates the filter accepts.
+        justification: |
+          Name resolution tests each recursive candidate of a filtered import (import P::**[@Safety];)
+          against the filter, however the candidate is reached, so a member that does not satisfy it
+          is not imported (even one P merely re-exports through a public import) and one that does is
+          imported even when its owner is not. An expose that followed the import unfiltered below
+          the first level would draw members the import never brings in.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToNestedCandidates
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToTransitiveImports
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportCycleSafe
+        title: >-
+          ExposeScopeResolver shall terminate when the imports it follows form a cycle and shall
+          not add the same imported subject twice.
+        justification: |
+          Packages may import each other; an unguarded walk would never end and a duplicate subject
+          would draw an element twice.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportCycle_TerminatesWithoutDuplicates
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposesByName
+        title: >-
+          ExposeScopeResolver.ExposesByName shall return true only for an element named by a
+          written exact or recursive membership subject, and false for a namespace-form subject, an
+          ancestor of an exposed element and the typing target added for an exposed usage.
+        justification: |
+          An element the view exposes by name is drawn with its own structure, whereas an element
+          reached only as the ancestor of a narrower exposed element, or as the type of an exposed
+          usage, must not be treated as exposed itself.
+        tests:
+          - ExposesByName_DependsOnSubjectKindAndOrigin
