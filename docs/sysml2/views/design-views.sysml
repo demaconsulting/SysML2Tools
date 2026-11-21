@@ -38,6 +38,7 @@ package SysML2ToolsDesignViews {
         expose SysML2ToolsStdlib::SysML2ToolsStdlibSystem;
         expose SysML2ToolsCore::SysML2ToolsCoreSystem;
         expose SysML2ToolsTool::SysML2ToolsToolSystem;
+        filter not (@SysML::Documentation);
     }
 
     view OtsView : GeneralView {
@@ -287,7 +288,7 @@ package SysML2ToolsDesignViews {
     }
 
     view LanguageSemanticLoadingView : GeneralView {
-        doc /* Workspace loading: the loader and the parser, builder, resolver, walker, symbol table, and index it drives. Hub dependencies are omitted. */
+        doc /* Workspace loading: the loader and the parser, builder, resolver, walker, symbol table, and index it drives. It has no hub dependencies to omit. */
         expose SysML2ToolsLanguage_WorkspaceLoader::WorkspaceLoader;
         expose SysML2ToolsLanguage_WorkspaceParser::WorkspaceParser;
         expose SysML2ToolsLanguage_AstBuilder::AstBuilder;
