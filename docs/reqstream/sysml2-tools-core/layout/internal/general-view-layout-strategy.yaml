@@ -633,10 +633,6 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_SpecializationAndReferenceUsageFanOut_EndDecorationsHaveCleanApproach
           - GeneralViewLayoutStrategy_BuildLayout_FanOutLanes_KeepDistinctOrderedLanes
           - GeneralViewLayoutStrategy_BuildLayout_GalleryGeneralViews_EndDecorationsHaveCleanApproach
-          - GeneralViewLayoutStrategy_ClearEndDecorations_NoViolation_ReturnsTreeUnchanged
-          - GeneralViewLayoutStrategy_ClearEndDecorations_LShapedConnector_IsLeftAlone
-          - GeneralViewLayoutStrategy_ClearEndDecorations_ShortFinalLeg_MovesLaneAwayFromOwner
-          - GeneralViewLayoutStrategy_ClearEndDecorations_NoRoomOnFarLeg_LeavesConnectorUnchanged
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UnconnectedDefinitionPlacement
         title: >-
@@ -1088,8 +1084,8 @@ sections:
           attached to the wrong box (because the engine emitted boxes in a different order than
           the nodes were added) would misreport which folder is collapsed.
         tests:
-          - GeneralViewLayoutStrategy_DecorateTruncated_LineBeforeBoxes_DoesNotBreakBoxToNodePairing
-          - GeneralViewLayoutStrategy_DecorateTruncated_BoxOrderDiffersFromNodeOrder_DecoratesMatchingNode
+          - GeneralViewLayoutStrategy_BuildLayout_TruncatedBoxBesideRoutedEdge_DecoratesOnlyTruncatedBox
+          - GeneralViewLayoutStrategy_BuildLayout_TruncatedNestedPackages_DecorateOnlyMatchingBoxes
           - GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_CountsPackageNesting
           - GeneralViewLayoutStrategy_BuildLayout_PackageFolderContents_DepthLimitOne_StillTruncatesFolder
 

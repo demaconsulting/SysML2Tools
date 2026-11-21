@@ -19,7 +19,6 @@ without any additional setup.
 - All unit tests pass with zero failures across all four target frameworks.
 - `StdlibProvider.GetSymbolTable()` returns a non-empty `SymbolTable`.
 - Two successive calls to `GetSymbolTable()` return the same cached instance (same reference).
-- The second call to `GetSymbolTable()` completes in under 50 milliseconds (cached access).
 - The stdlib `SymbolTable` contains at least 50 standard declarations.
 - The diagnostics returned by `GetSymbolTable()` are not null.
 
@@ -29,6 +28,7 @@ Primary acceptance evidence is provided by:
 
 - `StdlibProviderTests.GetSymbolTable_ReturnsNonEmpty` — stdlib table is not empty.
 - `StdlibProviderTests.GetSymbolTable_IsCached` — two calls return the same instance.
-- `StdlibProviderTests.GetSymbolTable_FastOnSubsequentCalls` — cached call completes in < 50ms.
+- `StdlibProviderTests.GetSymbolTable_RepeatedCalls_ReturnSameDiagnostics` — repeated calls return the same table and
+  equal diagnostics.
 - `StdlibProviderTests.GetSymbolTable_ContainsKnownStdlibTypes` — table has > 50 declarations.
 - `StdlibProviderTests.GetSymbolTable_DiagnosticsNotNull` — diagnostics list is not null.

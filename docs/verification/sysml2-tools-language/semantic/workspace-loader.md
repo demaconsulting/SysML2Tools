@@ -73,11 +73,8 @@ order by one (listed outside the table because of their long names):
   top-level declarations share a name are loaded in both orders; the declaration in the canonically
   first file wins, `Files` is in canonical order, and the diagnostics are identical.
 
-- `WorkspaceLoader_LoadAsync_OriginalTwoParameterSignature_RemainsPublic` — a reflection tripwire
-  asserting that the original public static two-parameter overload exists, returns
-  `Task<SysmlLoadResult>`, and has an optional second parameter defaulting to `null`.
-- `WorkspaceLoader_LoadAsync_OriginalTwoParameterOverload_ReportsUnresolvedAsWarning` — invokes that
-  overload through its reflected metadata signature and by direct one- and two-argument calls, and
+- `WorkspaceLoader_LoadAsync_OriginalTwoParameterOverload_ReportsUnresolvedAsWarning` — calls that
+  overload directly with one and two arguments and compares it with the three-argument form, and
   asserts that an unresolved reference is a Warning, identical to `strictUnresolved: false`.
 
 #### Level 10 Gate

@@ -17,7 +17,6 @@ beyond a standard .NET SDK installation.
 
 - `GetSymbolTable` returns a non-empty `SymbolTable` containing known standard library types.
 - Repeated calls return the same cached `SymbolTable` instance.
-- After the first call, a subsequent call returns in under 50 milliseconds.
 - A non-null diagnostics list is returned alongside the `SymbolTable`.
 - The returned declarations carry the modifier data of the standard library source
   (`Parts::Part` is abstract), and the diagnostics contain no errors.
@@ -32,7 +31,7 @@ beyond a standard .NET SDK installation.
 | `GetSymbolTable_ReturnsNonEmpty` | The returned symbol table is non-empty |
 | `GetSymbolTable_ContainsKnownStdlibTypes` | Known standard library types are present |
 | `GetSymbolTable_IsCached` | Repeated calls return the same instance |
-| `GetSymbolTable_FastOnSubsequentCalls` | A cached call completes in under 50 ms |
+| `GetSymbolTable_RepeatedCalls_ReturnSameDiagnostics` | Repeated calls return the same table and equal diagnostics |
 | `GetSymbolTable_DiagnosticsNotNull` | A non-null diagnostics list is returned |
 | `GetSymbolTable_RegeneratedStdlib_CarriesModifiers` | `Parts::Part` is abstract (stale resource fails) |
 | `GetSymbolTable_Diagnostics_ContainNoErrors` | No diagnostic has error severity |

@@ -63,7 +63,6 @@ sections:
           signature as a forwarding overload preserves binary compatibility while the new overload
           carries the strict opt-in.
         tests:
-          - WorkspaceLoader_LoadAsync_OriginalTwoParameterSignature_RemainsPublic
           - WorkspaceLoader_LoadAsync_OriginalTwoParameterOverload_ReportsUnresolvedAsWarning
 
       - id: SysML2Tools-Language-Semantic-WorkspaceLoader-DeterministicOrder

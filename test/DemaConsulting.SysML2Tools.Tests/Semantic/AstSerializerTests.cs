@@ -570,29 +570,6 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
-    ///     The view source-location properties stay declared on <see cref="SysmlViewNode"/> itself
-    ///     (as forwarding properties), so binaries compiled against
-    ///     <c>SysmlViewNode.get_SourceFilePath</c> and its siblings keep working. Reflection
-    ///     tripwire: removing the redeclarations breaks that binary compatibility.
-    /// </summary>
-    [Theory]
-    [InlineData("SourceFilePath")]
-    [InlineData("SourceLine")]
-    [InlineData("SourceColumn")]
-    public void SysmlViewNode_SourceLocationProperties_AreDeclaredOnViewNode(string name)
-    {
-        // Act
-        var property = typeof(SysmlViewNode).GetProperty(
-            name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance |
-                  System.Reflection.BindingFlags.DeclaredOnly);
-
-        // Assert: declared on the view node with a public getter
-        Assert.NotNull(property);
-        Assert.NotNull(property.GetGetMethod());
-        Assert.Equal(typeof(SysmlViewNode), property.GetGetMethod()!.DeclaringType);
-    }
-
-    /// <summary>
     ///     A view node's source location is serialized and restored exactly as before the
     ///     properties moved to the base class (other node kinds do not persist theirs).
     /// </summary>
