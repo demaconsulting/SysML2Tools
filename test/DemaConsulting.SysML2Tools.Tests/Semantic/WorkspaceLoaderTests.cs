@@ -6290,6 +6290,30 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A declaration whose short name and declared name are spelled the same is reported at the
+    ///     declared name, not at the short name written before it.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ShortNameEqualToDeclaredName_WarnsAtDeclaredName()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(true, reversed: false,
+            ("a.sysml", "alias N for Q;"),
+            ("b.sysml", "alias <N> N for Q;"),
+            ("c.sysml", "package Q { }"),
+            ("d.sysml", "part def <A> A;"),
+            ("e.sysml", "part def <A> A;"));
+
+        // Assert
+        Assert.Equal(2, load.Duplicates.Count);
+        var alias = Assert.Single(load.Duplicates, w => w.FilePath == load.PathOf("b.sysml"));
+        Assert.Equal((1, 11), (alias.Line, alias.Column));
+        var definition = Assert.Single(load.Duplicates, w => w.FilePath == load.PathOf("e.sysml"));
+        Assert.Equal((1, 14), (definition.Line, definition.Column));
+        Assert.Contains($"'A' is also declared in {load.PathOf("d.sysml")}(1,14)", definition.Message);
+    }
+
+    /// <summary>
     ///     A path supplied more than once is one file, not a duplicate of itself.
     /// </summary>
     [Fact]

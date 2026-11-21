@@ -788,9 +788,11 @@ body element, and every nested member is built, to stamp the node it returns (`S
   The innermost context that builds the node wins; wrapper contexts that only pass a node up do
   not overwrite it. Nodes wrapped in a `MultiNodeCapture` are each stamped with the capture's
   context.
-- **Name position** (`LocateName`) — for a node with a non-empty `Name`, the first token of the declaration header (up
-  to the first `{` or `;`) whose text is the name, or the name in single quotes, is recorded as `NamePosition`
-  (one-based line, `Column + 1`). A name with no matching token (a synthesized name) leaves `NamePosition` unset.
+- **Name position** (`LocateName`) — for a node with a non-empty `Name`, the declared-name slot of the declaration's
+  `identification` (or `aliasMember`) parse context, which is never the optional `< shortName >`, is recorded as
+  `NamePosition` (one-based line, `Column + 1`), so `alias <N> N for Q;` is located at the second `N`. When the header
+  has no such slot, the first header token (up to the first `{` or `;`) whose text is the name, or the name in single
+  quotes, is used. A name with no matching token (a synthesized name) leaves `NamePosition` unset.
   `WorkspaceLoader` reports a duplicate root-level declaration here, because the declaration's own start is the keyword
   (`package`); an alias is located the same way (its name token, not the `alias` keyword), as it has no qualified name.
   — for each reference text the node declares (`ReferenceTexts`: supertype, import, verified-requirement, feature typing

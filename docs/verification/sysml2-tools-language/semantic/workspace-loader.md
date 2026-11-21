@@ -110,12 +110,14 @@ order given or reversed:
   `…_TwoRootAliasesWithSameName_WarnsAtSecondAlias` — a root-level alias is a named member: an
   alias and a package of one name (both file orders, strict mode) and two aliases (one quoted, one
   with a short name) are duplicates, reported at the alias's name token, not the `alias` keyword.
+- `WorkspaceLoader_LoadAsync_ShortNameEqualToDeclaredName_WarnsAtDeclaredName` — with
+  `alias <N> N for Q;` and `part def <A> A;` the warning is at the declared name, not the equal
+  short name written before it.
 - `WorkspaceLoader_LoadAsync_SamePathSuppliedTwice_ReportsNoDuplicate` and
   `…_DistinctRootNames_ReportNoDuplicate` — negative cases: a repeated path, distinct root names
   with the same member names, and imports repeated at the root of several files.
 - `WorkspaceLoader_LoadAsync_Declarations_CaptureNamePosition` — `NamePosition` is the name token,
   quotes included, not the declaration's first token.
-
 - `WorkspaceLoader_LoadAsync_UserPackageNamedLikeStdlibPackage_MembersAreNotStdlibOrigin` — a
   user `Parts` package is not a duplicate of the standard library's.
 - `WorkspaceLoader_LoadAsync_OriginalTwoParameterOverload_ReportsUnresolvedAsWarning` — calls that

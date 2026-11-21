@@ -118,6 +118,7 @@ sections:
           - WorkspaceLoader_LoadAsync_QuotedAndUnquotedSameName_AreDuplicates
           - WorkspaceLoader_LoadAsync_RootAliasAndPackageWithSameName_WarnsAndFirstFileWins
           - WorkspaceLoader_LoadAsync_TwoRootAliasesWithSameName_WarnsAtSecondAlias
+          - WorkspaceLoader_LoadAsync_ShortNameEqualToDeclaredName_WarnsAtDeclaredName
           - WorkspaceLoader_LoadAsync_DuplicateQuotedNameWithSpace_MessageShowsNameOnce
           - WorkspaceLoader_LoadAsync_SamePathSuppliedTwice_ReportsNoDuplicate
           - WorkspaceLoader_LoadAsync_DistinctRootNames_ReportNoDuplicate

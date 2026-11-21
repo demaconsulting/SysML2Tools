@@ -15,7 +15,7 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 ///     supertype/typing/import references, and walks specialization chains — returning a fully
 ///     resolved <see cref="SysmlWorkspace"/> plus the aggregated diagnostics from every phase.
 ///     <para>
-///     Every root-level name may be declared once per workspace: a later declaration of a name an
+///     Every root-level name may be declared once per workspace: a later declaration of a name that an
 ///     earlier one (in canonical file order, then source order) already uses is ignored as a whole
 ///     and reported as a Warning, never merged into the earlier one.
 ///     </para>
