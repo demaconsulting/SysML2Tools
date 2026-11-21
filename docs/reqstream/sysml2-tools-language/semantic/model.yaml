@@ -38,6 +38,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewExposedNames
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewSourceLocation
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceSourcePositions
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-NameSourcePosition
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewConditionsAndDefinition
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ExposeRecursionKindDerivation
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewUsageExpose

@@ -391,6 +391,221 @@ public class LintSubsystemTests
     }
 
     /// <summary>
+    ///     LintCommand reports a root-level package declared again in a later file as a warning at
+    ///     the package name (line, column), naming the file and position of the declaration that is
+    ///     used, and still exits 0 (issue #146).
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Report_DuplicateRootPackage_WritesWarningAtNameNamingOtherFile()
+    {
+        // Arrange / Act
+        var (output, error, exitCode, files) = await RunLintOnNamedFilesAsync(
+            [("a.sysml", "package P { part def A; }"), ("b.sysml", "package P { part def B; }")]);
+
+        // Assert
+        var lines = output.Split('\n').Select(line => line.TrimEnd('\r')).ToList();
+        var line = Assert.Single(lines, l => l.Contains(": warning: ", StringComparison.Ordinal));
+        Assert.Equal(
+            $"{files[1]}(1,9): warning: Duplicate of other owned member name: 'P' is also declared in " +
+            $"{files[0]}(1,9); that declaration is used and this one is ignored.",
+            line);
+        Assert.Contains("lint: no errors found.", output);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     The duplicate-declaration diagnostic is a warning in strict mode too (exit code 0):
+    ///     <c>--strict-unresolved</c> does not promote it.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_StrictUnresolved_DuplicateRootPackage_RemainsWarning()
+    {
+        // Arrange / Act
+        var (output, error, exitCode, _) = await RunLintOnNamedFilesAsync(
+            [("a.sysml", "package P { part def A; }"), ("b.sysml", "package P { part def B; }")],
+            "--strict-unresolved");
+
+        // Assert
+        Assert.Contains("(1,9): warning: Duplicate of other owned member name: 'P'", output);
+        Assert.DoesNotContain("error", error);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     A root-level alias named like a package in another file is reported the same way, at the
+    ///     alias's name token, in strict mode too, and the exit code stays 0.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_StrictUnresolved_RootAliasDuplicatingPackage_WarnsAtAliasName()
+    {
+        // Arrange / Act
+        var (output, error, exitCode, files) = await RunLintOnNamedFilesAsync(
+            [("a.sysml", "package N;"), ("b.sysml", "alias N for Q;"), ("c.sysml", "package Q;")],
+            "--strict-unresolved");
+
+        // Assert
+        var line = Assert.Single(
+            output.Split('\n').Select(l => l.TrimEnd('\r')),
+            l => l.Contains(": warning: ", StringComparison.Ordinal));
+        Assert.Equal(
+            $"{files[1]}(1,7): warning: Duplicate of other owned member name: 'N' is also declared in " +
+            $"{files[0]}(1,9); that declaration is used and this one is ignored.",
+            line);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     A package split across two files, each part importing a library (issue #144), produces
+    ///     the duplicate warning and no unresolved reference — in strict mode and whichever order the
+    ///     files are named on the command line.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LintSubsystem_Report_SplitPackageWithImport_NoUnresolvedReference(bool reversed)
+    {
+        // Arrange / Act
+        var (output, error, exitCode, _) = await RunLintOnNamedFilesAsync(
+            [
+                ("a.sysml", "package P { private import ScalarValues::*; part def A { attribute n : String; } }"),
+                ("b.sysml", "package P { private import ScalarValues::*; part def B { attribute m : String; } }"),
+            ],
+            reversed,
+            "--strict-unresolved");
+
+        // Assert
+        Assert.Contains("warning: Duplicate of other owned member name: 'P'", output);
+        Assert.DoesNotContain("Unresolved reference", output + error);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     The repository's own SysML2 architecture model (<c>docs/sysml2</c>) lints as one workspace
+    ///     with no diagnostics under <c>--strict-unresolved</c>: no root-level name is declared twice.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_SelfModel_AllFiles_NoDiagnosticsExitZero()
+    {
+        // Arrange
+        var files = Directory.GetFiles(FindDocsDirectory("sysml2"), "*.sysml", SearchOption.AllDirectories);
+        Assert.NotEmpty(files);
+
+        // Act
+        var (output, error, exitCode) = await RunLintOnFilesAsync(files, "--strict-unresolved");
+
+        // Assert
+        Assert.DoesNotMatch(@"\(\d+,\d+\): (error|warning)", output + error);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     All gallery models lint together as one workspace with no diagnostics under
+    ///     <c>--strict-unresolved</c>: each model's root-level names are distinct from the others'.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Gallery_AllModelsTogether_NoDiagnosticsExitZero()
+    {
+        // Arrange
+        var models = Directory.GetFiles(FindDocsDirectory("gallery", "models"), "*.sysml");
+        Assert.NotEmpty(models);
+
+        // Act
+        var (output, error, exitCode) = await RunLintOnFilesAsync(models, "--strict-unresolved");
+
+        // Assert
+        Assert.DoesNotMatch(@"\(\d+,\d+\): (error|warning)", output + error);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
+    ///     Finds a directory below <c>docs</c> above the test assembly.
+    /// </summary>
+    private static string FindDocsDirectory(params string[] relativePath)
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            var candidate = Path.Combine([dir, "docs", .. relativePath]);
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        throw new DirectoryNotFoundException($"docs/{string.Join('/', relativePath)} was not found above the test assembly.");
+    }
+
+    /// <summary>
+    ///     Lints the given existing files together with the given extra arguments and returns the
+    ///     captured standard output, standard error and exit code.
+    /// </summary>
+    private static async Task<(string Output, string Error, int ExitCode)> RunLintOnFilesAsync(
+        IReadOnlyList<string> files, params string[] extraArgs)
+    {
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        try
+        {
+            using var outWriter = new StringWriter();
+            using var errWriter = new StringWriter();
+            Console.SetOut(outWriter);
+            Console.SetError(errWriter);
+
+            using var context = Context.Create(["lint", .. extraArgs, .. files]);
+            await Program.RunAsync(context);
+
+            return (outWriter.ToString(), errWriter.ToString(), context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    /// <summary>
+    ///     Writes the named files into a fresh temporary directory, lints them together, and returns
+    ///     the captured output, error, exit code and the file paths in the order given.
+    /// </summary>
+    private static Task<(string Output, string Error, int ExitCode, IReadOnlyList<string> Files)>
+        RunLintOnNamedFilesAsync((string Name, string Source)[] files, params string[] extraArgs) =>
+        RunLintOnNamedFilesAsync(files, reversed: false, extraArgs);
+
+    /// <summary>
+    ///     Writes the named files into a fresh temporary directory, lints them together (naming them
+    ///     on the command line in reverse order when <paramref name="reversed"/>), and returns the
+    ///     captured output, error, exit code and the file paths in the order given.
+    /// </summary>
+    private static async Task<(string Output, string Error, int ExitCode, IReadOnlyList<string> Files)>
+        RunLintOnNamedFilesAsync((string Name, string Source)[] files, bool reversed, params string[] extraArgs)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"lint_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var paths = new List<string>();
+            foreach (var (name, source) in files)
+            {
+                var path = Path.Combine(directory, name);
+                await File.WriteAllTextAsync(path, source, TestContext.Current.CancellationToken);
+                paths.Add(path);
+            }
+
+            var arguments = reversed ? Enumerable.Reverse(paths).ToList() : paths;
+            var (output, error, exitCode) = await RunLintOnFilesAsync(arguments, extraArgs);
+            return (output, error, exitCode, paths);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
     ///     Finds the <c>docs/gallery/models</c> directory above the test assembly.
     /// </summary>
     private static string FindGalleryModels()

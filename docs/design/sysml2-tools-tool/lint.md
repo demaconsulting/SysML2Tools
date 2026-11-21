@@ -66,8 +66,11 @@ problems are unresolved references (every reference kind: supertype, typing, imp
 connector endpoints, transitions, guards, `render` targets, and so on). With `--strict-unresolved`
 they are Errors and `lint` exits 1. The strict mode is opt-in while name resolution still has known
 gaps (see the `WorkspaceLoader` design, "Unresolved-Reference Severity Policy"). Circular imports,
-cyclic specialization, and the portability warning for SysML2Tools extension `render` selectors
-(`asGeneralDiagram`, ...) are always warnings and never affect the exit code.
+cyclic specialization, the portability warning for SysML2Tools extension `render` selectors
+(`asGeneralDiagram`, ...), and the duplicate-declaration warning (a root-level declaration whose
+name an earlier file or declaration already uses is ignored; the warning names the file and
+position of the declaration that is used) are always warnings and never affect the exit code, in
+strict mode too.
 
 The diagnostic output format is produced by the shared `DiagnosticFormatter.Format`
 (`DemaConsulting.SysML2Tools.Utilities`, see `docs/design/sysml2-tools-tool/utilities/diagnostic-formatter.md`),
@@ -77,7 +80,7 @@ the same formatter `render` and `query` use, so all three commands print identic
 where `{severity}` is the lowercased `DiagnosticSeverity` enum value name. The line is one-based
 and the column is one-based. For an unresolved reference the position is that of the reference
 text as written, or of the owning declaration when the text was not located (see the
-`ReferenceResolver` design).
+`ReferenceResolver` design); for a duplicate declaration it is the declaration's name token.
 
 `LintCommand.PrintHelp(Context context)` prints `lint`'s usage line (`lint [--strict-unresolved]
 <files...>`), a description (syntax errors are errors and give a non-zero exit code; unresolved

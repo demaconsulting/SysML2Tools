@@ -29,7 +29,12 @@ single thread after the parallel parse tasks complete.
 ##### Error Handling
 
 `RegisterAll(null)` is a no-op; no exception is thrown. Duplicate qualified names are silently
-ignored via `TryAdd` — the first registration wins.
+ignored via `TryAdd` — the first registration wins. This is a safety net, not the duplicate-name
+policy: `WorkspaceLoader` removes a later same-named user root-level declaration, with its whole
+subtree, before registering a file, so two user declarations never share a root name here. What
+remains is a user declaration named like a standard-library one (the seed is registered first, so
+its node wins while the user's other members are added) and a duplicate nested inside one
+declaration.
 
 ##### Dependencies
 

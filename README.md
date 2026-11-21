@@ -42,7 +42,8 @@ analysis][workflow]
   exit non-zero; unresolved references are warnings by default, and `--strict-unresolved` makes
   them errors (non-zero exit); suitable for CI/CD and AI-assisted model-fix loops. Also
   warns when a view uses a SysML2Tools-specific `render` selector that other SysML v2 tools
-  do not know
+  do not know, and when a root-level name is declared twice in a workspace (the later
+  declaration is ignored)
 - **`render` Command**: Load a workspace, resolve a view, and render to SVG or PNG
 - **`query` Command**: 12 model-analysis verbs (`uses`, `used-by`, `dependencies`, `impact`,
   `describe`, `hierarchy`, `requirements`, `interface`, `connections`, `states`, `list`,

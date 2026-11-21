@@ -268,7 +268,8 @@ public sealed class WorkspaceLoaderTests
     // Level 10: Unreadable file produces Error diagnostic
     /// <summary>
     ///     When two files declare the same top-level name, the declaration in the file that sorts
-    ///     first by canonical (ordinal, '/'-normalized full) path wins, and the result — winner and
+    ///     first by canonical (ordinal, '/'-normalized full) path wins, the later declaration is
+    ///     ignored as a whole (nothing inside it is reported), and the result — winner and
     ///     diagnostics — is the same whatever order the files are supplied in.
     /// </summary>
     [Fact]
@@ -301,7 +302,14 @@ public sealed class WorkspaceLoaderTests
             Assert.Equal(
                 forward.Diagnostics.Select(d => d.ToString()),
                 reversed.Diagnostics.Select(d => d.ToString()));
-            Assert.Contains(forward.Diagnostics, d => d.Message.Contains("Missing"));
+
+            // the later declaration is reported as a duplicate and ignored: the unresolved
+            // reference inside it is not reported
+            var duplicate = Assert.Single(forward.Diagnostics);
+            Assert.Equal(second, duplicate.FilePath);
+            Assert.Equal(DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning, duplicate.Severity);
+            Assert.StartsWith("Duplicate of other owned member name", duplicate.Message);
+            Assert.DoesNotContain(forward.Diagnostics, d => d.Message.Contains("Missing"));
         }
         finally
         {
@@ -4273,6 +4281,44 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     Each named declaration records the one-based line and column of its name token (quotes
+    ///     included for a quoted name), not of the first token of the declaration.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_Declarations_CaptureNamePosition()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def VD;
+                    part 'My Part' : VD;
+                    part def   Wide;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var declarations = result.Workspace.Declarations;
+            Assert.Equal(new SourcePosition(1, 9), declarations["P"].NamePosition);
+            Assert.Equal(new SourcePosition(2, 14), declarations["P::VD"].NamePosition);
+            Assert.Equal(new SourcePosition(3, 10), declarations["P::'My Part'"].NamePosition);
+            Assert.Equal(new SourcePosition(4, 16), declarations["P::Wide"].NamePosition);
+            Assert.Equal(1, declarations["P"].SourceColumn);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     AstBuilder records each membership's declared visibility (public by default; imports
     ///     private by default), short name, and alias memberships with their target text.
     /// </summary>
@@ -5909,6 +5955,411 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     The result of loading named files from one temporary directory.
+    /// </summary>
+    /// <param name="Result">The load result.</param>
+    /// <param name="Directory">The (already deleted) directory the files were loaded from.</param>
+    private sealed record NamedLoad(SysmlLoadResult Result, string Directory)
+    {
+        /// <summary>Gets the path of the file <paramref name="name"/> as it was passed to the loader.</summary>
+        public string PathOf(string name) => Path.Combine(Directory, name);
+
+        /// <summary>Gets the duplicate-declaration warnings of the load.</summary>
+        public IReadOnlyList<SysmlDiagnostic> Duplicates => Result.Diagnostics
+            .Where(d => d.Message.StartsWith("Duplicate of other owned member name", StringComparison.Ordinal))
+            .ToList();
+    }
+
+    /// <summary>
+    ///     Writes each of <paramref name="files"/> (name and source) into a fresh temporary directory
+    ///     under its own name, so that the canonical file order is the ordinal order of the names, and
+    ///     loads them in the order given (or reversed) with the standard library.
+    /// </summary>
+    private static async Task<NamedLoad> LoadNamedFilesAsync(
+        bool strictUnresolved, bool reversed, params (string Name, string Source)[] files)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "sysml-dup-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            foreach (var (name, source) in files)
+            {
+                await File.WriteAllTextAsync(
+                    Path.Combine(directory, name), source, TestContext.Current.CancellationToken);
+            }
+
+            var paths = files.Select(f => Path.Combine(directory, f.Name)).ToList();
+            if (reversed)
+            {
+                paths.Reverse();
+            }
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync(paths, stdlibTable, strictUnresolved);
+            Assert.NotNull(result.Workspace);
+            return new NamedLoad(result, directory);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     A root-level package declared again in a later file is reported as a Warning at its name
+    ///     (one-based line and column), naming the file and position of the declaration that is
+    ///     used, and the earlier file is not reported — also when unresolved references are
+    ///     errors.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WorkspaceLoader_LoadAsync_SameRootPackageInTwoFiles_WarnsAtLaterDeclarationNamingFirstFile(
+        bool strictUnresolved)
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(strictUnresolved, reversed: false,
+            ("a.sysml", "package P { part def A; }"),
+            ("b.sysml", "package P { part def B; }"));
+
+        // Assert
+        var warning = Assert.Single(load.Result.Diagnostics);
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Equal(load.PathOf("b.sysml"), warning.FilePath);
+        Assert.Equal(1, warning.Line);
+        Assert.Equal(9, warning.Column);
+        Assert.Equal(
+            $"Duplicate of other owned member name: 'P' is also declared in {load.PathOf("a.sysml")}(1,9); " +
+            "that declaration is used and this one is ignored.",
+            warning.Message);
+        Assert.False(load.Result.HasErrors);
+    }
+
+    /// <summary>
+    ///     Which of two same-named root packages is used does not depend on the order the files are
+    ///     supplied in: the file that sorts first wins, with identical diagnostics and declarations.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SameRootPackageInTwoFiles_IsIndependentOfFileOrder()
+    {
+        // Arrange / Act
+        var files = new[]
+        {
+            ("a.sysml", "package P { part def A; }"),
+            ("b.sysml", "package P { part def B; }"),
+        };
+        var forward = await LoadNamedFilesAsync(false, reversed: false, files);
+        var reversed = await LoadNamedFilesAsync(false, reversed: true, files);
+
+        // Assert: same warning (modulo the directory) and the same members; a.sysml's package is used
+        Assert.Equal(
+            forward.Result.Diagnostics.Select(d => d.ToString().Replace(forward.Directory, "{dir}")),
+            reversed.Result.Diagnostics.Select(d => d.ToString().Replace(reversed.Directory, "{dir}")));
+        foreach (var load in new[] { forward, reversed })
+        {
+            var declarations = load.Result.Workspace!.Declarations;
+            Assert.Equal(load.PathOf("a.sysml"), declarations["P"].SourceFilePath);
+            Assert.Contains("P::A", declarations.Keys);
+            Assert.DoesNotContain("P::B", declarations.Keys);
+        }
+    }
+
+    /// <summary>
+    ///     The later declaration is not merged into the earlier one: its members are absent from
+    ///     the workspace, so a reference to one of them from a third file is unresolved, while a
+    ///     reference to a member of the declaration that is used resolves.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SameRootPackageInTwoFiles_DoesNotMergeMembers()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(false, reversed: false,
+            ("a.sysml", "package P { part def A; }"),
+            ("b.sysml", "package P { part def B; }"),
+            ("c.sysml", "package Q { part x : P::A; part y : P::B; }"));
+
+        // Assert
+        Assert.True(HasEdge(load.Result, SysmlEdgeKind.Typing, "Q::x", "P::A"));
+        Assert.False(HasEdge(load.Result, SysmlEdgeKind.Typing, "Q::y", "P::B"));
+        Assert.True(HasUnresolvedWarning(load.Result, "P::B"));
+        Assert.False(HasUnresolvedWarning(load.Result, "P::A"));
+        Assert.Single(load.Duplicates);
+    }
+
+    /// <summary>
+    ///     A package that is split across two files and imports a library in each part (issue #144)
+    ///     is reported as a duplicate and nothing else — no unresolved reference — whichever order
+    ///     the files are supplied in and whichever part carries the import, because the part that is
+    ///     ignored is not checked and the part that is used is complete.
+    /// </summary>
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task WorkspaceLoader_LoadAsync_SplitPackageWithWildcardImport_ReportsOnlyTheDuplicate(
+        bool reversed, bool importOnlyInLaterPart)
+    {
+        // Arrange
+        var first = importOnlyInLaterPart
+            ? "package P { part def A; }"
+            : "package P { private import ScalarValues::*; part def A { attribute n : String; } }";
+        var second = "package P { private import ScalarValues::*; part def B { attribute m : String; } }";
+
+        // Act
+        var load = await LoadNamedFilesAsync(true, reversed, ("a.sysml", first), ("b.sysml", second));
+
+        // Assert
+        Assert.Single(load.Duplicates);
+        Assert.DoesNotContain(load.Result.Diagnostics, d => d.Message.StartsWith("Unresolved reference"));
+        Assert.False(load.Result.HasErrors);
+    }
+
+    /// <summary>
+    ///     The same holds when each part of a split package imports a library member by name
+    ///     (issue #144): only the duplicate is reported, in either order.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WorkspaceLoader_LoadAsync_SplitPackageWithNamedImports_ReportsOnlyTheDuplicate(bool reversed)
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(true, reversed,
+            ("a.sysml", "package P { private import ScalarValues::Integer; part def A { attribute n : Integer; } }"),
+            ("b.sysml", "package P { private import ScalarValues::String; part def B { attribute m : String; } }"));
+
+        // Assert
+        Assert.Single(load.Duplicates);
+        Assert.DoesNotContain(load.Result.Diagnostics, d => d.Message.StartsWith("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     A package and a definition with the same name (issue #139) are duplicates whatever
+    ///     their kind: the declaration in the file that sorts first is used, in either order, and
+    ///     the other is reported at its name and left out.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WorkspaceLoader_LoadAsync_PackageAndPartDefWithSameName_WarnsAndFirstFileWins(bool reversed)
+    {
+        // Arrange / Act: a.sysml declares the part def, b.sysml the package
+        var definitionFirst = await LoadNamedFilesAsync(false, reversed,
+            ("a.sysml", "part def Camera { part lens; }"),
+            ("b.sysml", "package Camera { part def Lens; }"));
+
+        // Assert: the part def is used; the package (name at column 9) is ignored
+        Assert.IsType<SysmlDefinitionNode>(definitionFirst.Result.Workspace!.Declarations["Camera"]);
+        Assert.DoesNotContain("Camera::Lens", definitionFirst.Result.Workspace.Declarations.Keys);
+        var warning = Assert.Single(definitionFirst.Duplicates);
+        Assert.Equal(definitionFirst.PathOf("b.sysml"), warning.FilePath);
+        Assert.Equal((1, 9), (warning.Line, warning.Column));
+        Assert.Contains($"{definitionFirst.PathOf("a.sysml")}(1,10)", warning.Message);
+
+        // Act: the other way round, the package is used and the part def (name at column 10) ignored
+        var packageFirst = await LoadNamedFilesAsync(false, reversed,
+            ("a.sysml", "package Camera { part def Lens; }"),
+            ("b.sysml", "part def Camera { part lens; }"));
+
+        // Assert
+        Assert.IsType<SysmlPackageNode>(packageFirst.Result.Workspace!.Declarations["Camera"]);
+        Assert.Contains("Camera::Lens", packageFirst.Result.Workspace.Declarations.Keys);
+        var other = Assert.Single(packageFirst.Duplicates);
+        Assert.Equal(packageFirst.PathOf("b.sysml"), other.FilePath);
+        Assert.Equal((1, 10), (other.Line, other.Column));
+    }
+
+    /// <summary>
+    ///     Two root-level declarations of one name in the same file are duplicates too: the second,
+    ///     in source order, is reported at its name and left out.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SameNameTwiceInOneFile_WarnsAtSecondDeclaration()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(false, reversed: false,
+            ("a.sysml", "package P { part def A; }\npackage P { part def B; }"));
+
+        // Assert
+        var warning = Assert.Single(load.Result.Diagnostics);
+        Assert.Equal(load.PathOf("a.sysml"), warning.FilePath);
+        Assert.Equal((2, 9), (warning.Line, warning.Column));
+        Assert.Contains($"{load.PathOf("a.sysml")}(1,9)", warning.Message);
+        Assert.Contains("P::A", load.Result.Workspace!.Declarations.Keys);
+        Assert.DoesNotContain("P::B", load.Result.Workspace.Declarations.Keys);
+    }
+
+    /// <summary>
+    ///     A quoted name and the same name unquoted (<c>'P'</c> and <c>P</c>) are one name, and the
+    ///     message shows the name once, in single quotes.
+    /// </summary>
+    [Theory]
+    [InlineData("package 'P' { }", "package P { }")]
+    [InlineData("package P { }", "package 'P' { }")]
+    [InlineData("package 'P' { }", "package 'P' { }")]
+    public async Task WorkspaceLoader_LoadAsync_QuotedAndUnquotedSameName_AreDuplicates(string first, string second)
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(false, reversed: false, ("a.sysml", first), ("b.sysml", second));
+
+        // Assert
+        var warning = Assert.Single(load.Duplicates);
+        Assert.Equal(load.PathOf("b.sysml"), warning.FilePath);
+        Assert.Equal((1, 9), (warning.Line, warning.Column));
+        Assert.StartsWith("Duplicate of other owned member name: 'P' is also declared in", warning.Message);
+    }
+
+    /// <summary>
+    ///     A name that needs its quotes is shown once in the message, in single quotes.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DuplicateQuotedNameWithSpace_MessageShowsNameOnce()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(false, reversed: false,
+            ("a.sysml", "package 'My Pkg' { }"),
+            ("b.sysml", "package 'My Pkg' { }"));
+
+        // Assert
+        var warning = Assert.Single(load.Duplicates);
+        Assert.StartsWith("Duplicate of other owned member name: 'My Pkg' is also declared in", warning.Message);
+        Assert.DoesNotContain("''", warning.Message);
+    }
+
+    /// <summary>
+    ///     A root-level alias shares the global namespace with the other root-level declarations, so
+    ///     an alias and a package of one name are duplicates: the declaration in the file that sorts
+    ///     first is used, in either order, and the other is reported at its name (the alias's name
+    ///     token, not the <c>alias</c> keyword) and left out.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WorkspaceLoader_LoadAsync_RootAliasAndPackageWithSameName_WarnsAndFirstFileWins(bool reversed)
+    {
+        // Arrange / Act: the package is used and the alias (name at column 7) is ignored
+        var packageFirst = await LoadNamedFilesAsync(true, reversed,
+            ("a.sysml", "package N { part def A; }"),
+            ("b.sysml", "alias N for Q;"),
+            ("c.sysml", "package Q { }"));
+
+        // Assert
+        var warning = Assert.Single(packageFirst.Duplicates);
+        Assert.Equal(packageFirst.PathOf("b.sysml"), warning.FilePath);
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Equal((1, 7), (warning.Line, warning.Column));
+        Assert.Contains($"'N' is also declared in {packageFirst.PathOf("a.sysml")}(1,9)", warning.Message);
+        Assert.IsType<SysmlPackageNode>(packageFirst.Result.Workspace!.Declarations["N"]);
+        Assert.False(packageFirst.Result.HasErrors);
+
+        // Act: the other way round, the alias is used and the package (name at column 9) is ignored
+        var aliasFirst = await LoadNamedFilesAsync(true, reversed,
+            ("a.sysml", "alias N for Q;"),
+            ("b.sysml", "package N { part def A; }"),
+            ("c.sysml", "package Q { }"));
+
+        // Assert
+        var other = Assert.Single(aliasFirst.Duplicates);
+        Assert.Equal(aliasFirst.PathOf("b.sysml"), other.FilePath);
+        Assert.Equal((1, 9), (other.Line, other.Column));
+        Assert.Contains($"'N' is also declared in {aliasFirst.PathOf("a.sysml")}(1,7)", other.Message);
+        Assert.DoesNotContain("N::A", aliasFirst.Result.Workspace!.Declarations.Keys);
+        Assert.False(aliasFirst.Result.HasErrors);
+    }
+
+    /// <summary>
+    ///     Two root-level aliases of one name, with quotes and a short name in the way, are
+    ///     duplicates: the second is reported at its name token.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TwoRootAliasesWithSameName_WarnsAtSecondAlias()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(true, reversed: false,
+            ("a.sysml", "alias N for Q;"),
+            ("b.sysml", "alias <n> 'N' for Q;"),
+            ("c.sysml", "package Q { }"));
+
+        // Assert
+        var warning = Assert.Single(load.Duplicates);
+        Assert.Equal(load.PathOf("b.sysml"), warning.FilePath);
+        Assert.Equal((1, 11), (warning.Line, warning.Column));
+        Assert.Contains($"'N' is also declared in {load.PathOf("a.sysml")}(1,7)", warning.Message);
+        Assert.False(load.Result.HasErrors);
+    }
+
+    /// <summary>
+    ///     A declaration whose short name and declared name are spelled the same is reported at the
+    ///     declared name, not at the short name written before it.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ShortNameEqualToDeclaredName_WarnsAtDeclaredName()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(true, reversed: false,
+            ("a.sysml", "alias N for Q;"),
+            ("b.sysml", "alias <N> N for Q;"),
+            ("c.sysml", "package Q { }"),
+            ("d.sysml", "part def <A> A;"),
+            ("e.sysml", "part def <A> A;"));
+
+        // Assert
+        Assert.Equal(2, load.Duplicates.Count);
+        var alias = Assert.Single(load.Duplicates, w => w.FilePath == load.PathOf("b.sysml"));
+        Assert.Equal((1, 11), (alias.Line, alias.Column));
+        var definition = Assert.Single(load.Duplicates, w => w.FilePath == load.PathOf("e.sysml"));
+        Assert.Equal((1, 14), (definition.Line, definition.Column));
+        Assert.Contains($"'A' is also declared in {load.PathOf("d.sysml")}(1,14)", definition.Message);
+    }
+
+    /// <summary>
+    ///     A path supplied more than once is one file, not a duplicate of itself.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SamePathSuppliedTwice_ReportsNoDuplicate()
+    {
+        // Arrange
+        var directory = Path.Combine(Path.GetTempPath(), "sysml-dup-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, "a.sysml");
+        try
+        {
+            await File.WriteAllTextAsync(file, "package P { part def A; }", TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+
+            // Act
+            var result = await WorkspaceLoader.LoadAsync([file, file], stdlibTable, strictUnresolved: true);
+
+            // Assert
+            Assert.Empty(result.Diagnostics);
+            Assert.Contains("P::A", result.Workspace!.Declarations.Keys);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     Different root names, the same member names in different packages, and imports repeated
+    ///     at the root of several files are not duplicates.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DistinctRootNames_ReportNoDuplicate()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(true, reversed: false,
+            ("a.sysml", "private import ScalarValues::*;\npackage P { part def A { attribute n : String; } }"),
+            ("b.sysml", "private import ScalarValues::*;\npackage Q { part def A { attribute n : String; } }"));
+
+        // Assert
+        Assert.Empty(load.Result.Diagnostics);
+        Assert.Contains("P::A", load.Result.Workspace!.Declarations.Keys);
+        Assert.Contains("Q::A", load.Result.Workspace.Declarations.Keys);
+    }
+
+    /// <summary>
     ///     Loads each of <paramref name="sources"/> as its own file (with the standard library), in order.
     /// </summary>
     private static Task<SysmlLoadResult> LoadModelsAsync(params string[] sources) =>
@@ -6462,58 +6913,57 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     Two files declaring a top-level package of the same name each resolve their references
-    ///     only through their own file-root imports (the roots are keyed by file, not by name).
+    ///     Two files declaring top-level packages each resolve their references only through
+    ///     their own file-root imports (the roots are keyed by file).
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_EachUsesItsOwnRootImports()
+    public async Task WorkspaceLoader_LoadAsync_TwoFilesWithRootImports_EachUsesItsOwnRootImports()
     {
         // Arrange / Act
         var result = await LoadModelsAsync(
             "package LibA { part def T; part def OnlyA; } package LibB { part def T; part def OnlyB; }",
             """
             private import LibA::*;
-            package Vehicle { part a : T; part c : OnlyB; }
+            package Vehicle1 { part a : T; part c : OnlyB; }
             """,
             """
             private import LibB::*;
-            package Vehicle { part b : T; part d : OnlyA; }
+            package Vehicle2 { part b : T; part d : OnlyA; }
             """);
 
         // Assert: each file's bare name resolves through its own import only
-        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle::a", "LibA::T"));
-        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle::b", "LibB::T"));
-        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle::b", "LibA::T"));
-        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle::c", "LibB::OnlyB"));
-        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle::d", "LibA::OnlyA"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle1::a", "LibA::T"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle2::b", "LibB::T"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle2::b", "LibA::T"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle1::c", "LibB::OnlyB"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle2::d", "LibA::OnlyA"));
         Assert.True(HasUnresolvedWarning(result, "OnlyB"));
         Assert.True(HasUnresolvedWarning(result, "OnlyA"));
     }
 
     /// <summary>
-    ///     With a top-level package split across two files, each file's definitions derive their
-    ///     general types (and so the inherited members they redefine) from that file's own
-    ///     root imports.
+    ///     With top-level packages in two files, each file's definitions derive their general
+    ///     types (and so the inherited members they redefine) from that file's own root imports.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_GeneralTypesUseOwnRootImports()
+    public async Task WorkspaceLoader_LoadAsync_TwoFilesWithRootImports_GeneralTypesUseOwnRootImports()
     {
         // Arrange / Act
         var result = await LoadModelsAsync(
             "package LibA { part def T; } package LibB { part def T { attribute m; } }",
             """
             private import LibA::*;
-            package Vehicle { part def Car1 :> T; }
+            package Vehicle1 { part def Car1 :> T; }
             """,
             """
             private import LibB::*;
-            package Vehicle { part def Car2 :> T { attribute :>> m; } }
+            package Vehicle2 { part def Car2 :> T { attribute :>> m; } }
             """);
 
         // Assert
-        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "Vehicle::Car1", "LibA::T"));
-        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "Vehicle::Car2", "LibB::T"));
-        Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "Vehicle::Car2::m", "LibB::T::m"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "Vehicle1::Car1", "LibA::T"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "Vehicle2::Car2", "LibB::T"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "Vehicle2::Car2::m", "LibB::T::m"));
         Assert.False(HasUnresolvedWarning(result, "m"));
     }
 
@@ -8385,6 +8835,7 @@ public sealed class WorkspaceLoaderTests
         Assert.DoesNotContain("Parts::Wheel", names);
         Assert.Contains("Parts::Part", names);
         Assert.Contains("Parts::Wheel", result.Workspace.Declarations.Keys);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.StartsWith("Duplicate of other", StringComparison.Ordinal));
     }
 
     /// <summary>

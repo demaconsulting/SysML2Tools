@@ -39,7 +39,15 @@ temporary directory and clean them up after each test.
   independent of `--strict-unresolved`; the standard selectors (`Views::asTreeDiagram`,
   `Views::asInterconnectionDiagram`) produce no diagnostic.
 - Every model in `docs/gallery/models` lints with no diagnostics and exit code 0, with and
-  without `--strict-unresolved`.
+  without `--strict-unresolved`, and all of them together (one workspace) lint clean too, as does
+  the repository's own architecture model under `docs/sysml2`: no root-level name is declared
+  twice.
+- A root-level declaration whose name an earlier file already declares is written as
+  `path(line,col): warning: Duplicate of other owned member name: 'P' is also declared in
+  <other path>(line,col); that declaration is used and this one is ignored.` at the name token,
+  `lint` still reports "no errors found" and exits 0, and strict mode leaves it a warning. A
+  package split across files with an import in each part produces that warning and no
+  unresolved reference, in either order on the command line.
 - `lint --help` prints lint-specific usage (`lint [--strict-unresolved] <files...>`) that
   describes the warning default and the `--strict-unresolved` option, and is
   identical to `help lint`'s output (see the Help subsystem verification document).
@@ -120,6 +128,46 @@ either stream and exit code 0. Satisfies `SysML2Tools-Tool-Lint-ExitCode`.
 Verifies that every `.sysml` model in `docs/gallery/models` also lints with no diagnostic line
 on either stream and exit code 0 under `--strict-unresolved`. Satisfies
 `SysML2Tools-Tool-Lint-StrictUnresolved`.
+
+#### LintSubsystem_Report_DuplicateRootPackage_WritesWarningAtNameNamingOtherFile (LintSubsystemTests.cs)
+
+Verifies that linting `a.sysml` and `b.sysml`, which both declare `package P`, writes exactly one
+`warning:` line — `<b>(1,9): warning: Duplicate of other owned member name: 'P' is also declared
+in <a>(1,9); that declaration is used and this one is ignored.` — then `lint: no errors found.`,
+nothing on the error stream, and exit code 0. Satisfies
+`SysML2Tools-Tool-Lint-DuplicateDeclarationWarning`.
+
+#### LintSubsystem_StrictUnresolved_DuplicateRootPackage_RemainsWarning (LintSubsystemTests.cs)
+
+Verifies that under `--strict-unresolved` the duplicate-declaration diagnostic is still a
+`warning:`, nothing is written to the error stream, and the exit code is 0. Satisfies
+`SysML2Tools-Tool-Lint-DuplicateDeclarationWarning`.
+
+#### LintSubsystem_StrictUnresolved_RootAliasDuplicatingPackage_WarnsAtAliasName (LintSubsystemTests.cs)
+
+Verifies that `alias N for Q;` in one file and `package N;` in another produce the duplicate
+warning at the alias's name token (`(1,7)`) naming the package's position, under
+`--strict-unresolved`, with nothing on the error stream and exit code 0. Satisfies
+`SysML2Tools-Tool-Lint-DuplicateDeclarationWarning`.
+
+#### LintSubsystem_Report_SplitPackageWithImport_NoUnresolvedReference (LintSubsystemTests.cs)
+
+Verifies (issue #144) that a package split across two files, each part importing
+`ScalarValues::*` and using `String`, produces the duplicate warning and no `Unresolved
+reference` under `--strict-unresolved`, with the files named in either order, and exits 0.
+Satisfies `SysML2Tools-Tool-Lint-DuplicateDeclarationWarning`.
+
+#### LintSubsystem_SelfModel_AllFiles_NoDiagnosticsExitZero (LintSubsystemTests.cs)
+
+Verifies that all of `docs/sysml2` lints as one workspace under `--strict-unresolved` with no
+diagnostic line and exit code 0, which also proves the repository's model declares no root-level
+name twice. Satisfies `SysML2Tools-Tool-Lint-DuplicateDeclarationWarning`.
+
+#### LintSubsystem_Gallery_AllModelsTogether_NoDiagnosticsExitZero (LintSubsystemTests.cs)
+
+Verifies that all `.sysml` models in `docs/gallery/models` lint together as one workspace under
+`--strict-unresolved` with no diagnostic line and exit code 0 (each model's root-level names are
+distinct from the others'). Satisfies `SysML2Tools-Tool-Lint-DuplicateDeclarationWarning`.
 
 #### LintSubsystem_Help_PrintsLintSpecificUsage (LintSubsystemTests.cs)
 

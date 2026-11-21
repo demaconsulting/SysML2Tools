@@ -1,6 +1,6 @@
-package Vehicle {
+package TypedVehicle {
 
-    // Two packages nested inside Vehicle. A General View draws each nested package as a
+    // Two packages nested inside TypedVehicle. A General View draws each nested package as a
     // folder inside its owner's folder. A folder that holds content shows its name in the
     // folder's tab.
     package Powertrain {

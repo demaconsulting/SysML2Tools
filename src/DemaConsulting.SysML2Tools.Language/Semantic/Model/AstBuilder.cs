@@ -103,8 +103,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
     /// <summary>
     ///     Records the declaration position of <paramref name="node"/> (the first token of
-    ///     <paramref name="context"/>) the first time the node is seen, and locates each reference
-    ///     text the node declares among the context's tokens (see <see cref="LocateReferences"/>).
+    ///     <paramref name="context"/>) the first time the node is seen, locates its declared name
+    ///     among the context's tokens (see <see cref="LocateName"/>), and locates each reference
+    ///     text the node declares (see <see cref="LocateReferences"/>).
     /// </summary>
     private void Stamp(SysmlNode node, Antlr4.Runtime.ParserRuleContext context)
     {
@@ -115,7 +116,96 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             node.SourceColumn = start.Column + 1;
         }
 
+        LocateName(node, context);
         LocateReferences(node, context);
+    }
+
+    /// <summary>
+    ///     Records in <see cref="SysmlNode.NamePosition"/> the position of the token that spells the
+    ///     node's declared name (quoted or not) in <paramref name="context"/>'s identification —
+    ///     never the optional short name — unless it is already recorded. When the header has no
+    ///     identification slot, the first header token spelling the name is used. A node whose name
+    ///     has no such token (a synthesized name) is left unlocated.
+    /// </summary>
+    private static void LocateName(SysmlNode node, Antlr4.Runtime.ParserRuleContext context)
+    {
+        if (node.NamePosition != default || string.IsNullOrEmpty(node.Name))
+        {
+            return;
+        }
+
+        var quoted = $"'{node.Name}'";
+        var header = CollectTokens(context, headerOnly: true);
+        var token = FindDeclaredNameToken(context, header)
+                    ?? header.Find(t => t.Text == node.Name || t.Text == quoted);
+        if (token is not null && (token.Text == node.Name || token.Text == quoted))
+        {
+            node.NamePosition = new SourcePosition(token.Line, token.Column + 1);
+        }
+    }
+
+    /// <summary>
+    ///     Finds the token of the declared (regular) name in the declaration's identification: the
+    ///     <c>name</c> that is not inside the optional <c>&lt;short name&gt;</c>. Returns
+    ///     <see langword="null"/> when the declaration's header has no such slot.
+    /// </summary>
+    /// <remarks>
+    ///     The slot is taken from the parse tree, not from token text, so <c>alias &lt;N&gt; N for Q;</c>
+    ///     (equal short and declared names) is located at the declared name.
+    /// </remarks>
+    private static Antlr4.Runtime.IToken? FindDeclaredNameToken(
+        Antlr4.Runtime.ParserRuleContext context, List<Antlr4.Runtime.IToken> header)
+    {
+        var identification = FindIdentification(context);
+        if (identification is null || header.Count == 0 ||
+            identification.Start.TokenIndex > header[^1].TokenIndex)
+        {
+            return null;
+        }
+
+        var inShortName = false;
+        foreach (var child in identification.children ?? [])
+        {
+            switch (child)
+            {
+                case Antlr4.Runtime.Tree.ITerminalNode { Symbol.Type: SysMLv2Parser.LT }:
+                    inShortName = true;
+                    break;
+                case Antlr4.Runtime.Tree.ITerminalNode { Symbol.Type: SysMLv2Parser.GT }:
+                    inShortName = false;
+                    break;
+                case SysMLv2Parser.NameContext name when !inShortName:
+                    return name.Start;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Returns the first identification-bearing rule context (an <c>identification</c> or an
+    ///     <c>aliasMember</c>) in pre-order under <paramref name="root"/>, or
+    ///     <see langword="null"/> when there is none.
+    /// </summary>
+    private static Antlr4.Runtime.ParserRuleContext? FindIdentification(Antlr4.Runtime.ParserRuleContext root)
+    {
+        var pending = new Stack<Antlr4.Runtime.Tree.IParseTree>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            if (current is SysMLv2Parser.IdentificationContext or SysMLv2Parser.AliasMemberContext)
+            {
+                return (Antlr4.Runtime.ParserRuleContext)current;
+            }
+
+            for (var i = current.ChildCount - 1; i >= 0; i--)
+            {
+                pending.Push(current.GetChild(i));
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -263,24 +353,37 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     private static HashSet<int> DeclarationTokenIndexes(List<Antlr4.Runtime.IToken> tokens, SysmlNode node)
     {
         var indexes = new HashSet<int>();
-        if (!string.IsNullOrEmpty(node.Name))
-        {
-            var quoted = $"'{node.Name}'";
-            var index = tokens.FindIndex(t => t.Text == node.Name || t.Text == quoted);
-            if (index >= 0)
-            {
-                indexes.Add(index);
-            }
-        }
 
         // The short name is assigned to the node only after the node is built, so it is
         // recognized by its tokens (`<` name `>`) rather than by node.ShortName.
+        var shortIndex = -1;
         for (var i = 0; i + 2 < tokens.Count; i++)
         {
             if (tokens[i].Text == "<" && tokens[i + 2].Text == ">")
             {
-                indexes.Add(i + 1);
+                shortIndex = i + 1;
+                indexes.Add(shortIndex);
                 break;
+            }
+        }
+
+        // The declared name is the first token spelling it outside the short-name slot, so
+        // `<N> N` skips both tokens.
+        if (!string.IsNullOrEmpty(node.Name))
+        {
+            var quoted = $"'{node.Name}'";
+            var index = -1;
+            for (var i = 0; i < tokens.Count && index < 0; i++)
+            {
+                if (i != shortIndex && (tokens[i].Text == node.Name || tokens[i].Text == quoted))
+                {
+                    index = i;
+                }
+            }
+
+            if (index >= 0)
+            {
+                indexes.Add(index);
             }
         }
 
