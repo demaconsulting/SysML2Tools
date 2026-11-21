@@ -1118,3 +1118,15 @@ sections:
           usages) have no notation yet; drawing them would change existing diagrams.
         tests:
           - GeneralView_BuildLayout_ExcludedMembers_RenderIdenticallyToWorkspaceWithout
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ImportedMembersOutsideImporterFrame
+        title: >-
+          When an expose scope admits members an exposed package imports, GeneralViewLayoutStrategy
+          shall draw each imported member in the folder of the package that owns it — at the top
+          level when that package is not itself exposed — and never inside the importing package's
+          frame.
+        justification: |
+          A frame contains the elements its package owns; an imported element is owned by its own
+          package. The OMG Pilot draws imported members outside the importer's frame likewise.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposePackageAndMembers_DrawsImportedMembersOutsideFrame

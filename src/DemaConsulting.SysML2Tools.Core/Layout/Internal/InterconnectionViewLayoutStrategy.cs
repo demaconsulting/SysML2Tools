@@ -286,8 +286,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        // No nested usages means there is nothing to draw.
-        if (!root.DiagramChildren.OfType<SysmlFeatureNode>().Any(IsNodeUsage))
+        // No nested usages means there is nothing to draw. A usage root with no nested parts of its
+        // own draws the interior its type provides (see InteriorSourceOf).
+        if (!InteriorSourceOf(root, defsByName).DiagramChildren.OfType<SysmlFeatureNode>().Any(IsNodeUsage))
         {
             return new LayoutTree(200.0, 100.0, []);
         }
@@ -346,7 +347,19 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             visited.Add(root.QualifiedName);
         }
 
-        var interior = LayOutInterior(root, theme, depth: 0, defsByName, visited, scope, ancestorUnlimitedRecursion: null);
+        // A usage with no nested parts of its own is drawn with the interior its type provides; the
+        // type is then on the recursion path too.
+        var interiorSource = InteriorSourceOf(root, defsByName);
+        if (interiorSource.QualifiedName is { Length: > 0 } sourceName)
+        {
+            visited.Add(sourceName);
+        }
+
+        // An element the view exposes by name is drawn with its own structure: the scope's branch
+        // narrowing applies only to an element reached as the ancestor of a narrower exposed element.
+        var exposedByName = scope is not null && root.QualifiedName is { Length: > 0 } rootName &&
+            ExposeScopeResolver.ExposesByName(rootName, scope);
+        var interior = LayOutInterior(interiorSource, theme, depth: 0, defsByName, visited, scope, ancestorUnlimitedRecursion: null, exposedByName);
 
         // The frame's name compartment, shape, and outline follow the kind of element it frames.
         string keyword;
@@ -430,6 +443,11 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// depth 0 (see <see cref="CollectParts"/>), and every deeper recursive call simply inherits it;
     /// see <see cref="BuildPartItem"/>'s remarks for how this actually gates recursion.
     /// </param>
+    /// <param name="rootExposedByName">
+    /// <see langword="true"/> only for the root frame's call, when the view exposes the root element
+    /// itself by name (see <see cref="ExposeScopeResolver.ExposesByName"/>): its own nested usages
+    /// are then the exposed element's structure and are not re-matched against the scope.
+    /// </param>
     /// <returns>The laid-out interior size and content.</returns>
     private static InteriorLayout LayOutInterior(
         SysmlNode def,
@@ -438,9 +456,10 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         DefinitionIndex defsByName,
         ISet<string> visited,
         ExposedScope? scope,
-        bool? ancestorUnlimitedRecursion)
+        bool? ancestorUnlimitedRecursion,
+        bool rootExposedByName = false)
     {
-        var parts = CollectParts(def, theme, depth, defsByName, visited, scope, ancestorUnlimitedRecursion);
+        var parts = CollectParts(def, theme, depth, defsByName, visited, scope, ancestorUnlimitedRecursion, rootExposedByName);
         var partIndex = BuildPartIndex(parts);
         var pairs = ResolveConnections(def, partIndex, parts);
 
@@ -991,6 +1010,11 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         ExposedScope? scope,
         DefinitionIndex defsByName)
     {
+        // The typing target ResolveExposedScope adds for an exposed usage matches candidates, but it
+        // is not something the view exposes: counting it would make the definition the root of an
+        // `expose car;` view instead of the usage `car`.
+        var rootScope = scope is null ? null : scope with { Subjects = scope.Subjects.Where(s => !s.IsTypingTarget).ToList() };
+
         var candidates = new List<(string QualifiedName, SysmlNode Node, int Connections, int Parts)>();
         var usageCandidates = new List<(string QualifiedName, SysmlNode Node, int Connections, int Parts)>();
         foreach (var (qualifiedName, node) in workspace.Declarations)
@@ -1002,7 +1026,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             }
 
             var isDefinition = node is SysmlDefinitionNode { DefinitionKeyword: "part def" };
-            if (!isDefinition && !IsRootUsage(qualifiedName, node, workspace))
+            if (!isDefinition &&
+                !IsRootUsage(qualifiedName, node, workspace) &&
+                !IsExposedContainerUsage(qualifiedName, node, workspace, rootScope, defsByName))
             {
                 continue;
             }
@@ -1012,12 +1038,13 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            if (scope is not null && !ExposeScopeResolver.IsRootRelevantToScope(qualifiedName, scope))
+            if (rootScope is not null && !ExposeScopeResolver.IsRootRelevantToScope(qualifiedName, rootScope))
             {
                 continue;
             }
 
-            var entry = (qualifiedName, node, CountConnectors(node), node.DiagramChildren.Count(IsPartUsage));
+            var source = InteriorSourceOf(node, defsByName);
+            var entry = (qualifiedName, node, CountConnectors(source), source.DiagramChildren.Count(IsPartUsage));
             (isDefinition ? candidates : usageCandidates).Add(entry);
         }
 
@@ -1037,7 +1064,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var usedAsChildType = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (_, candidate, _, _) in candidates)
         {
-            foreach (var feature in candidate.DiagramChildren.OfType<SysmlFeatureNode>())
+            foreach (var feature in InteriorSourceOf(candidate, defsByName).DiagramChildren.OfType<SysmlFeatureNode>())
             {
                 if (feature.FeatureKeyword != "part")
                 {
@@ -1096,6 +1123,46 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
+    /// Returns whether a declaration is a top-level part usage the view exposes by name that is a
+    /// container — it declares nested parts itself or its type is a part definition that does (see
+    /// <see cref="InteriorSourceOf"/>) — so <c>expose car;</c> for <c>part car : Car;</c> draws the
+    /// usage <c>car : Car</c> as the root frame, with the parts its type provides, rather than the
+    /// definition <c>Car</c>. Like <see cref="IsRootUsage"/> it requires a package owner (a usage nested
+    /// in a definition or usage is drawn inside its owner).
+    /// </summary>
+    private static bool IsExposedContainerUsage(
+        string qualifiedName,
+        SysmlNode node,
+        SysmlWorkspace workspace,
+        ExposedScope? scope,
+        DefinitionIndex defsByName)
+    {
+        if (scope is null ||
+            !IsPartUsage(node) ||
+            !ExposeScopeResolver.ExposesByName(qualifiedName, scope) ||
+            !InteriorSourceOf(node, defsByName).DiagramChildren.Any(IsPartUsage))
+        {
+            return false;
+        }
+
+        var owner = OwnerOf(qualifiedName);
+        return owner is null || (workspace.Declarations.TryGetValue(owner, out var ownerNode) && ownerNode is SysmlPackageNode);
+    }
+
+    /// <summary>
+    /// Returns the element whose nested usages and connectors make up
+    /// <paramref name="root"/>'s interior: the root itself for a definition or for a usage that
+    /// declares nested parts of its own, otherwise — for a part usage with none — the part definition
+    /// its type resolves to (the usage inherits that definition's nested parts and connectors, as it
+    /// does when it is drawn as a nested container), or the root itself when its type is not a
+    /// container.
+    /// </summary>
+    private static SysmlNode InteriorSourceOf(SysmlNode root, DefinitionIndex defsByName) =>
+        root is SysmlFeatureNode usage && !usage.DiagramChildren.Any(IsPartUsage)
+            ? ResolveByTyping(usage, defsByName) ?? root
+            : root;
+
+    /// <summary>
     /// Returns whether a declaration is a part usage that can be the root of an interconnection view: a
     /// <c>part</c> usage declared directly in a package (not nested in a definition or another usage, which
     /// are drawn inside their owner) whose own body declares both nested parts and connectors.
@@ -1148,6 +1215,10 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <see langword="null"/> only at the true top of recursion (<paramref name="depth"/> is always 0
     /// in that case). See <see cref="LayOutInterior"/>'s remarks.
     /// </param>
+    /// <param name="rootExposedByName">
+    /// Whether the view exposes the root element by name, in which case the depth-0 scope filter is
+    /// not applied to its own usages (see <see cref="LayOutInterior"/>).
+    /// </param>
     private static IReadOnlyList<PartItem> CollectParts(
         SysmlNode root,
         Theme theme,
@@ -1155,7 +1226,8 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         DefinitionIndex defsByName,
         ISet<string> visited,
         ExposedScope? scope,
-        bool? ancestorUnlimitedRecursion)
+        bool? ancestorUnlimitedRecursion,
+        bool rootExposedByName = false)
     {
         var result = new List<PartItem>();
         foreach (var feature in root.DiagramChildren.OfType<SysmlFeatureNode>())
@@ -1165,7 +1237,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            if (depth == 0 && scope is not null && feature.QualifiedName is { Length: > 0 } fqn &&
+            if (depth == 0 && scope is not null && !rootExposedByName && feature.QualifiedName is { Length: > 0 } fqn &&
                 !ExposeScopeResolver.IsInSubjectScope(fqn, scope))
             {
                 continue;

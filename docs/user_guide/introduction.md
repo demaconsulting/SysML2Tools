@@ -564,6 +564,15 @@ rounded box headed `«part» name : Type` for a part usage declared in a package
 parts and connectors (a usage is a root only when there is no part definition to show, or when the view
 exposes it). An italic `interconnection` title separates the heading from the contents.
 
+A view that exposes a part definition by name draws that definition as the frame, with its own parts,
+ports and connections inside it — `expose Car;` for `part def Car { port fuelIn : FuelPort; part engine :
+Engine; part wheels : Wheel [4]; connect engine to wheels; }` draws `Car` with `engine` and `wheels` joined
+by the connection and the `fuelIn` port on its border; `expose Car::**;` additionally expands the nested
+parts that are themselves containers. Exposing a part usage (`part car : Car;` and `expose car;`) draws the
+usage `car : Car` as a rounded frame with the parts, ports and connections its type provides — the
+OMG Pilot draws only the empty usage here, and this tool deliberately shows the structure the usage
+inherits, as it does for every nested container part.
+
 Ports are small white rounded squares on the border of the part, with the label `name : Type` outside it:
 
 | Textual form | Drawn as |
@@ -658,6 +667,23 @@ entire workspace:
     itself** (a NamespaceExpose only ever exposes `X`'s Memberships — its members — never `X` as
     a member of itself), but additionally includes descendants beyond direct children, at any
     depth — unlike `NamespaceDirectChildren`, which stops at one level.
+
+  **Imported members.** `expose A::*;`, `expose A::*::**;` and `expose A::**;` are namespace imports of
+  `A`, so they also include the members `A` **re-exports through a `public import`** — a wildcard
+  import (`public import B::*;`) adds `B`'s public members, a membership import
+  (`public import B::Widget;`) adds that member, and a recursive import (`public import B::**;`) adds
+  the member and everything below it. With `expose A::**;` and `expose A::*::**;` the imported members'
+  contents are drawn too (for example the elements inside an imported package). Imports are followed
+  **transitively through public imports**, and an import cycle between packages terminates. **Private
+  imports are deliberately not followed**, at any level: a package that merely uses another through
+  `private import C::*;` (for instance `private import StandardViewDefinitions::*;`) does not re-export
+  it, so `expose A::*;` does not draw `C`'s members. This differs from the OMG Pilot implementation,
+  which also draws the exposed package's own private imports (an `expose` ignores visibility, SysML v2
+  §8.3.26.2); following them would pull the contents of every private library import into the view.
+  A bare `expose A;` exposes only `A` and follows no import. In a General View an imported member is owned
+  by its own package, so it is drawn in that package's folder — at the top level when that package is not
+  exposed itself — and **never inside `A`'s frame**, which holds the members `A` owns. Imports through an
+  alias, and imports of a package that an `expose` with a bracket filter selects, are not followed.
 
   If `X` does not resolve to any declaration in the workspace (for example, a typo), the tool
   falls back to rendering the full workspace for that view — but now also reports a diagnostic

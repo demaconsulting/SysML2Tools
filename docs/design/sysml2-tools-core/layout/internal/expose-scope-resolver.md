@@ -79,6 +79,49 @@ whole-subtree matching, same as before this fix. This expansion only applies to 
 successfully-evaluated bracket filter's `ExplicitMembers` already name the exact matched
 definitions/usages directly.
 
+###### Imported memberships (`AddImportedMemberships`, `ImportWalker`)
+
+`expose A::*;`, `expose A::*::**;` and `expose A::**;` are namespace imports of `A` (formal-26-03-02.md
+§8.3.26.4), and a namespace import brings in the memberships `A`'s own `import`s provide in addition to its
+owned members (issue #148). After `AddSubject` adds the written subject, `AddImportedMemberships` — for the
+kinds `NamespaceDirectChildren`, `NamespaceRecursive` and `MembershipRecursive` only; a bare `expose A;`
+follows nothing — walks the `SysmlImportNode` children of `A`'s declaration, reading each import's already
+resolved `Import` edge (so the name resolver is not involved) and adding one `ExposeSubject` per imported
+membership:
+
+- a wildcard import (`import B::*;`) adds each named, non-import child of `B` that is `public` (every child
+  for an `import all`), then follows `B`'s own imports;
+- a membership import (`import B::Widget;`, `import B::**;`) adds exactly the imported member;
+- the added subject is `MembershipExact` for a non-recursive expose and `MembershipRecursive` (the member's
+  whole subtree) when the expose or the import is recursive; a recursive expose also walks the imports of
+  every namespace nested in `A` and in each imported package.
+
+**Which imports are followed — one rule.** The private constant `ExposeFollowsPrivateImports` (`false`) is
+passed to `AddImportedMemberships` and decides whether an import that is not `public` is followed. With the
+default only `public` imports — the namespace's re-exports — are followed, **at every level**: the exposed
+namespace's own `private import` is not followed, and neither is a private import of a namespace reached
+through a public import, so imports are followed transitively through public re-exports only. This
+**deliberately differs from the OMG Pilot**, which also draws the exposed namespace's own private imports
+(an `Expose` has `isImportAll = true`, §8.3.26.2, so the exposed namespace's own imports count whatever
+their visibility): nearly every package begins with a private import of a standard library — for example
+`private import StandardViewDefinitions::*;` — and following those would flood a view with library content
+its author never meant to re-export. Setting the constant to `true` restores the Pilot behavior.
+
+A visited set of `(namespace, recursive)` pairs guards import cycles, subjects are never added twice
+(`QualifiedName` and recursion kind), unresolved imports and imports of standard library namespaces are
+skipped, and an import's bracket filter, when it parses, narrows its members through
+`FilterExpressionEvaluator` (otherwise the import is followed unfiltered). Aliases are not followed.
+Imported subjects are ordinary subjects, so every strategy honors them through `IsInSubjectScope`; they are
+not typing targets and get no usage-to-type expansion.
+
+###### `ExposesByName(string qualifiedName, ExposedScope scope)`
+
+Returns `true` when a subject that is not a typing target, of kind `MembershipExact` or
+`MembershipRecursive`, names `qualifiedName` — the element the view exposes by name, as opposed to one
+reached only as the ancestor of a narrower exposed element or as the type added for an exposed usage.
+`InterconnectionViewLayoutStrategy` uses it to draw an exposed definition or usage together with its own
+structure.
+
 ###### `IsInSubjectScope(string qualifiedName, ExposedScope scope)`
 
 Returns `true` when `qualifiedName` matches one of `scope.Subjects` per that subject's own

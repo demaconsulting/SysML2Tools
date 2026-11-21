@@ -343,7 +343,10 @@ For every layout strategy (not just the General View), a view's body `expose <..
 now scope the rendered diagram to the union of the exposed entries' resolved scopes — an exact
 match, direct children only, or the entire containment subtree, depending on each entry's SysML
 v2 `expose` grammar form and recursion setting (`expose X;`/`expose X::**;`/`expose X::*;`/
-`expose X::*::**;`) — instead of always rendering the full workspace; a view with no `expose`
+`expose X::*::**;`) — instead of always rendering the full workspace; the namespace forms also include
+the members `X` re-exports through a `public import` (private imports are not followed), and an
+Interconnection View that exposes a part definition or part usage draws its nested parts, ports and
+connections; a view with no `expose`
 statement continues to render
 the full workspace. `render Views::asTreeDiagram;` and `render Views::asInterconnectionDiagram;` now select
 the Browser View and Interconnection View layout strategies respectively, taking precedence over

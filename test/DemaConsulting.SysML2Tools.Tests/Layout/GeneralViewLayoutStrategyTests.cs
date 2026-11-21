@@ -2,6 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+// cspell:ignore Dpart Epart Xpart Ypart
+
 using System.Reflection;
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
@@ -661,6 +663,201 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Equal("Pkg", folder.Label);
         Assert.Contains(folder.Children.OfType<LayoutBox>(), b => b.Label == "Block1");
         Assert.Contains(folder.Children.OfType<LayoutBox>(), b => b.Label == "Block2");
+    }
+
+    /// <summary>
+    ///     Model for the expose-through-import tests: <c>A</c> re-exports <c>B</c> through a
+    ///     <c>public import</c> and merely uses <c>C</c> through a <c>private import</c>; <c>A2</c>
+    ///     publicly imports one member, <c>A3</c> imports <c>B</c> recursively, <c>A4</c> reaches
+    ///     <c>D</c> through the public import of <c>B2</c> (which also privately imports <c>E</c>),
+    ///     and <c>X</c> and <c>Y</c> publicly import each other.
+    /// </summary>
+    private const string ExposeImportsSysml = """
+        package B {
+            part def Widget;
+            part def Gadget;
+            private part def Hidden;
+            package Inner { part def Deep; }
+        }
+        package C { part def Cee; }
+        package A {
+            public import B::*;
+            private import C::*;
+            part def Owner;
+            package Nested { part def NestedPart; }
+        }
+        package A2 { public import B::Widget; part def Owner2; }
+        package A3 { public import B::**; part def Owner3; }
+        package D { part def Dpart; }
+        package E { part def Epart; }
+        package B2 { public import D::*; private import E::*; part def B2own; }
+        package A4 { public import B2::*; part def Owner4; }
+        package X { public import Y::*; part def Xpart; }
+        package Y { public import X::*; part def Ypart; }
+        package Diagrams {
+            view Members { expose A::*; }
+            view Recursive { expose A::**; }
+            view MembershipImport { expose A2::*; }
+            view RecursiveImport { expose A3::*; }
+            view Transitive { expose A4::*; }
+            view Cycle { expose X::**; }
+            view BareNamespace { expose A; }
+            view FrameAndMembers { expose A; expose A::*; }
+        }
+        """;
+
+    /// <summary>Returns the labels of every box in <paramref name="layout"/>.</summary>
+    private static List<string?> LabelsOf(LayoutTree layout) => CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+
+    /// <summary>
+    ///     <c>expose A::*;</c> draws the members <c>A</c> re-exports through <c>public import B::*;</c>
+    ///     next to its own members (issue #148).
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicWildcardImport_DrawsImportedMembers()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Members");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Owner", labels);
+        Assert.Contains("Widget", labels);
+        Assert.Contains("Gadget", labels);
+        Assert.Contains("Inner", labels);
+    }
+
+    /// <summary>
+    ///     Private imports stay excluded: <c>A</c> merely uses <c>C</c> through <c>private import C::*;</c>,
+    ///     so <c>expose A::*;</c> does not draw <c>Cee</c> — a deliberate difference from the OMG Pilot —
+    ///     and a private member of an imported package is not drawn either.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateImport_DrawsNothingFromIt()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Members");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.DoesNotContain("Cee", labels);
+        Assert.DoesNotContain("Hidden", labels);
+    }
+
+    /// <summary>
+    ///     A public membership import (<c>public import B::Widget;</c>) brings in exactly that member.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicMembershipImport_DrawsOnlyThatMember()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "MembershipImport");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Owner2", labels);
+        Assert.Contains("Widget", labels);
+        Assert.DoesNotContain("Gadget", labels);
+    }
+
+    /// <summary>
+    ///     A public recursive import (<c>public import B::**;</c>) brings in the imported package and
+    ///     everything below it.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicRecursiveImport_DrawsWholeImportedTree()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "RecursiveImport");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Owner3", labels);
+        Assert.Contains("B", labels);
+        Assert.Contains("Widget", labels);
+        Assert.Contains("Deep", labels);
+    }
+
+    /// <summary>
+    ///     Imports are followed transitively through <c>public</c> imports only: <c>A4</c> reaches
+    ///     <c>Dpart</c> through <c>B2</c>'s public import, but not <c>Epart</c> through its private one.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Transitive");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("B2own", labels);
+        Assert.Contains("Dpart", labels);
+        Assert.DoesNotContain("Epart", labels);
+    }
+
+    /// <summary>
+    ///     <c>expose A::**;</c> follows public imports and draws the imported packages' contents
+    ///     (<c>Deep</c> inside the imported <c>Inner</c>), still without the private import.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_FollowsPublicImportsIntoImportedPackages()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Recursive");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("NestedPart", labels);
+        Assert.Contains("Widget", labels);
+        var inner = Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "Inner");
+        Assert.Contains(inner.Children.OfType<LayoutBox>(), b => b.Label == "Deep");
+        Assert.DoesNotContain("Cee", labels);
+    }
+
+    /// <summary>
+    ///     Packages that publicly import each other do not make the expose loop: it terminates and
+    ///     draws each member once.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportCycle_TerminatesWithoutDuplicates()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "Cycle");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Single(labels, l => l == "Xpart");
+        Assert.Single(labels, l => l == "Ypart");
+    }
+
+    /// <summary>A bare <c>expose A;</c> exposes only the package itself, so nothing it imports is drawn.</summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_BareNamespaceExpose_DrawsNoImportedMember()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "BareNamespace");
+
+        // Assert
+        var box = Assert.Single(CollectBoxes(layout.Nodes));
+        Assert.Equal("A", box.Label);
+    }
+
+    /// <summary>
+    ///     With the package exposed as well (<c>expose A; expose A::*;</c>) its frame holds only the
+    ///     members it owns; the imported members belong to their own package and are drawn outside it.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposePackageAndMembers_DrawsImportedMembersOutsideFrame()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportsSysml, "FrameAndMembers");
+
+        // Assert
+        var frame = Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "A");
+        var framed = frame.Children.OfType<LayoutBox>().Select(b => b.Label).ToList();
+        Assert.Contains("Owner", framed);
+        Assert.DoesNotContain("Widget", framed);
+        Assert.Contains(layout.Nodes.OfType<LayoutBox>(), b => b.Label == "Widget");
     }
 
     /// <summary>

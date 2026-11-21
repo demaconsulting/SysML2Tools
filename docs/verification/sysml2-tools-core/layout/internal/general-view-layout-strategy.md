@@ -240,6 +240,11 @@ configuration are required beyond a standard .NET SDK installation.
 - The gallery model `docs/gallery/models/11-nested-packages-general.sysml` renders `Powertrain` and
   `Body` folders inside the `Vehicle` folder with the cross-package specialization and the
   compositions into `Car` drawn in the `Vehicle` scope between the actual endpoint boxes.
+- Members an exposed package re-exports through `public import` are drawn by `expose A::*;`,
+  `expose A::*::**;` and `expose A::**;` (membership, wildcard and recursive imports, transitively
+  through public imports, import cycles terminating); a `private` import is never followed, at any level,
+  and `expose A;` follows no import. The imported members are drawn outside the importing package's
+  frame, in the folder of their own package.
 - The relationships that leave a package folder are drawn without crossing one another in the
   deep-nesting and sibling-nested-package examples, whichever way the folder's definitions were declared
   (the layout engine orders a container's interior by its cross-hierarchy relationships); a folder with
@@ -916,3 +921,23 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   Members flagged `IsExcludedFromDiagrams` (bare parameters, `perform`/portion usages, a hidden nested
   definition, and a hidden member of a port) add no box, row or port box: the SVG equals that of the
   workspace without them
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicWildcardImport_DrawsImportedMembers`:
+  `expose A::*;` draws `A`'s own `Owner` and the members `B` it re-exports through `public import B::*;`
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateImport_DrawsNothingFromIt`:
+  `A`'s `private import C::*;` brings in nothing, nor does a private member of an imported package
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicMembershipImport_DrawsOnlyThatMember`:
+  `public import B::Widget;` draws `Widget` but not `Gadget`
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicRecursiveImport_DrawsWholeImportedTree`:
+  `public import B::**;` draws `B` and everything below it
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly`:
+  A public import of a package that itself publicly imports another draws that package's members,
+  but not those of a private import of the imported package
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_FollowsPublicImportsIntoImportedPackages`:
+  `expose A::**;` draws the imported package `Inner` with its `Deep` inside, and not the private import
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportCycle_TerminatesWithoutDuplicates`:
+  Two packages publicly importing each other terminate and draw each member once
+- `GeneralViewLayoutStrategy_BuildLayout_BareNamespaceExpose_DrawsNoImportedMember`:
+  `expose A;` draws only the package
+- `GeneralViewLayoutStrategy_BuildLayout_ExposePackageAndMembers_DrawsImportedMembersOutsideFrame`:
+  With `expose A; expose A::*;` the frame of `A` holds `Owner` and the imported `Widget` is drawn
+  outside it

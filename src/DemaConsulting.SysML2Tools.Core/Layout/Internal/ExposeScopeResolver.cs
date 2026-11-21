@@ -92,6 +92,24 @@ internal sealed record BracketFilterFailure(string ExpressionText, string? Reaso
 internal static class ExposeScopeResolver
 {
     /// <summary>
+    /// The single rule deciding whether a <c>private</c> (or <c>protected</c>) <c>import</c> of an
+    /// exposed namespace, or of a namespace reached through its imports, is followed when an
+    /// <c>expose</c> collects imported memberships. <see langword="false"/> by design: only
+    /// <c>public</c> imports — the namespace's re-exports — are followed, at every level
+    /// (transitively), so <c>expose A::*</c> draws what <c>A</c> re-exports but not what <c>A</c>
+    /// merely uses internally.
+    /// </summary>
+    /// <remarks>
+    /// This deliberately differs from the OMG Pilot implementation, which — because an
+    /// <c>Expose</c> has <c>isImportAll = true</c> (formal-26-03-02.md §8.3.26.2) — also draws the
+    /// exposed namespace's own <c>private</c> imports. Following those would flood a view with
+    /// library content: nearly every package starts with a private import of a standard library
+    /// (for example <c>private import StandardViewDefinitions::*;</c>) that its author never meant
+    /// to re-export. Setting this to <see langword="true"/> restores Pilot behavior.
+    /// </remarks>
+    private const bool ExposeFollowsPrivateImports = false;
+
+    /// <summary>
     /// Resolves the qualified-name scope a view's <c>expose</c> statements restrict the diagram
     /// to, or <see langword="null"/> when the view has no resolved <see cref="SysmlEdgeKind.Expose"/>
     /// edge — meaning every non-stdlib element is included, unchanged from the pre-scoping
@@ -275,7 +293,8 @@ internal static class ExposeScopeResolver
     /// <paramref name="subjects"/> — the existing Phase 1 whole-subtree inclusion behavior for
     /// recursive kinds, now correctly narrowed to exact/direct-children matching for non-recursive
     /// kinds, shared by unfiltered <c>expose</c> entries and bracket-filtered entries that fell
-    /// back after a parse/evaluation failure.
+    /// back after a parse/evaluation failure. For a namespace-valued kind the memberships the
+    /// target imports are added too (see <see cref="AddImportedMemberships"/>).
     /// </summary>
     private static void AddSubject(
         SysmlWorkspace workspace,
@@ -284,6 +303,7 @@ internal static class ExposeScopeResolver
         List<ExposeSubject> subjects)
     {
         subjects.Add(new ExposeSubject(target, kind));
+        AddImportedMemberships(workspace, target, kind, ExposeFollowsPrivateImports, subjects);
 
         if (workspace.Declarations.TryGetValue(target, out var declaration) &&
             declaration is SysmlFeatureNode { } feature)
@@ -297,6 +317,168 @@ internal static class ExposeScopeResolver
             }
         }
     }
+
+    /// <summary>
+    /// Adds, for a namespace-valued <c>expose</c> subject (<c>A::*</c>, <c>A::*::**</c> or
+    /// <c>A::**</c>), one subject per membership that <c>A</c> brings in through its <c>import</c>s —
+    /// the imported memberships a SysML v2 namespace import of <c>A</c> includes in addition to
+    /// <c>A</c>'s owned members (KerML <c>Namespace::visibleMemberships</c>; issue #148). A bare
+    /// <c>expose A;</c> (<see cref="ExposeRecursionKind.MembershipExact"/>) exposes only <c>A</c> and
+    /// follows nothing.
+    /// </summary>
+    /// <remarks>
+    /// Which imports are followed is decided by <paramref name="followPrivateImports"/> (see
+    /// <see cref="ExposeFollowsPrivateImports"/>): by default only <c>public</c> imports, at every
+    /// level, so imports are followed transitively through public re-exports and never through a
+    /// private import. A wildcard import (<c>import B::*;</c>) adds each public, named member of
+    /// <c>B</c>; a membership import (<c>import B::Widget;</c>, <c>import B::**;</c>) adds exactly
+    /// that member (and its subtree when recursive). Members are matched exactly for a
+    /// non-recursive expose and as whole subtrees when either the expose or the import is recursive.
+    /// Import cycles are guarded by a visited set and duplicate subjects are not added twice. Imports
+    /// of standard library namespaces and unresolved imports are skipped, and an import's bracket
+    /// filter narrows its members when it parses (otherwise the import is followed unfiltered).
+    /// </remarks>
+    private static void AddImportedMemberships(
+        SysmlWorkspace workspace,
+        string target,
+        ExposeRecursionKind kind,
+        bool followPrivateImports,
+        List<ExposeSubject> subjects)
+    {
+        if (kind is not (ExposeRecursionKind.NamespaceDirectChildren
+            or ExposeRecursionKind.NamespaceRecursive
+            or ExposeRecursionKind.MembershipRecursive))
+        {
+            return;
+        }
+
+        if (workspace.Declarations.TryGetValue(target, out var exposed) && IsNamespace(exposed))
+        {
+            new ImportWalker(workspace, followPrivateImports, subjects)
+                .FollowImports(exposed, target, kind != ExposeRecursionKind.NamespaceDirectChildren);
+        }
+    }
+
+    /// <summary>Returns whether a declaration is a namespace whose imports an expose follows (a package or a definition).</summary>
+    private static bool IsNamespace(SysmlNode node) => node is SysmlPackageNode or SysmlDefinitionNode;
+
+    /// <summary>
+    /// Walks the imports of an exposed namespace (and, transitively, of the namespaces it imports),
+    /// appending the imported memberships as <see cref="ExposeSubject"/>s. One instance serves one
+    /// exposed subject.
+    /// </summary>
+    private sealed class ImportWalker(SysmlWorkspace workspace, bool followPrivateImports, List<ExposeSubject> subjects)
+    {
+        /// <summary>The (namespace, recursive) pairs already walked — the import-cycle guard.</summary>
+        private readonly HashSet<(string Namespace, bool Recursive)> _visited = [];
+
+        /// <summary>
+        /// Follows the imports of <paramref name="ns"/> that are followed per the import-visibility
+        /// rule, and — when <paramref name="recursive"/> — those of every namespace nested in it.
+        /// </summary>
+        public void FollowImports(SysmlNode ns, string namespaceName, bool recursive)
+        {
+            if (!_visited.Add((namespaceName, recursive)))
+            {
+                return;
+            }
+
+            foreach (var import in ns.Children.OfType<SysmlImportNode>()
+                .Where(import => import.Visibility == SysmlVisibility.Public || followPrivateImports))
+            {
+                AddImport(import, recursive);
+            }
+
+            if (!recursive)
+            {
+                return;
+            }
+
+            foreach (var child in ns.Children.Where(IsNamespace))
+            {
+                if (child.QualifiedName is { Length: > 0 } childName)
+                {
+                    FollowImports(child, childName, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>Adds the memberships one import brings in, then follows the imported namespace's own imports.</summary>
+        private void AddImport(SysmlImportNode import, bool recursive)
+        {
+            var importedName = import.ResolvedEdges.FirstOrDefault(edge => edge.Kind == SysmlEdgeKind.Import)?.TargetQualifiedName;
+            if (importedName is null ||
+                StdlibFilter.IsStdlibElement(importedName, workspace.StdlibNames) ||
+                !workspace.Declarations.TryGetValue(importedName, out var imported))
+            {
+                return;
+            }
+
+            var recurse = recursive || import.IsRecursive;
+            var kind = recurse ? ExposeRecursionKind.MembershipRecursive : ExposeRecursionKind.MembershipExact;
+            if (import.IsMembershipImport)
+            {
+                AddMembers(import, [importedName], kind);
+            }
+            else if (IsNamespace(imported))
+            {
+                // A wildcard import brings in the imported namespace's public members (every member
+                // for an `import all`), but never its imports — those are followed below.
+                var members = imported.Children
+                    .Where(child => child is not (SysmlImportNode or SysmlAliasNode) &&
+                        child.QualifiedName is { Length: > 0 } &&
+                        child.Name is { Length: > 0 } &&
+                        (import.IsImportAll || child.Visibility == SysmlVisibility.Public))
+                    .Select(child => child.QualifiedName!)
+                    .ToList();
+                AddMembers(import, members, kind);
+            }
+            else
+            {
+                return;
+            }
+
+            if (IsNamespace(imported) && (recurse || !import.IsMembershipImport))
+            {
+                FollowImports(imported, importedName, recurse);
+            }
+        }
+
+        /// <summary>Adds each member subject once, narrowed by the import's bracket filter when it parses.</summary>
+        private void AddMembers(SysmlImportNode import, List<string> members, ExposeRecursionKind kind)
+        {
+            if (import.BracketFilterExpressionText is { Length: > 0 } filterText &&
+                FilterExpressionParser.Parse(filterText).Expression is { } expression)
+            {
+                members = [.. FilterExpressionEvaluator.Evaluate(workspace, members, expression).MatchedQualifiedNames];
+            }
+
+            foreach (var member in members.Where(member =>
+                !subjects.Any(subject => subject.QualifiedName == member && subject.Recursion == kind)))
+            {
+                subjects.Add(new ExposeSubject(member, kind));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the view itself exposes the element
+    /// <paramref name="qualifiedName"/> by name — a written (or import-derived) subject of kind
+    /// <see cref="ExposeRecursionKind.MembershipExact"/> or
+    /// <see cref="ExposeRecursionKind.MembershipRecursive"/> that names it — as opposed to reaching
+    /// it only as an ancestor of a narrower exposed element or as the typing target
+    /// <see cref="ResolveExposedScope"/> adds for an exposed usage. An element exposed by name is
+    /// drawn together with its own structure (e.g. an <c>expose Car;</c> part definition draws its
+    /// nested parts in an Interconnection View).
+    /// </summary>
+    /// <param name="qualifiedName">The element's qualified name.</param>
+    /// <param name="scope">The resolved <c>expose</c> scope.</param>
+    /// <returns>Whether a written membership subject names the element.</returns>
+    public static bool ExposesByName(string qualifiedName, ExposedScope scope) =>
+        scope.Subjects.Any(subject =>
+            !subject.IsTypingTarget &&
+            subject.QualifiedName == qualifiedName &&
+            subject.Recursion is ExposeRecursionKind.MembershipExact or ExposeRecursionKind.MembershipRecursive);
 
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="qualifiedName"/> matches one of
