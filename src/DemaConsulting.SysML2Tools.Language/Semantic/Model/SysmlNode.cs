@@ -626,7 +626,9 @@ public enum SysmlVisibility
 /// <remarks>
 ///     An alias has no qualified name of its own, so it is not registered in the symbol table;
 ///     <see cref="NameResolver"/> finds it as a <see cref="SysmlNode.Children"/> entry of its owning
-///     namespace and resolves <see cref="TargetName"/> relative to that namespace.
+///     namespace and resolves <see cref="TargetName"/> relative to that namespace. An alias at the
+///     root of a file belongs to the global namespace: <see cref="ReferenceResolver"/> registers it
+///     with the resolver, which follows it for a global name.
 /// </remarks>
 public sealed class SysmlAliasNode : SysmlNode
 {

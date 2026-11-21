@@ -467,6 +467,36 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    ///     A KerML <c>namespace N { ... }</c> owns its members exactly as a package does, so it is
+    ///     built as a <see cref="SysmlPackageNode"/>: its members are qualified by <c>N::</c> and
+    ///     do not become members of the enclosing namespace. An unnamed namespace is dropped, as an
+    ///     unnamed package is.
+    /// </remarks>
+    public override SysmlNode? VisitNamespace(SysMLv2Parser.NamespaceContext context)
+    {
+        var name = GetDeclaredName(context.namespaceDeclaration()?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+
+        _namespaceStack.Add(name);
+        var (children, annotations) = CollectChildren(context.namespaceBody()?.namespaceBodyElement() ?? []);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
+        return new SysmlPackageNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            Children = children,
+            Annotations = annotations,
+        };
+    }
+
+    /// <inheritdoc/>
     public override SysmlNode? VisitLibraryPackage(SysMLv2Parser.LibraryPackageContext context)
     {
         var name = GetDeclaredName(context.packageDeclaration()?.identification());

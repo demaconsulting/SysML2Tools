@@ -225,8 +225,8 @@ sysml2tools lint --strict-unresolved "src/**/*.sysml"
 
 Every root-level declaration of every file in a workspace — a package, a definition, a usage, an
 alias — is a member of one shared namespace, so each root-level name can be declared **once** per
-workspace. (An alias is checked by its declared name, not its short name; a `namespace` or a named
-`comment` is not checked.) A package is a single declaration: it cannot be split across files or re-opened later,
+workspace. (An alias is checked by its declared name, not its short name; a named `comment` is not
+checked.) A package is a single declaration: it cannot be split across files or re-opened later,
 and a package and a definition cannot share a name. The OMG Pilot Implementation rejects a second
 declaration the same way (`Duplicate of other owned member name`).
 

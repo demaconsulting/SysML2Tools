@@ -131,7 +131,12 @@ instance serves one workspace.
   recorded only as `occurrence`, and `individual` is not refined to `Occurrences::Life`). Each
   listed target is checked to exist in the embedded standard library by a test.
 - The global namespace is every top-level declaration of every loaded root namespace, user and
-  standard library alike (KerML 8.2.3.5.2).
+  standard library alike (KerML 8.2.3.5.2). A root-level alias is a membership of it too:
+  `RegisterRootAliases` records each file's root aliases (with that file's root imports), and a
+  global name that no declaration has but a root alias names, by declared name and then by short
+  name, resolves to the alias's target, resolved from the root of the alias's file. An alias being
+  followed contributes nothing again, so an alias cycle, or an alias whose target does not
+  resolve, leaves the name unresolved.
 - *Feature chains* (`a.b.c`, KerML 8.2.3.5.1): a reference containing a `.` outside single quotes
   is split into **parts**. The first part is an ordinary (possibly qualified or `$::`-prefixed)
   name, resolved by full resolution from the local namespace; every later part is resolved as

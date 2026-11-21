@@ -25,6 +25,7 @@ name, so their members are qualified under a scope that cannot collide with the 
 | `VisitRootNamespace` | `RootNamespaceContext` | `SysmlPackageNode` (root) |
 | `VisitPackage` | `PackageContext` | `SysmlPackageNode` |
 | `VisitLibraryPackage` | `LibraryPackageContext` | `SysmlPackageNode` |
+| `VisitNamespace` | `NamespaceContext` | `SysmlPackageNode` (unnamed namespace: none) |
 | `VisitPartDefinition` | `PartDefinitionContext` | `SysmlDefinitionNode` |
 | `VisitAttributeDefinition` | `AttributeDefinitionContext` | `SysmlDefinitionNode` |
 | `VisitItemDefinition` | `ItemDefinitionContext` | `SysmlDefinitionNode` |

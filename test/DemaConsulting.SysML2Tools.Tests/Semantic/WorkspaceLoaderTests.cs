@@ -6290,6 +6290,113 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A root-level alias is a membership of the global namespace: a reference in another file
+    ///     resolves through it to its target, by its name alone and as the start of a qualified
+    ///     name, and a later same-named package, which the alias legitimately precedes, is the
+    ///     duplicate that is ignored.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RootAlias_ResolvesToItsTargetFromAnotherFile()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(true, reversed: false,
+            ("a.sysml", "alias Al for Q;"),
+            ("b.sysml", "package P { part x : Al::A; part y : Al::B; }"),
+            ("c.sysml", "package Q { part def A; part def B; }"),
+            ("d.sysml", "package Al { part def A; }"));
+
+        // Assert: both references reach Q's members, never the ignored package Al
+        var declarations = load.Result.Workspace!.Declarations;
+        Assert.Equal("Q::A", TypingTarget(declarations["P::x"]));
+        Assert.Equal("Q::B", TypingTarget(declarations["P::y"]));
+        Assert.DoesNotContain("Al::A", declarations.Keys);
+        var warning = Assert.Single(load.Duplicates);
+        Assert.Equal(load.PathOf("d.sysml"), warning.FilePath);
+        Assert.Equal((1, 9), (warning.Line, warning.Column));
+        Assert.False(load.Result.HasErrors);
+    }
+
+    /// <summary>
+    ///     A root-level alias whose target does not resolve does not resolve the name, and an alias
+    ///     that refers to itself ends unresolved instead of looping.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RootAlias_WithUnresolvedOrCyclicTarget_IsUnresolved()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(true, reversed: false,
+            ("a.sysml", "alias Gone for Missing;"),
+            ("b.sysml", "alias Loop for Loop;"),
+            ("c.sysml", "package P { part x : Gone; part y : Loop; }"));
+
+        // Assert
+        var unresolved = load.Result.Diagnostics
+            .Where(d => d.Message.StartsWith("Unresolved reference", StringComparison.Ordinal))
+            .Where(d => d.FilePath == load.PathOf("c.sysml"))
+            .Select(d => d.Message)
+            .ToList();
+        Assert.Contains("Unresolved reference: 'Gone'", unresolved);
+        Assert.Contains("Unresolved reference: 'Loop'", unresolved);
+    }
+
+    /// <summary>
+    ///     A root-level KerML <c>namespace</c> owns its members: they are qualified by the namespace
+    ///     name and are not root-level members, so they neither collide with root-level declarations
+    ///     nor resolve unqualified from outside the namespace.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RootNamespace_OwnsItsMembers()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(true, reversed: false,
+            ("a.sysml", "namespace NS { classifier A; classifier B; }"),
+            ("b.sysml", "classifier A;"),
+            ("c.sysml", "package P { part x : A; part y : NS::A; part z : NS::B; }"));
+
+        // Assert: NS::A and the root-level A are different elements and nothing is a duplicate
+        var declarations = load.Result.Workspace!.Declarations;
+        Assert.Contains("NS::A", declarations.Keys);
+        Assert.Contains("NS::B", declarations.Keys);
+        Assert.Contains("A", declarations.Keys);
+        Assert.DoesNotContain("B", declarations.Keys);
+        Assert.Empty(load.Duplicates);
+        Assert.Equal("A", TypingTarget(declarations["P::x"]));
+        Assert.Equal("NS::A", TypingTarget(declarations["P::y"]));
+        Assert.Equal("NS::B", TypingTarget(declarations["P::z"]));
+        Assert.False(load.Result.HasErrors);
+    }
+
+    /// <summary>
+    ///     A root-level namespace is a named root-level member like a package: a second declaration
+    ///     of its name is a duplicate, and a member of the namespace is not visible unqualified
+    ///     from outside it.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RootNamespace_DuplicateNameWarnsAndMembersStayQualified()
+    {
+        // Arrange / Act
+        var load = await LoadNamedFilesAsync(false, reversed: false,
+            ("a.sysml", "namespace N { classifier A; }"),
+            ("b.sysml", "package N { part def C; }"),
+            ("c.sysml", "package P { part x : A; }"));
+
+        // Assert
+        var warning = Assert.Single(load.Duplicates);
+        Assert.Equal(load.PathOf("b.sysml"), warning.FilePath);
+        Assert.Equal((1, 9), (warning.Line, warning.Column));
+        Assert.Contains($"'N' is also declared in {load.PathOf("a.sysml")}(1,11)", warning.Message);
+        Assert.DoesNotContain("N::C", load.Result.Workspace!.Declarations.Keys);
+        Assert.Contains(
+            load.Result.Diagnostics,
+            d => d.FilePath == load.PathOf("c.sysml") && d.Message == "Unresolved reference: 'A'");
+    }
+
+    /// <summary>Gets the qualified name of the element a node is typed by.</summary>
+    private static string? TypingTarget(SysmlNode node) => node.ResolvedEdges
+        .SingleOrDefault(e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing)?
+        .TargetQualifiedName;
+
+    /// <summary>
     ///     A declaration whose short name and declared name are spelled the same is reported at the
     ///     declared name, not at the short name written before it.
     /// </summary>

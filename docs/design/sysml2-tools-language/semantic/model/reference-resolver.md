@@ -163,7 +163,9 @@ qualified name of every declaration in that file (keyed by declaration, not by t
 the imports of two files never mix; two user files cannot declare the same root-level name, because
 `WorkspaceLoader` ignores the later declaration, and the by-declaration key now serves a user
 declaration named like a standard-library one), and they are
-consulted after the owning namespaces and before the global namespace.
+consulted after the owning namespaces and before the global namespace. It also registers every
+file's root-level aliases (`NameResolver.RegisterRootAliases`), which are memberships of the global
+namespace and resolve to their targets.
 
 ##### Redefinition and Subsetting
 

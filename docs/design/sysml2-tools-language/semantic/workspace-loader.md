@@ -39,8 +39,8 @@ default so that the two overloads never overlap and `LoadAsync(files)` and
 3. Takes the ASTs in that canonical order (and each file's declarations in source order) and, for
    each file, calls `ExcludeDuplicateRootDeclarations` before registering it. Every named
    root-level member of every user file belongs to the one global namespace, so the helper claims
-   each root-level declaration's name (a package, a definition, a usage, or an alias, an alias by its
-   declared name, not its short name; a `namespace` or named `comment` is not detected; imports
+   each root-level declaration's name (a package, a KerML `namespace`, a definition, a usage, or an
+   alias, an alias by its declared name, not its short name; a named `comment` is not detected; imports
    are not members and never collide;
    enclosing single quotes are ignored, so `'P'` and `P` are one name). A declaration whose name an
    earlier declaration already claimed is *ignored*: it is dropped, with its whole subtree, from

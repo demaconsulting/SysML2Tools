@@ -202,6 +202,13 @@ internal sealed class ReferenceResolver
     private NameResolver CreateResolver(IEnumerable<LoadedFile> files, Func<SysmlImportNode, string, bool>? importFilter)
     {
         var resolver = new NameResolver(_symbolTable.Symbols, importFilter, declaredReferencesOnly: true);
+        foreach (var file in files)
+        {
+            // A root-level alias is a membership of the global namespace, so every file's root
+            // aliases are visible to every file's references.
+            resolver.RegisterRootAliases(file.Root.Children.OfType<SysmlAliasNode>(), file.RootImports);
+        }
+
         foreach (var file in files.Where(file => file.RootImports.Count > 0))
         {
             // Key by declaration (not top-level name), so each file sees only its own root

@@ -113,6 +113,15 @@ order given or reversed:
 - `WorkspaceLoader_LoadAsync_ShortNameEqualToDeclaredName_WarnsAtDeclaredName` — with
   `alias <N> N for Q;` and `part def <A> A;` the warning is at the declared name, not the equal
   short name written before it.
+- `WorkspaceLoader_LoadAsync_RootAlias_ResolvesToItsTargetFromAnotherFile` and
+  `…_RootAlias_WithUnresolvedOrCyclicTarget_IsUnresolved` — a root-level alias is a membership of
+  the global namespace: a reference from another file reaches its target by the alias name alone
+  and as the start of a qualified name, a same-named package after it is the ignored duplicate, and
+  an alias with an unresolved or self-referencing target leaves the name unresolved.
+- `WorkspaceLoader_LoadAsync_RootNamespace_OwnsItsMembers` and
+  `…_RootNamespace_DuplicateNameWarnsAndMembersStayQualified` — a root-level `namespace` owns its
+  members (`NS::A`), which are not root-level members: they do not collide with a root-level `A`,
+  do not resolve unqualified from outside, and the namespace's own name is a duplicate when reused.
 - `WorkspaceLoader_LoadAsync_SamePathSuppliedTwice_ReportsNoDuplicate` and
   `…_DistinctRootNames_ReportNoDuplicate` — negative cases: a repeated path, distinct root names
   with the same member names, and imports repeated at the root of several files.

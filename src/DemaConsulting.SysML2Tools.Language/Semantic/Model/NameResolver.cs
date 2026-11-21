@@ -85,6 +85,8 @@ public sealed class NameResolver
     private readonly Dictionary<string, HashSet<string>> _redefinedMembers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _redefinedMembersInProgress = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<SysmlImportNode>> _rootImportsByDeclaration = new(StringComparer.Ordinal);
+    private readonly List<(SysmlAliasNode Alias, IReadOnlyList<SysmlImportNode> RootImports)> _rootAliases = new();
+    private readonly HashSet<SysmlAliasNode> _rootAliasesInProgress = new();
 
     // Implicit specialization tables (KerML 7.3.4 / SysML v2 default general types).
     // Source: the OMG Pilot Implementation's ImplicitGeneralizationMap
@@ -287,6 +289,21 @@ public sealed class NameResolver
         }
     }
 
+
+    /// <summary>
+    ///     Registers the aliases written at the root of a source file (outside any package) as
+    ///     memberships of the global namespace (KerML 8.2.3.5.2): a global name that matches one
+    ///     resolves to the alias's target, which is resolved from the root of the same file.
+    /// </summary>
+    /// <param name="aliases">The file-root alias nodes the workspace keeps.</param>
+    /// <param name="rootImports">The file-root import nodes of the same file.</param>
+    internal void RegisterRootAliases(IEnumerable<SysmlAliasNode> aliases, IReadOnlyList<SysmlImportNode> rootImports)
+    {
+        foreach (var alias in aliases)
+        {
+            _rootAliases.Add((alias, rootImports));
+        }
+    }
 
     /// <summary>
     ///     Resolves <paramref name="reference"/> relative to <paramref name="localNamespace"/>
@@ -894,11 +911,50 @@ public sealed class NameResolver
             return otherForm;
         }
 
+        // A root-level alias is a membership of the global namespace too: it resolves to its target.
+        if (ResolveRootAlias(name, byShortName: false) is { } aliased)
+        {
+            return aliased;
+        }
+
         // A top-level element may also be found by its short name.
         return _declarations
             .Where(kvp => !kvp.Key.Contains("::", StringComparison.Ordinal) && NamesEqual(kvp.Value.ShortName, name))
             .Select(kvp => kvp.Key)
-            .FirstOrDefault();
+            .FirstOrDefault()
+            ?? ResolveRootAlias(name, byShortName: true);
+    }
+
+    /// <summary>
+    ///     Resolves <paramref name="name"/> through the root-level aliases registered with
+    ///     <see cref="RegisterRootAliases"/>, by declared name or by short name, following the first
+    ///     matching alias whose target resolves. An alias already being followed contributes nothing,
+    ///     so a cycle of aliases ends unresolved.
+    /// </summary>
+    private string? ResolveRootAlias(string name, bool byShortName)
+    {
+        foreach (var (alias, rootImports) in _rootAliases)
+        {
+            if (!NamesEqual(byShortName ? alias.ShortName : alias.Name, name) ||
+                !_rootAliasesInProgress.Add(alias))
+            {
+                continue;
+            }
+
+            try
+            {
+                if (Resolve(alias.TargetName, null, rootImports) is { } target)
+                {
+                    return target;
+                }
+            }
+            finally
+            {
+                _rootAliasesInProgress.Remove(alias);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

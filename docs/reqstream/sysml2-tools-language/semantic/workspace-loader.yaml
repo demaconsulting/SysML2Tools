@@ -87,7 +87,7 @@ sections:
       - id: SysML2Tools-Language-Semantic-WorkspaceLoader-DuplicateRootDeclaration
         title: >-
           WorkspaceLoader.LoadAsync shall report a Warning at the name of every named
-          root-level declaration (a package, a definition, a usage, or an alias; a `namespace` or
+          root-level declaration (a package, a KerML `namespace`, a definition, a usage, or an alias;
           a named `comment` is not detected) in any user file (including a second declaration in
           the same file), whose name, quotes ignored, an earlier root-level declaration in canonical order
           already uses, naming the file and position of the declaration that is used; shall exclude
@@ -119,6 +119,10 @@ sections:
           - WorkspaceLoader_LoadAsync_RootAliasAndPackageWithSameName_WarnsAndFirstFileWins
           - WorkspaceLoader_LoadAsync_TwoRootAliasesWithSameName_WarnsAtSecondAlias
           - WorkspaceLoader_LoadAsync_ShortNameEqualToDeclaredName_WarnsAtDeclaredName
+          - WorkspaceLoader_LoadAsync_RootAlias_ResolvesToItsTargetFromAnotherFile
+          - WorkspaceLoader_LoadAsync_RootAlias_WithUnresolvedOrCyclicTarget_IsUnresolved
+          - WorkspaceLoader_LoadAsync_RootNamespace_OwnsItsMembers
+          - WorkspaceLoader_LoadAsync_RootNamespace_DuplicateNameWarnsAndMembersStayQualified
           - WorkspaceLoader_LoadAsync_DuplicateQuotedNameWithSpace_MessageShowsNameOnce
           - WorkspaceLoader_LoadAsync_SamePathSuppliedTwice_ReportsNoDuplicate
           - WorkspaceLoader_LoadAsync_DistinctRootNames_ReportNoDuplicate

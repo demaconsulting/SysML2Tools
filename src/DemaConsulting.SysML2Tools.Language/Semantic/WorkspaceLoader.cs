@@ -173,7 +173,7 @@ public static class WorkspaceLoader
     ///     Every named root-level member of every user file shares the one global namespace, so a
     ///     second member with an already-used name (quotes ignored: <c>'P'</c> is <c>P</c>) is a
     ///     duplicate: a package, a definition, a usage, or an alias (by its declared name, not its
-    ///     short name). A <c>namespace</c> or a named <c>comment</c> is not detected. The earlier
+    ///     short name). A named <c>comment</c> is not detected. The earlier
     ///     declaration in canonical order is used; the later one is ignored as a whole subtree — it is not merged into the earlier one, is not
     ///     registered, and nothing inside it is resolved or reported. Imports are not members and
     ///     never collide. Declarations of the standard library are not part of
