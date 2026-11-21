@@ -756,7 +756,7 @@ jobs:
       - name: Render Software Structure diagrams with SysML2Tools
         shell: pwsh
         run: >
-          dotnet sysml2tools render
+          dotnet sysml2tools render --strict-unresolved
           --output docs/design/generated --format svg
           'docs/sysml2/common/**/*.sysml'
           'docs/sysml2/model/**/*.sysml'

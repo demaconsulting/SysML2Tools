@@ -2,6 +2,10 @@
 
 ![Language Semantic Structure](LanguageSemanticView.svg)
 
+![Language Semantic Loading Dependencies](LanguageSemanticLoadingView.svg)
+
+![Language Semantic Serialization Dependencies](LanguageSemanticSerializationView.svg)
+
 ### Overview
 
 The Semantic subsystem builds a semantic workspace from the parsed SysML/KerML source files. It

@@ -2,6 +2,10 @@
 
 ![Core Layout Internal Structure](CoreLayoutInternalView.svg)
 
+![Core Layout Internal Strategy Dependencies](CoreLayoutInternalStrategyView.svg)
+
+![Core Layout Internal Shared Infrastructure](CoreLayoutInternalSharedView.svg)
+
 #### Overview
 
 The Internal subsystem provides the per-view layout strategies — the implementations of

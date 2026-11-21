@@ -2,6 +2,10 @@
 
 ![Core Query Structure](CoreQueryView.svg)
 
+![Core Query Engine Dependencies](CoreQueryEngineView.svg)
+
+![Core Query Output Dependencies](CoreQueryOutputView.svg)
+
 ### Overview
 
 The Query subsystem is Core's public, reusable model-analysis API. It answers 12 fixed

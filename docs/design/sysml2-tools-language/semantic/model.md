@@ -2,6 +2,10 @@
 
 ![Language Semantic Model Structure](LanguageSemanticModelView.svg)
 
+![Language Semantic Model Resolution Dependencies](LanguageSemanticModelResolutionView.svg)
+
+![Language Semantic Model Construction Dependencies](LanguageSemanticModelConstructionView.svg)
+
 #### Overview
 
 The Semantic Model subsystem provides the public semantic model types (`SysmlNode` and its

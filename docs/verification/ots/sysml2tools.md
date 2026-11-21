@@ -6,7 +6,7 @@ for this OTS item are defined in the SysML2Tools OTS Software Requirements docum
 ### Required Functionality
 
 The published SysML2Tools tool lints the SysML2 architecture model under `docs/sysml2/`, reporting
-syntax errors as errors and unresolved references as warnings, and renders each view declared in
+syntax errors, and with `--strict-unresolved` unresolved references, as errors, and renders each view declared in
 `docs/sysml2/views/design-views.sysml` to an SVG diagram embedded in the design documentation.
 Both behaviors run in the same CI pipeline that produces the compiled Design document, so a
 successful pipeline run is evidence that SysML2Tools executed without error.
@@ -28,13 +28,13 @@ The in-repository build of this project also emits self-validation tests with th
 requirements for this OTS item use the `sysml2tools-self-validation@` source filter to accept only
 the results written by the published tool.
 
-Second, `lint.ps1` runs `dotnet sysml2tools lint 'docs/sysml2/**/*.sysml'` against the actual
-SysML2Tools model and fails the build on a non-zero exit code (syntax errors) and on any `warning:`
-line in the output. Unresolved references are only warnings in the pinned published release
-(0.3.0-beta.3), which rejects `--strict-unresolved`, so they would not fail lint by exit code alone;
-the warning scan in `lint.ps1` is what makes them fail, until the pin moves to a release that
-supports `--strict-unresolved`. The build-docs job runs
-`dotnet sysml2tools render` to produce one SVG file per declared view under
+Second, `lint.ps1` runs `dotnet sysml2tools lint --strict-unresolved 'docs/sysml2/**/*.sysml'`
+against the actual SysML2Tools model and fails the build on a non-zero exit code (syntax errors and,
+because of `--strict-unresolved` in the pinned release 0.3.0-beta.4, unresolved references) and on any
+`warning:` line in the output. The lint rule is therefore zero errors and zero warnings: warnings such
+as duplicate root packages or import cycles do not change the exit code, so the output scan in
+`lint.ps1` is what makes them fail. The build-docs job runs
+`dotnet sysml2tools render --strict-unresolved` to produce one SVG file per declared view under
 `docs/design/generated/`. FileAssert then asserts that the overview SVG file exists, has a
 non-trivial size, and is well-formed XML with an `<svg>` root element
 (`SysML2Tools_SoftwareStructureViewSvg`), before Pandoc compiles the Design document, which embeds
