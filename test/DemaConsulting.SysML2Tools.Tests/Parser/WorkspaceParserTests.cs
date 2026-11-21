@@ -19,6 +19,8 @@ public sealed class WorkspaceParserTests
     [InlineData("filter not @SysML::Documentation;", 3, 20)]
     [InlineData("filter @SysML::PartDefinition and not @SysML::Documentation;", 3, 47)]
     [InlineData("filter -@SysML::Documentation;", 3, 17)]
+    [InlineData("filter +@SysML::Documentation;", 3, 17)]
+    [InlineData("filter ~@SysML::Documentation;", 3, 17)]
     public void ParseSource_UnaryOperatorWithBareClassificationTest_ReportsSyntaxErrorAtAtSign(
         string statement, int line, int column)
     {
@@ -39,7 +41,12 @@ public sealed class WorkspaceParserTests
 
         var diagnostics = WorkspaceParser.ParseSource("<test>", source);
 
-        Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error && d.Line == 3);
+        // ANTLR's recovery after the rejected operand reports a follow-on error at the closing
+        // bracket, so only the first (primary) error is pinned to the `@` token.
+        var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+        Assert.NotEmpty(errors);
+        Assert.Equal((3, 26), (errors[0].Line, errors[0].Column));
+        Assert.Contains("parenthesize", errors[0].Message);
     }
 
     /// <summary>Parenthesized classification tests (and plain classification-test operands) stay valid.</summary>
