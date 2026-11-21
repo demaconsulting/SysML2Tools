@@ -3409,6 +3409,45 @@ public sealed class InterconnectionViewLayoutStrategyTests
         Assert.Empty(CollectBoxes(layout.Nodes));
     }
 
+    /// <summary>
+    ///     Model for the imported-visibility root test: <c>Host</c> imports the membership
+    ///     <c>Lib::Widget</c>, whose private nested part definition <c>Secret</c> is a container the
+    ///     import does not reach.
+    /// </summary>
+    private const string ImportedPrivateContainerSysml = """
+        package Q {
+            package Lib {
+                part def Gear;
+                part def Cog;
+                part def Widget {
+                    part gear : Gear;
+                    private part def Secret { part first : Cog; part second : Cog; }
+                }
+            }
+            package Host { import Lib::Widget; }
+            view Imported { expose Host::**; render asInterconnectionDiagram; }
+        }
+        """;
+
+    /// <summary>
+    ///     A private container the exposed import does not reach cannot become the diagram's root:
+    ///     <c>expose Host::**;</c> with <c>import Lib::Widget;</c> draws <c>Widget</c> with its public
+    ///     <c>gear</c>, never the hidden <c>Secret</c> or its parts.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ExposeImportedMember_HiddenPrivateContainerIsNotRoot()
+    {
+        // Act
+        var layout = await LayOutOuterViewAsync(ImportedPrivateContainerSysml, "Q::Imported");
+
+        // Assert
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("Widget", labels);
+        Assert.Contains("gear : Gear", labels);
+        Assert.DoesNotContain("Secret", labels);
+        Assert.DoesNotContain("first : Cog", labels);
+    }
+
     /// <summary>Loads <paramref name="sysml"/> and lays out the interconnection view named <paramref name="viewQualifiedName"/>.</summary>
     private static async Task<LayoutTree> LayOutOuterViewAsync(string sysml, string viewQualifiedName = "Q::OuterView")
     {

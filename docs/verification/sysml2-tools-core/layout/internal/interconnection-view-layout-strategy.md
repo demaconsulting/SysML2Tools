@@ -247,6 +247,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_ExposePartDefRecursive_DrawsEachNestedPartOnce` | No duplicate boxes |
 | `InterconnectionView_BuildLayout_ExposeNestedPart_StillNarrowsToThatPart` | Still narrows |
 | `InterconnectionView_BuildLayout_ExposePartDefWithoutParts_DrawsNothing` | Empty canvas |
+| `InterconnectionView_BuildLayout_ExposeImportedMember_HiddenPrivateContainerIsNotRoot` | Hidden container not root |
 | `InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
 | `InterconnectionView_BuildLayout_ExposeTwoIndependentRoots_DrawsBothSideBySide` | Every exposed root drawn |
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoRootDef_RendersTopLevelFeatureWithoutFrame` | Alone |

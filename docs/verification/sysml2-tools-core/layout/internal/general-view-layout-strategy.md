@@ -949,6 +949,9 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToNestedCandidates`:
   `public import Marks::**[@Safety];` draws the `@Safety` elements `Flagged` and the nested `Inner`, and
   not `Plain`, `Host`, `Unmarked` nor the unmarked `FlaggedChild`
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToTransitiveImports`:
+  The package `Marks` publicly imports the unmarked package `Other`; `public import Marks::**[@Safety];`
+  draws `Other`'s `@Safety` member `OtherMarked` and not `OtherPlain`
 - `GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportCycle_TerminatesWithoutDuplicates`:
   Two packages importing each other (one privately, one publicly) terminate and draw each member once
 - `GeneralViewLayoutStrategy_BuildLayout_BareNamespaceExpose_DrawsNoImportedMember`:

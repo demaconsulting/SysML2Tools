@@ -90,8 +90,10 @@ configuration are required beyond a standard .NET SDK installation.
   descended into only through a recursive import. Standard library targets add nothing, and a bare `expose A;` adds
   nothing. A subtree reached through an import keeps that import's visibility — an ordinary import covers only public
   descendants, an `import all` every one — and an import's bracket filter is tested against every candidate the import
-  reaches, nested ones included. These imported-membership rules are verified through the laid-out diagram in
-  `GeneralViewLayoutStrategyTests`.
+  reaches, nested ones and those reached through the imported namespace's own imports included. A descendant of a
+  recursive subject that the imported side's visibility hides is neither in scope nor root-relevant
+  (`IsRootRelevantToScope`). These imported-membership rules are verified through the laid-out diagram in
+  `GeneralViewLayoutStrategyTests` and `InterconnectionViewLayoutStrategyTests`.
 - With no current best candidate, `IsMoreSpecificCandidate` returns `true` for any candidate.
 - `IsMoreSpecificCandidate` returns `true` for a candidate with a longer qualified name than the
   current best, regardless of score.

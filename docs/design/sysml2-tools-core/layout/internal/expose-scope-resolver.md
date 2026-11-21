@@ -34,7 +34,10 @@ parameters, and resolution output is returned as three internal record types:
   typing target (see the usage-to-type fallback below): it matches candidates exactly like any other
   subject (so membership, recursion and annotation checks behave the same), but a consumer that needs
   what the view itself exposes — the General View's part-tree rule — filters it out. `ExcludedSubtrees`
-  lists the containment subtrees a recursive subject does not cover (`IsExcluded` tests a name against them).
+  lists the containment subtrees a recursive subject does not cover. `IsExcluded` tests a name against them,
+  and `CoversDescendant` / `CoversSelfOrDescendant` are the single containment tests (prefix match minus the
+  exclusions) that `IsInSubjectScope`, `MatchesUnlimitedSubject`, `IsAnnotationExposed` and
+  `IsRootRelevantToScope` all use, so no scope decision can forget the imported-side visibility.
 - `BracketFilterFailure(string ExpressionText, string? Reason)` — one failed bracket-filter
   expression's raw source text plus a short human-readable reason, feeding
   `LayoutWarnings.ForUnevaluatedExposeBracketFilter`.
@@ -104,7 +107,11 @@ membership:
   reaches, as `NameResolver.LookupRecursive` applies it to each recursive candidate: the members and, when the
   expose or the import is recursive, every descendant the import's visibility admits are evaluated with
   `FilterExpressionEvaluator`, and each accepted candidate becomes a `MembershipExact` subject (a rejected
-  owner does not hide an accepted nested member).
+  owner does not hide an accepted nested member). The filter is carried down the walk (`FollowImports` takes the
+  list of filters of the imports that led to the namespace): the memberships reached through the imported
+  namespace's own imports, transitively, must satisfy every filter met on the way (a filtered import below
+  adds its own filter to the inherited ones), so `import P::**[@X]` never exposes an unmarked member `P`
+  merely re-exports through a public import.
 
 **Which imports are followed — the `includeAll` rule.** The walk mirrors the KerML operation
 `Namespace::visibleMemberships(excluded, isRecursive, includeAll)` (KerML 1.0 §8.3.2.4.5), which the
@@ -130,7 +137,8 @@ OMG Pilot implementation performs:
   not walked. `import all B::*;` walks `B` with `includeAll = true`, and a recursive import
   (`import B::**;`, `import B::*::**;`) walks `B`'s public nested namespaces too — still with
   `includeAll = false`, so a private import below `B` stays out. `FollowImports(ns, name, recursive,
-  includeAll)` carries the two flags, and the cycle guard is keyed on `(namespace, recursive, includeAll)`.
+  includeAll)` carries the two flags plus the inherited import filters, and the cycle guard is keyed on
+  `(namespace, recursive, includeAll, filters)`.
 
 The rule is OMG-Pilot-faithful (probed with nested packages carrying private members and private imports, an
 imported package carrying private members and imports, a private nested package, and a cyclic pair; the
@@ -139,11 +147,11 @@ are skipped, so the ubiquitous `private import StandardViewDefinitions::*;` adds
 private import of a *user* library in the exposed namespace brings that library's public members into the
 view, as it does in the Pilot — a model that wants them out qualifies the reference instead of importing.
 
-A visited set of `(namespace, recursive, includeAll)` triples guards import cycles, subjects are never added twice
-(`QualifiedName`, recursion kind and exclusions), unresolved imports and imports of standard library namespaces are
-skipped, and an import whose bracket filter does not parse is followed unfiltered. Aliases are not followed. Imported
-subjects are ordinary subjects, so every strategy honors them through `IsInSubjectScope`; they are not typing targets
-and get no usage-to-type expansion.
+A visited set of `(namespace, recursive, includeAll, filters)` tuples guards import cycles, subjects are never added
+twice (`QualifiedName`, recursion kind and exclusions), unresolved imports and imports of standard library namespaces
+are skipped, and an import whose bracket filter does not parse is followed unfiltered. Aliases are not followed.
+Imported subjects are ordinary subjects, so every strategy honors them through `IsInSubjectScope`; they are not typing
+targets and get no usage-to-type expansion.
 
 ###### `ExposesByName(string qualifiedName, ExposedScope scope)`
 
@@ -158,10 +166,11 @@ structure.
 Returns `true` when `qualifiedName` matches one of `scope.Subjects` per that subject's own
 `ExposeRecursionKind`:
 
-- `MembershipRecursive`/`NamespaceRecursive` — `qualifiedName` equals the subject or lies within
-  its containment subtree (a `"{subject}::"` prefix match, the same qualified-name-prefix idiom
-  `StdlibFilter.IsStdlibElement` uses for qualified-name containment-subtree matching) — the unchanged
-  whole-subtree behavior from before this fix.
+- `MembershipRecursive`/`NamespaceRecursive` — `qualifiedName` equals the subject (`MembershipRecursive` only) or lies
+  within its containment subtree (a `"{subject}::"` prefix match, the same qualified-name-prefix idiom
+  `StdlibFilter.IsStdlibElement` uses for qualified-name containment-subtree matching), minus the subject's
+  `ExcludedSubtrees` (via `CoversSelfOrDescendant` / `CoversDescendant`) — the otherwise unchanged whole-subtree
+  behavior from before this fix.
 - `MembershipExact` — `qualifiedName` equals the subject exactly, and nothing else.
 - `NamespaceDirectChildren` — `qualifiedName` is a direct (one-level) child of the subject only,
   via a private `IsDirectChildOf` helper (`StartsWith(subject + "::")` **and** the remainder
@@ -203,7 +212,10 @@ direction — checked against both `scope.Subjects.Select(s => s.QualifiedName)`
 `scope.ExplicitMembers`: the candidate itself is an exposed subject or matched member, the
 candidate lies within an exposed subject's containment subtree, or an exposed subject/matched
 member lies within the candidate's own containment subtree (the common "expose an inner
-state/action/part/lifeline of the root" case). This anchor-qualified-name containment check is
+state/action/part/lifeline of the root" case). The descendant-of-a-subject direction honors the subject's
+`ExcludedSubtrees` (`CoversDescendant`): a container hidden by the imported side's visibility — a private
+nested definition of an ordinary-imported member — is never relevant, so it cannot become the diagram root. This
+anchor-qualified-name containment check is
 unaffected by each subject's `ExposeRecursionKind` — root-candidate relevance only needs to find
 the right root to render, independent of whether the final in-scope set (decided separately by
 `IsInSubjectScope`) is the full subtree, a single exact member, or one level of children. This

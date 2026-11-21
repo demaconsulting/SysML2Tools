@@ -264,7 +264,8 @@ sections:
           follow only its public imports (unless the import is an import all), and recursion shall
           descend into an imported namespace only through a recursive import; the subtree an
           import brings in shall keep the import's visibility, so a non-public nested member of an
-          imported membership is not exposed unless the import is an import all.
+          imported membership is not exposed unless the import is an import all, and such a hidden
+          nested container shall not be selected as the root of a single-root view.
         justification: |
           An Expose has isImportAll = true, so visibility is always ignored for it (SysML v2
           §8.3.26.2, validateExposeIsImportAll). The exposed namespace's memberships are therefore
@@ -284,19 +285,22 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly
           - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportedPrivateNestedMember_IsNotDrawn
           - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportAll_DrawsImportedPrivateNestedMember
-
+          - InterconnectionView_BuildLayout_ExposeImportedMember_HiddenPrivateContainerIsNotRoot
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportBracketFilter
         title: >-
           ExposeScopeResolver shall apply the bracket filter of an import followed by an expose to
-          every candidate the import reaches, nested members of a recursive import included, and
-          expose exactly the candidates the filter accepts.
+          every candidate the import reaches — nested members of a recursive import and the members
+          reached through the imported namespace's own imports included — and expose exactly the
+          candidates the filter accepts.
         justification: |
           Name resolution tests each recursive candidate of a filtered import (import P::**[@Safety];)
-          against the filter, so a nested member that does not satisfy it is not imported and one
-          that does is imported even when its owner is not. An expose that followed the import
-          unfiltered below the first level would draw members the import never brings in.
+          against the filter, however the candidate is reached, so a member that does not satisfy it
+          is not imported (even one P merely re-exports through a public import) and one that does is
+          imported even when its owner is not. An expose that followed the import unfiltered below
+          the first level would draw members the import never brings in.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToNestedCandidates
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToTransitiveImports
 
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportCycleSafe
         title: >-

@@ -931,7 +931,9 @@ public sealed class GeneralViewLayoutStrategyTests
         }
         package Reach { public import Lib::*; }
         package ReachAll { public import all Lib::*; }
+        package Other { part def OtherMarked { @Safety; } part def OtherPlain; }
         package Marks {
+            public import Other::*;
             part def Flagged { @Safety; part def FlaggedChild; }
             part def Plain;
             part def Host {
@@ -1002,6 +1004,24 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.DoesNotContain("Plain", labels);
         Assert.DoesNotContain("Unmarked", labels);
         Assert.DoesNotContain("FlaggedChild", labels);
+    }
+
+    /// <summary>
+    ///     The bracket filter of a recursive import is carried through the imports of its target too:
+    ///     <c>Marks</c> publicly imports the unmarked package <c>Other</c>, so
+    ///     <c>import Marks::**[@Safety];</c> exposes its <c>@Safety</c> member <c>OtherMarked</c> and
+    ///     rejects <c>OtherPlain</c>.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToTransitiveImports()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportFiltersSysml, "Marked");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("OtherMarked", labels);
+        Assert.DoesNotContain("OtherPlain", labels);
     }
 
     /// <summary>
