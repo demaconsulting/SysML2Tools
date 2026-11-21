@@ -12,13 +12,13 @@ sections:
       - title: SysML2Tools Requirements
         requirements:
           - id: SysML2Tools-OTS-SysML2Tools-Lint
-            title: SysML2Tools shall lint the SysML2 model, reporting syntax errors as errors and unresolved references as warnings.
+            title: SysML2Tools shall lint the SysML2 model, reporting syntax errors, and with --strict-unresolved unresolved references, as errors.
             justification: |
               Linting the model in CI catches broken references and syntax errors in the
               architecture model before they reach the generated documentation. The pinned
-              release does not support --strict-unresolved, so unresolved references are only
-              warnings that do not change the exit code; lint.ps1 fails on any warning line
-              until the pin moves to a release that supports --strict-unresolved.
+              release supports --strict-unresolved, which turns unresolved references into
+              errors; other warnings (for example duplicate root packages) do not change the
+              exit code, so lint.ps1 also fails on any remaining warning line.
             tags: [ots]
             tests:
               - sysml2tools-self-validation@SysML2Tools_LintSelfTest

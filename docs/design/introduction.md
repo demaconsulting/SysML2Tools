@@ -49,13 +49,17 @@ package per system (`SysML2ToolsLanguage`, `SysML2ToolsStdlib`, `SysML2ToolsCore
   `ots.sysml` for the OTS items
 - `docs/sysml2/views/` — the named views rendered into this document
 
-The diagram below is rendered from the model and shows the four systems, their subsystems, and the OTS
-items. Every system and subsystem chapter that follows opens with the diagram of its own system or
-subsystem, and every unit chapter with the diagram of its parent. To learn what a software item is,
+The first diagram below is rendered from the model and shows the four systems and their direct
+subsystems (one level; the units are shown in the subsystem chapters), and the second shows the shared
+OTS items. Every system and subsystem chapter that follows opens with the diagram of its own system or
+subsystem, and every unit chapter with the diagram of its parent. A subsystem diagram also draws the
+suppliers of its units' dependencies as `«depend»` edges. To learn what a software item is,
 why it exists, and what it depends on, query the model (for example `sysml2tools query describe` or
 `sysml2tools query dependencies` over `'docs/sysml2/**/*.sysml'`) before reading the source code.
 
 ![Software Structure](SoftwareStructureView.svg)
+
+![OTS Items](OtsView.svg)
 
 The four systems are:
 
