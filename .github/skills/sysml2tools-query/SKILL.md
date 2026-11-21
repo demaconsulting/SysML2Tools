@@ -21,11 +21,15 @@ dotnet tool restore
 ## Model files
 
 - `docs/sysml2/model/{system-name}.sysml` — system-level `part def` only (no subsystems/units
-  inline). A repository may contain more than one system.
+  inline), in package `{SystemName}`. A repository may contain more than one system.
 - `docs/sysml2/model/{system-name}/{subsystem-name}.sysml` and
   `docs/sysml2/model/{system-name}/{subsystem-name}/{unit-name}.sysml` — one file per
   Subsystem/Unit, nested to mirror the same folder depth as that item's companion
-  `docs/design/`, `docs/reqstream/`, and `docs/verification/` files.
+  `docs/design/`, `docs/reqstream/`, and `docs/verification/` files. Each declares its own
+  uniquely named package; by default `{SystemName}_{SubsystemName}Subsystem` or
+  `{SystemName}_{UnitName}`, qualified with the subsystem path
+  (`{SystemName}_{SubsystemName}_{UnitName}`) when the short name would collide. An element's
+  qualified name is e.g. `{SystemName}_{UnitName}::{UnitName}`.
 - `docs/sysml2/model/ots.sysml` — off-the-shelf (OTS) dependency parts (present when OTS items
   exist).
 - `docs/sysml2/model/shared.sysml` — Shared Package parts (present when Shared Package items
@@ -35,9 +39,10 @@ dotnet tool restore
   useful to see how diagrams are scoped.
 
 Always pass all `.sysml` files (or a glob covering them) to every `sysml2tools`
-invocation — the model spans multiple files and cross-references between them; files that
-reopen the same `package Name { ... }` from different files merge into one namespace
-automatically, no `import` required. As of `sysml2tools` 0.1.0-beta.5, every subcommand
+invocation — the model spans multiple files and cross-references between them (each file
+declares one uniquely named package and references others through `import` or qualified
+names; same-named packages in different files are not merged), so every file a reference
+points at must be loaded. As of `sysml2tools` 0.1.0-beta.5, every subcommand
 (`lint`, `render`, `query`) expands `*`/`**` glob patterns internally and recurses
 correctly — pass a single **quoted** glob string and let the tool resolve it, rather than
 relying on the shell (quoting works identically in both PowerShell and bash):
@@ -57,7 +62,7 @@ summary line, so one query gets you every artifact location for that item withou
 the source tree:
 
 ```pwsh
-dotnet sysml2tools query describe -e {SystemName}::{UnitName} 'docs/sysml2/**/*.sysml'
+dotnet sysml2tools query describe -e {SystemName}_{UnitName}::{UnitName} 'docs/sysml2/**/*.sysml'
 ```
 
 ```text
