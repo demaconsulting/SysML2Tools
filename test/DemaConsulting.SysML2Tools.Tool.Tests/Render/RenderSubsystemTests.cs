@@ -1499,8 +1499,8 @@ public class RenderSubsystemTests
         // Assert: the engine's hint is printed as a layout warning, and the diagram is still written
         var warning = Assert.Single(
             output.Split('\n').Select(line => line.TrimEnd('\r')),
-            line => line.Contains("work limit", StringComparison.Ordinal));
-        Assert.StartsWith("  warning: ", warning, StringComparison.Ordinal);
+            line => line.StartsWith("  warning: ", StringComparison.Ordinal));
+        Assert.Contains("work limit", warning, StringComparison.Ordinal);
         Assert.DoesNotContain("error", error);
         Assert.True(svgCount > 0);
         Assert.Equal(0, exitCode);
