@@ -220,7 +220,7 @@ package SysML2ToolsDesignViews {
     }
 
     view CoreLayoutInternalStrategyView : GeneralView {
-        doc /* Dependencies among the seven layout strategies: five are built on the general view strategy, three use the layered placement helper, and the grid strategy has only hub dependencies, so it stands alone. The subsystem def is left out (see CoreLayoutInternalView). Hub dependencies (DemaRendering, LayoutWarnings, ExposeScopeResolver) are omitted; see CoreLayoutInternalSharedView. */
+        doc /* Dependencies among the seven layout strategies: five are built on the general view strategy, three use the layered placement helper, and the grid strategy has only hub dependencies, so it stands alone. The subsystem def is left out (see CoreLayoutInternalView). Hub dependencies (DemaRendering, LayoutWarnings, ExposeScopeResolver) are omitted, and the general view strategy's dependencies on NameResolver and FilterExpressionEvaluator are shown in CoreLayoutInternalSharedView. */
         expose SysML2ToolsCore_GeneralViewLayoutStrategy::GeneralViewLayoutStrategy;
         expose SysML2ToolsCore_InterconnectionViewLayoutStrategy::InterconnectionViewLayoutStrategy;
         expose SysML2ToolsCore_StateTransitionViewLayoutStrategy::StateTransitionViewLayoutStrategy;
@@ -233,7 +233,7 @@ package SysML2ToolsDesignViews {
     }
 
     view CoreLayoutInternalSharedView : GeneralView {
-        doc /* The shared layout infrastructure and its suppliers, shown through the general view strategy. The other strategies use ExposeScopeResolver, LayoutWarnings, and DemaRendering the same way (query used-by lists them), so those hub dependencies are omitted from the strategy and unit views. */
+        doc /* The shared layout infrastructure and its suppliers, shown through the general view strategy. The other strategies use ExposeScopeResolver, LayoutWarnings, and DemaRendering the same way (query used-by lists them), so those hub dependencies are omitted from the strategy and unit views. Every dependency of the four infrastructure-facing units shown (the general view strategy, ExposeScopeResolver, LayoutWarnings, LayeredPlacement) is drawn. */
         expose SysML2ToolsCore_GeneralViewLayoutStrategy::GeneralViewLayoutStrategy;
         expose SysML2ToolsCore_ExposeScopeResolver::ExposeScopeResolver;
         expose SysML2ToolsCore_LayoutWarnings::LayoutWarnings;
@@ -288,7 +288,7 @@ package SysML2ToolsDesignViews {
     }
 
     view LanguageSemanticLoadingView : GeneralView {
-        doc /* Workspace loading: the loader and the parser, builder, resolver, walker, symbol table, and index it drives. It has no hub dependencies to omit. */
+        doc /* Workspace loading: the loader and the parser, builder, resolver, walker, symbol table, and index it drives, plus the non-hub suppliers of those units' dependency statements. Hub dependencies (SysmlNode, SysmlEdge, Antlr4) are omitted; query used-by lists their users. */
         expose SysML2ToolsLanguage_WorkspaceLoader::WorkspaceLoader;
         expose SysML2ToolsLanguage_WorkspaceParser::WorkspaceParser;
         expose SysML2ToolsLanguage_AstBuilder::AstBuilder;
@@ -296,6 +296,12 @@ package SysML2ToolsDesignViews {
         expose SysML2ToolsLanguage_ReferenceResolver::ReferenceResolver;
         expose SysML2ToolsLanguage_SupertypeWalker::SupertypeWalker;
         expose SysML2ToolsLanguage_SemanticIndex::SemanticIndex;
+        // Non-hub suppliers of the parser, builder, and resolver.
+        expose SysML2ToolsLanguage_SysmlDiagnosticListener::SysmlDiagnosticListener;
+        expose SysML2ToolsLanguage_SysmlMetadataNode::SysmlMetadataNode;
+        expose SysML2ToolsLanguage_SysmlAnnotation::SysmlAnnotation;
+        expose SysML2ToolsLanguage_NameResolver::NameResolver;
+        expose SysML2ToolsLanguage_FilterExpressionEvaluator::FilterExpressionEvaluator;
         filter @SysML::PartDefinition;
     }
 
