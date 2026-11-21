@@ -2,6 +2,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.Rendering.CanvasNet;
 using DemaConsulting.Rendering.Svg;
@@ -177,6 +178,251 @@ public sealed class RenderIntegrationTests
             Assert.Equal(0x50, bytes[1]); // 'P'
             Assert.Equal(0x4E, bytes[2]); // 'N'
             Assert.Equal(0x47, bytes[3]); // 'G'
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Inline SysML source whose part tree is wider than the PNG backend's 8192 px limit: one
+    ///     part definition with 60 sibling part usages, exposed recursively in a general view.
+    /// </summary>
+    private static readonly string WidePartTreeSysml =
+        "package WideTest {\n" +
+        "    private import StandardViewDefinitions::*;\n" +
+        "    part def Leaf {}\n" +
+        "    part def Root {\n" +
+        string.Concat(Enumerable.Range(1, 60).Select(i => $"        part p{i} : Leaf;\n")) +
+        "    }\n" +
+        "    view WideView : GeneralView { expose WideTest::Root::**; expose WideTest::Root; }\n" +
+        "}\n";
+
+    /// <summary>
+    ///     Reads the pixel size from the header chunk of an encoded PNG (big-endian width then height
+    ///     at byte offsets 16 and 20).
+    /// </summary>
+    /// <param name="stream">The rendered PNG output stream.</param>
+    /// <returns>The image width and height in pixels.</returns>
+    private static (int Width, int Height) ReadPngSize(Stream stream)
+    {
+        var bytes = ((MemoryStream)stream).ToArray();
+        return (
+            (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19],
+            (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23]);
+    }
+
+    /// <summary>
+    ///     A diagram wider than the PNG backend's 8192 px limit is scaled down uniformly to fit, so
+    ///     the PNG renders instead of failing, and the output carries a warning naming the view and
+    ///     both sizes.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_WidePngView_ScalesToFitAndWarns()
+    {
+        // Arrange: write the wide inline model to a temp file and load the workspace
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, WidePartTreeSysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+            var diagramRenderer = new DiagramRenderer();
+            var options = new RenderOptions(Themes.Light);
+
+            // Act: render the workspace to PNG
+            var outputs = diagramRenderer.RenderWorkspace(result.Workspace, new PngRenderer(), options);
+
+            // Assert: one PNG whose size is within the limit, and a single scaling warning
+            var output = Assert.Single(outputs);
+            var (width, height) = ReadPngSize(output.Data);
+            Assert.InRange(width, 1, 8192);
+            Assert.InRange(height, 1, 8192);
+            var warning = Assert.Single(output.Warnings);
+            Assert.Contains("Diagram 'WideView'", warning);
+            Assert.Contains("exceeds the 8192 px PNG limit", warning);
+            Assert.Contains($"scaled to {width}×{height} px", warning);
+            Assert.Contains("Use SVG or narrow the view.", warning);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     The same wide diagram rendered as SVG (a vector format) is not scaled and reports no
+    ///     scaling warning.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_WideSvgView_ReportsNoScalingWarning()
+    {
+        // Arrange: write the wide inline model to a temp file and load the workspace
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, WidePartTreeSysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+            var diagramRenderer = new DiagramRenderer();
+            var options = new RenderOptions(Themes.Light);
+
+            // Act: render the workspace to SVG
+            var outputs = diagramRenderer.RenderWorkspace(result.Workspace, new SvgRenderer(), options);
+
+            // Assert: the output carries no warning about scaling
+            var output = Assert.Single(outputs);
+            Assert.DoesNotContain(output.Warnings, w => w.Contains("PNG limit"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A PNG diagram that fits within the backend limit is rendered at full size and reports no
+    ///     scaling warning.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_NarrowPngView_ReportsNoScalingWarning()
+    {
+        // Arrange: write the small inline model to a temp file and load the workspace
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, GeneralViewSysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+            var diagramRenderer = new DiagramRenderer();
+            var options = new RenderOptions(Themes.Light);
+
+            // Act: render the workspace to PNG
+            var outputs = diagramRenderer.RenderWorkspace(result.Workspace, new PngRenderer(), options);
+
+            // Assert: no scaling warning
+            var output = Assert.Single(outputs);
+            Assert.DoesNotContain(output.Warnings, w => w.Contains("PNG limit"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Inline SysML source for a diagram that is wider than it is tall (one part definition with
+    ///     several part usages in a row), so the width is the side that approaches the PNG limit.
+    /// </summary>
+    private const string WideShortSysml = """
+        package WideShort {
+            private import StandardViewDefinitions::*;
+            part def Leaf {}
+            part def Root {
+                part p1 : Leaf [0..*];
+                part p2 : Leaf [1..5];
+                part longNamedPartUsage : Leaf [0..*];
+                ref part r : Leaf;
+            }
+            view WideShortView : GeneralView { expose WideShort::**; }
+        }
+        """;
+
+    /// <summary>
+    ///     A PNG renderer that delegates to the real <see cref="PngRenderer"/> but, like CanvasNet's
+    ///     surface when connector labels overhang the layout, rejects a surface larger than 8192 px:
+    ///     the surface it would need is the layout width plus a fixed label overhang, times the scale.
+    /// </summary>
+    private sealed class OverhangingPngRenderer : IRenderer
+    {
+        /// <summary>Label overhang added to the layout width, in layout units.</summary>
+        private const double OverhangUnits = 20;
+
+        /// <summary>The real PNG renderer that does the actual drawing.</summary>
+        private readonly PngRenderer _inner = new();
+
+        /// <summary>Gets the surface widths the renderer was asked for, in call order.</summary>
+        public List<int> RequestedWidths { get; } = [];
+
+        /// <inheritdoc />
+        public string MediaType => _inner.MediaType;
+
+        /// <inheritdoc />
+        public string DefaultExtension => _inner.DefaultExtension;
+
+        /// <inheritdoc />
+        public IReadOnlyList<string> FileExtensions => _inner.FileExtensions;
+
+        /// <inheritdoc />
+        public void Render(LayoutTree layout, RenderOptions options, Stream output)
+        {
+            var requested = (int)Math.Ceiling((layout.Width + OverhangUnits) * options.Scale);
+            RequestedWidths.Add(requested);
+            if (requested > 8192)
+            {
+                // Mimic the backend's surface-size rejection, which names the offending parameter "width"
+#pragma warning disable S3928 // The parameter name deliberately mirrors the backend's, not this method's
+                throw new ArgumentOutOfRangeException("width", requested, "Surface width is too large.");
+#pragma warning restore S3928
+            }
+
+            _inner.Render(layout, options, output);
+        }
+    }
+
+    /// <summary>
+    ///     A PNG whose layout fits the 8192 px limit but whose surface the backend rejects because
+    ///     connector labels overhang the layout is retried at a tighter scale: the render succeeds,
+    ///     the PNG is within the limit, and the warning reports the size the backend rejected (over
+    ///     8192 px) rather than the layout size (which was within the limit).
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_PngOverhang_RetriesAndWarns()
+    {
+        // Arrange: load a wide, short diagram
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, WideShortSysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+            var diagramRenderer = new DiagramRenderer();
+
+            // Probe the natural size at scale 1 (the ceiling of the layout size) and pick a scale at
+            // which the layout width is just within 8192 px, so only the label overhang exceeds it
+            var probe = diagramRenderer.RenderWorkspace(result.Workspace, new OverhangingPngRenderer(), new RenderOptions(Themes.Light));
+            var (naturalWidth, naturalHeight) = ReadPngSize(Assert.Single(probe).Data);
+            Assert.True(naturalWidth > naturalHeight, "Pre-condition: the diagram must be wider than tall");
+            var scale = 8192.0 / naturalWidth;
+
+            // Act: render at that scale with the overhanging backend
+            var renderer = new OverhangingPngRenderer();
+            var outputs = diagramRenderer.RenderWorkspace(result.Workspace, renderer, new RenderOptions(Themes.Light, Scale: scale));
+
+            // Assert: the first attempt was rejected for exceeding 8192 px and the render was retried
+            Assert.True(renderer.RequestedWidths.Count >= 2, "Pre-condition: the backend must have rejected the first attempt");
+            var rejectedWidth = renderer.RequestedWidths[0];
+            Assert.True(rejectedWidth > 8192, "Pre-condition: the first attempt must exceed the limit");
+
+            // Assert: the PNG rendered within the limit with a single scaling warning that reports the
+            // rejected (over-limit) width and the actual scaled size
+            var output = Assert.Single(outputs);
+            var (width, height) = ReadPngSize(output.Data);
+            Assert.InRange(width, 1, 8192);
+            Assert.InRange(height, 1, 8192);
+            var warning = Assert.Single(output.Warnings);
+            Assert.Contains("Diagram 'WideShortView'", warning);
+            Assert.Contains("exceeds the 8192 px PNG limit", warning);
+            Assert.Contains($"scaled to {width}×{height} px", warning);
+            var reported = System.Text.RegularExpressions.Regex.Match(warning, @"\((\d+)×\d+ px\)");
+            Assert.True(reported.Success, "The warning must report the original size");
+            Assert.InRange(int.Parse(reported.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), 8193, int.MaxValue);
+            Assert.InRange(int.Parse(reported.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), rejectedWidth - 1, rejectedWidth + 1);
         }
         finally
         {

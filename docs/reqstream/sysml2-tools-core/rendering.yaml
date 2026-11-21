@@ -136,6 +136,7 @@ sections:
           - SysML2Tools-Core-Rendering-DiagramRenderer-EmptyViewWarning
           - SysML2Tools-Core-Rendering-DiagramRenderer-RegularNameWeight
           - SysML2Tools-Core-Rendering-DiagramRenderer-AutoViewExcludedMembers
+          - SysML2Tools-Core-Rendering-DiagramRenderer-PngFitsBackendLimit
         tests:
           - DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList
 

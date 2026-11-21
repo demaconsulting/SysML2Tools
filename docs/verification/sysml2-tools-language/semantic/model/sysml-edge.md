@@ -33,6 +33,9 @@ external services or additional configuration are required beyond a standard .NE
   resolves to the same target; an unresolved reference listed before an alias of the same target
   leaves only the alias's edge, tagged with the alias text; the two-ended kinds (satisfy,
   allocate, dependency, connect, binding, transition) leave `RawReference` `null`.
+- Each dependency edge records the declared name of the dependency it came from in `DeclaredName`:
+  a named and an unnamed dependency between the same client and supplier, in either declaration
+  order, yield edges carrying `link` and no name respectively; every other edge leaves it `null`.
 
 ##### Test Scenarios
 
@@ -52,3 +55,5 @@ external services or additional configuration are required beyond a standard .NE
 | Unresolved + alias | `WorkspaceLoader_LoadAsync_SupertypeUnresolvedBeforeAlias_OnlyAliasEdgeCarriesRawReference` |
 | Two-ended kinds carry no raw reference | `WorkspaceLoader_LoadAsync_TwoEndedEdges_HaveNoRawReference` |
 | Raw reference preserved by serialization; null omitted | `Serialize_EdgeRawReference_RoundTripsAndNullIsOmitted` |
+| Dependency edges carry their own name | `WorkspaceLoader_LoadAsync_DependencyEdges_CarryOwnDeclaredName` |
+| Declared name preserved by serialization; null omitted | `Serialize_EdgeDeclaredName_RoundTripsAndNullIsOmitted` |

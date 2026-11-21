@@ -82,8 +82,8 @@ marker used for `subsets`/`:>` feature subsetting. `allocate flightTime to batte
 usages, not definitions), demonstrates the solid open-chevron line carrying the
 `«allocate»` stereotype label used for allocation relationships, while the
 standalone `dependency FlightController to Battery;` statement demonstrates the
-dashed open-chevron line without a label, used for general OMG
-dependency relationships.
+dashed open-chevron line labeled `«depend»` (a named dependency shows its declared name
+instead), used for general OMG dependency relationships.
 
 `Battery`'s `comment /* ... */` annotation demonstrates the `BoxShape.Note`
 (folded-corner) box rendered for a commented element, connected to its box by
@@ -508,6 +508,25 @@ SVG: [`svg/VehicleTypingGeneralView.svg`](svg/VehicleTypingGeneralView.svg)
 
 ---
 
+## 17. General View — Part Tree of an Exposed Definition
+
+A view that exposes a definition draws it as a **part tree**: `expose Vehicle; expose Engine;` shows
+`Vehicle` and `Engine`, and every part that either owns becomes a rounded `«part»` node of its own,
+joined to its owner by a filled-diamond composition edge (`engine`, `wheels`, and `cylinders`), by a
+hollow diamond with a dashed outline for the `ref part` `driver`, and chained when it is nested in
+another part (`hub` below `wheels`). The attributes `mass` and `displacement` stay rows of their owners.
+A part is joined by a feature-typing edge (hollow triangle with two dots) only to a definition that is in
+the diagram, so `engine : Engine` is typed by the exposed `Engine`, while `Wheel` and `Driver` — which the
+view does not expose — are not drawn. The named dependency `fueling` shows its name on the dashed line
+(an unnamed dependency shows `«depend»`, as in section 1).
+
+Model: [`models/17-part-tree-expose.sysml`](models/17-part-tree-expose.sysml) ·
+SVG: [`svg/VehicleStructureGeneralView.svg`](svg/VehicleStructureGeneralView.svg)
+
+![Vehicle Structure General View: Vehicle and Engine with their parts drawn as nodes joined by filled and hollow diamonds, the engine part typed by Engine, and the dependency labeled fueling](png/VehicleStructureGeneralView.png)
+
+---
+
 ## Known deviation: the diagram-quality fill criterion (B5)
 
 The gallery images are checked against the project's diagram-quality criteria. Every image passes
@@ -615,3 +634,4 @@ The interconnection models were extended to exercise the notation of the Interco
 | 14 | General View — Usages, Typing, Subsetting, Redefinition | Drive Unit | ✅ |
 | 15 | General View — Documentation and Comments on Nested Parts | Charging Station | ✅ |
 | 16 | General View — Nested Packages and Feature Typing | Vehicle Typing | ✅ |
+| 17 | General View — Part Tree of an Exposed Definition | Vehicle Structure | ✅ |

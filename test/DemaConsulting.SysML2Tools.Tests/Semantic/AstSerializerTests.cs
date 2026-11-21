@@ -254,6 +254,36 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
+    ///     A dependency edge's <see cref="SysmlEdge.DeclaredName"/> round-trips through the node
+    ///     serializer, and a <see langword="null"/> one is omitted from the JSON text.
+    /// </summary>
+    [Fact]
+    public void Serialize_EdgeDeclaredName_RoundTripsAndNullIsOmitted()
+    {
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            DefinitionKeyword = "part def",
+            ResolvedEdges =
+            [
+                new SysmlEdge("Q::A", "Q::B", SysmlEdgeKind.Dependency) { DeclaredName = "link" },
+                new SysmlEdge("Q::A", "Q::B", SysmlEdgeKind.Dependency),
+            ],
+        });
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var text = System.Text.Encoding.UTF8.GetString(bytes);
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Count(text, "DeclaredName"));
+        var rt = Assert.IsType<SysmlDefinitionNode>(result.Symbols["Q::Sub"]);
+        Assert.Equal("link", rt.ResolvedEdges[0].DeclaredName);
+        Assert.Null(rt.ResolvedEdges[1].DeclaredName);
+    }
+
+    /// <summary>
     ///     <see cref="SysmlImportNode.RawReferenceText"/> and <see cref="ExposeMember.RawReferenceText"/>
     ///     round-trip through the node serializer, and a <see langword="null"/> one is omitted from
     ///     the JSON text (so legacy data without the property still deserializes, with

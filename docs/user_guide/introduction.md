@@ -438,6 +438,17 @@ implementation:
   own, placed beside its owner and joined to it. A port is drawn as a node only when it owns nested
   features. **Attributes, plain references, and ports without nested features stay rows** in the
   owner's compartments (`attributes`, `ports`, ...), which have centered italic titles.
+- An exposed definition or usage is drawn as a **part tree**, as in the OMG reference implementation:
+  whichever `expose` form exposes it (`expose Vehicle;`, `expose P::*;`, `expose P::**;`), each part it
+  owns is a node joined to it by a filled diamond (a hollow diamond and a dashed outline for a
+  `ref part`), instead of a `parts` row, and a part nested inside a part is drawn chained below it.
+  A part's typing edge (hollow triangle with two dots) is drawn only to a definition that is itself in
+  the diagram, so exposing `Vehicle` does not draw the definitions its parts are typed by; expose them
+  too to see the edges (`expose Vehicle; expose Engine;`). Nested definitions are drawn only by a
+  recursive expose, and a bracket-filtered expose (`expose P::**[expr];`) draws only the selected
+  elements, with their parts as rows. `--walk-depth` applies as everywhere: for a definition at the top
+  level, `--walk-depth 1` and `--walk-depth 2` draw it with a trailing `…` row, and `--walk-depth 3`
+  draws its part nodes (see [Depth Limiting](#depth-limiting)).
 - An abstract definition has an italic name; an abstract usage is marked only by its keyword. A
   reference usage has a dashed outline. The names of boxes and sequence lifeline headers are drawn in
   regular weight, as in the SysML v2 graphical notation; the one exception is the header cells of a
@@ -462,7 +473,7 @@ Lines are solid, except imports, dependencies, and comment links, which are dash
 | Dashed, no arrowhead, to a folded note | A `comment` on the element (documentation is a `doc` compartment) |
 | Plain solid line, no end marker | `connect` between two features |
 | Plain solid line labeled `=` | `bind` between two features |
-| Dashed line with an open arrowhead | `dependency` |
+| Dashed, open arrowhead, `«depend»` or its name | `dependency`; `dependency link from A to B;` shows `link` |
 | Solid line with an open arrowhead, `«allocate»` | `allocate` |
 
 The documentation and comments of a usage that is drawn as its own box (a part, item, action, or
@@ -633,7 +644,10 @@ entire workspace:
   independent scoping behavior, driven by whether the grammar alternative is
   MembershipExpose or NamespaceExpose and whether a trailing `::**` requests recursion:
   - `expose X;` (bare MembershipExpose) — scopes to **`X` itself only**, not its containment
-    subtree. When `X` is a package, the General View draws it as an empty package node. If `X`
+    subtree. When `X` is a package, the General View draws it as an empty package node. When `X` is
+    a definition or a usage, the General View draws the part usages (and other node-kind usages) that
+    `X` owns as nodes joined to it (see [General View Notation](#general-view-notation)), even though
+    they are not in `X`'s own scope; its nested definitions are not drawn. If `X`
     resolves to a usage (e.g. `part myVehicle : Vehicle;`) rather than a definition, its resolved
     type (`Vehicle`) is also included, itself only (not the type's subtree either).
   - `expose X::**;` (recursive MembershipExpose) — scopes to `X` **and its entire containment
@@ -918,7 +932,9 @@ always visible in the output. In a General View every enclosing package counts a
 level, the same as a definition nested inside another definition: with `--walk-depth 1` each
 top-level package is drawn collapsed, and with `--walk-depth 2` its own definitions are drawn while
 its nested packages are collapsed. A collapsed package hides everything it contains, including
-nested packages, and relationships to hidden definitions are not drawn.
+nested packages, and relationships to hidden definitions are not drawn. A part that a definition owns
+(including one drawn because the definition is exposed) is one nesting level below its owner, so the
+owner is drawn with a trailing `…` row while the limit does not reach the part.
 
 ```bash
 sysml2tools render model.sysml --output out --walk-depth 3
@@ -933,6 +949,19 @@ sysml2tools render model.sysml --output out --walk-depth 3
 
 PNG output uses an embedded Noto Sans font to guarantee pixel-identical output across
 Windows, Linux, and macOS.
+
+The PNG backend cannot draw an image wider or taller than 8192 pixels. When a diagram would exceed
+that size (for example a General View of a model with many sibling parts), `render` does not fail:
+it scales the whole image down uniformly so its longest side fits, writes the PNG, and prints a
+warning that names the view and both sizes:
+
+```text
+  warning: Diagram 'SoftwareStructureView' (11577×2380 px) exceeds the 8192 px PNG limit; scaled to 8192×1684 px. Use SVG or narrow the view.
+```
+
+The scaled image is smaller, so its text is smaller too. For a full-size diagram use `--format svg`
+(which has no size limit) or narrow the view with `expose` or `--view-target`. The warning does not
+change the exit code.
 
 # Querying
 

@@ -220,6 +220,62 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
+    ///     RenderCommand with --format png on a diagram wider than the PNG limit succeeds, writes a
+    ///     PNG scaled to fit, and reports the scaling as a warning on the standard output.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_FormatPng_WideDiagram_ScalesToFitAndWarns()
+    {
+        // Arrange: a view over a part with 60 sibling part usages, wider than 8192 px
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_wide_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        var sysml =
+            "package WideTest {\n" +
+            "    private import StandardViewDefinitions::*;\n" +
+            "    part def Leaf {}\n" +
+            "    part def Root {\n" +
+            string.Concat(Enumerable.Range(1, 60).Select(i => $"        part p{i} : Leaf;\n")) +
+            "    }\n" +
+            "    view WideView : GeneralView { expose WideTest::Root::**; expose WideTest::Root; }\n" +
+            "}\n";
+        await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+
+        var outputDir = Path.Combine(tempDir, "out");
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render with PNG format
+            using var context = Context.Create(
+                ["render", "--format", "png", "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: success, a PNG within the limit (header width/height at offsets 16 and 20),
+            // and the scaling warning on the standard output
+            Assert.Equal(0, context.ExitCode);
+            var bytes = await File.ReadAllBytesAsync(
+                Path.Combine(outputDir, "WideView.png"), TestContext.Current.CancellationToken);
+            var width = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+            var height = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+            Assert.InRange(width, 1, 8192);
+            Assert.InRange(height, 1, 8192);
+            var output = outWriter.ToString();
+            Assert.Contains("warning: Diagram 'WideView'", output);
+            Assert.Contains("exceeds the 8192 px PNG limit", output);
+            Assert.Contains($"scaled to {width}×{height} px", output);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
     ///     RenderCommand without --output writes output files to the current working directory.
     /// </summary>
     [Fact]

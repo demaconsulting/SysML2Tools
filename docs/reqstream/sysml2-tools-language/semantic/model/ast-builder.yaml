@@ -304,17 +304,22 @@ sections:
           AstBuilder shall build a SysmlDependencyNode from a standalone `dependency A, B to
           C, D;` declaration, splitting the grammar's single flat qualifiedName() list into
           FromNames and ToNames by comparing each name's start token index against the TO()
-          terminal's token index.
+          terminal's token index, and recording the declaration's optional declared name
+          (`dependency link from A to B;`) as the node's name.
         justification: |
           The `dependency` grammar rule exposes one flat list of qualified names with no
           separate "from"/"to" sub-rules, so AstBuilder must positionally split the list itself
           before ReferenceResolver can resolve each side independently. Position-based splitting
           (rather than looking for the optional FROM keyword) also correctly handles the grammar's
-          optional FROM keyword being entirely omitted (e.g. "dependency z to x, y;").
+          optional FROM keyword being entirely omitted (e.g. "dependency z to x, y;"). A
+          dependency is a named element in SysML v2, and the General view labels a named
+          dependency's edge with that name, so the declared name must reach the model.
         tests:
           - WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge
           - WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges
           - WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_DependencyNamed_RecordsDeclaredName
+          - WorkspaceLoader_LoadAsync_DependencyEdges_CarryOwnDeclaredName
           - Dependency_OmgCorpusFixtures_ResolveExpectedEdges
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-BindingConnector

@@ -165,4 +165,23 @@ public sealed record SysmlEdge(string? SourceQualifiedName, string TargetQualifi
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? RawReference { get; init; }
+
+    /// <summary>
+    ///     Gets the declared name of the declaration this edge came from, or <see langword="null"/>
+    ///     when that declaration is anonymous or the edge carries no such name. The name is the
+    ///     edge's own identity for a kind whose source is not the declaration itself: a
+    ///     <see cref="SysmlEdgeKind.Dependency"/> edge runs from the client to the supplier, so
+    ///     two dependencies between the same pair of elements (one named, one not) are told apart
+    ///     only by this value, never by matching endpoints.
+    /// </summary>
+    /// <remarks>
+    ///     <c>ReferenceResolver</c> populates this for <see cref="SysmlEdgeKind.Dependency"/> edges
+    ///     of a named dependency (<c>dependency link from A to B;</c> records <c>link</c>) and
+    ///     leaves it <see langword="null"/> for every other edge, for an unnamed dependency, for
+    ///     edges built by hand, and for data serialized before the property existed. It is omitted
+    ///     from JSON when <see langword="null"/>. Because record equality includes this property,
+    ///     two edges that differ only in the declaration they came from are distinct values.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DeclaredName { get; init; }
 }

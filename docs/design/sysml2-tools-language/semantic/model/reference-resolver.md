@@ -407,7 +407,8 @@ unresolved-reference diagnostic and no edge):
   `dependency a, b to c, d;` resolves to up to 4 edges). Unlike the two-sided
   Satisfy/Allocate/Connect contract, a `Dependency` edge is emitted per-pair rather than
   all-or-nothing: an unresolvable name on one side does not suppress edges for the other
-  resolvable names.
+  resolvable names. Each edge records the dependency's declared name (`SysmlEdge.DeclaredName`, `null`
+  for an unnamed dependency) so the edge is labeled by the declaration it came from.
 - **`SysmlViewNode` (Expose)** — resolves each `GetExposedNames()` entry (the `QualifiedName` of
   each `ExposeMember`) into its own `SysmlEdgeKind.Expose` edge, or the standard
   unresolved-reference diagnostic when it does not resolve. The edge's `RawReference` is the

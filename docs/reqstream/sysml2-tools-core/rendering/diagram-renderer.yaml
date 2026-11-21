@@ -103,3 +103,22 @@ sections:
           view draws.
         tests:
           - DiagramRenderer_SynthesizeAutoView_ExcludedMembers_DoNotChangeTarget
+
+      - id: SysML2Tools-Core-Rendering-DiagramRenderer-PngFitsBackendLimit
+        title: >-
+          When a view rendered through the PNG renderer is larger than the raster backend's
+          maximum dimension (8192 px in width or height), the diagram renderer shall scale the
+          image down uniformly so it fits, still return the PNG, and report a warning on the
+          output naming the view, its original size, and its scaled size; a diagram that fits,
+          and any vector (SVG) output, shall be left unscaled and unreported.
+        justification: |
+          Generated diagrams, such as a part tree with many siblings, can be wider than the raster
+          backend accepts, which made the PNG render fail outright. Scaling the image down degrades
+          the output gracefully, and the warning tells the user why the image is smaller and that
+          SVG or a narrower view avoids it. Applying the scale through the renderer's public
+          render options keeps the diagram itself unchanged.
+        tests:
+          - DiagramRenderer_RenderWorkspace_WidePngView_ScalesToFitAndWarns
+          - DiagramRenderer_RenderWorkspace_PngOverhang_RetriesAndWarns
+          - DiagramRenderer_RenderWorkspace_NarrowPngView_ReportsNoScalingWarning
+          - DiagramRenderer_RenderWorkspace_WideSvgView_ReportsNoScalingWarning

@@ -211,7 +211,11 @@ the grammar's optional `FROM` keyword (e.g. `dependency z to x, y;`, with no exp
 before `z`) since the split is driven purely by position relative to `TO`, never by the
 presence/absence of the `FROM` keyword token itself. `ReferenceResolver` resolves every
 `FromNames` entry against every `ToNames` entry (a cross product), emitting one
-`SysmlEdgeKind.Dependency` edge per resolved pair.
+`SysmlEdgeKind.Dependency` edge per resolved pair. The optional declared name of the dependency
+(`dependency link from A to B;`, in either grammar alternative's `identification`) is captured as the
+node's `Name` and `QualifiedName` (and short name), so a named dependency is a registered symbol; the
+resolved edges carry that name (`SysmlEdge.DeclaredName`) so the General view can label them. An unnamed
+dependency stays anonymous.
 
 `VisitSatisfyRequirementUsage` builds a `SysmlSatisfyNode` for `satisfy X by Y;` usages. The
 satisfied requirement's raw reference text is taken from `ownedReferenceSubsetting()` when the

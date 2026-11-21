@@ -31,6 +31,8 @@ on context output and exit code. File-writing scenarios use a temporary director
   see the unresolved-reference criteria below
 - SVG output produced for `--format svg` (or default)
 - PNG output produced for `--format png`
+- A diagram wider or taller than the PNG backend's 8192 px limit is written as a PNG scaled down to
+  fit, a `warning:` line names the view and its original and scaled sizes, and the exit code is 0
 - Output files written to `--output` directory
 - No output files written when workspace has no views
 - Informational message written when workspace has no views
@@ -128,6 +130,13 @@ extension is `.svg`.
 
 Verifies that `--format png` routes to the PNG renderer by confirming output file
 extension is `.png`.
+
+#### RenderSubsystem_FormatPng_WideDiagram_ScalesToFitAndWarns
+
+Verifies that `--format png` on a view whose part tree is wider than 8192 px succeeds with exit
+code 0, writes a PNG whose header width and height are within the limit, and prints a
+`warning: Diagram 'WideView' (...) exceeds the 8192 px PNG limit; scaled to <w>×<h> px.` line whose
+scaled size matches the written image.
 
 #### RenderSubsystem_NoOutputDir_UsesCurrentDirectory
 

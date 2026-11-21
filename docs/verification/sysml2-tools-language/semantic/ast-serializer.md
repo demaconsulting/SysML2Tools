@@ -42,6 +42,7 @@ standard .NET SDK installation.
 | `Serialize_AllNodeTypes_RoundTrip` | Every concrete node type restores as the same type |
 | `Serialize_SupertypeAndImportedNames_Preserved` | Supertype and imported names are preserved |
 | `Serialize_EdgeRawReference_RoundTripsAndNullIsOmitted` | `RawReference` round-trips; `null` is omitted |
+| `Serialize_EdgeDeclaredName_RoundTripsAndNullIsOmitted` | `DeclaredName` round-trips; `null` is omitted |
 | `Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted` | Raw text round-trips; `null` omitted |
 | `Serialize_Diagnostics_RoundTrip` | Diagnostics are preserved through the round trip |
 | `Serialize_NewModifierProperties_RoundTrip` | Every new modifier/notation member round-trips |

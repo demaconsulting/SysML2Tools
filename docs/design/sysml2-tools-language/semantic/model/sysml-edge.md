@@ -68,8 +68,8 @@ material indexed by `SemanticIndex`.
   by `GeneralViewLayoutStrategy` as a solid line with no end marker and an optional `=` midpoint
   label.
 
-`SysmlEdge` is a sealed positional record with three positional properties and one additional
-init-only property:
+`SysmlEdge` is a sealed positional record with three positional properties and two additional
+init-only properties:
 
 - `SourceQualifiedName` (`string?`) — qualified name of the referencing node, or `null` when
   the referencing node is anonymous (e.g., an unnamed import statement).
@@ -96,8 +96,15 @@ init-only property:
   (`JsonIgnoreCondition.WhenWritingNull`), so edges without it stay compact. Because record equality
   includes it, two edges that differ only in the reference text (for example `X` and an alias of
   `X` resolving to the same target) are distinct values.
-
-##### Error Handling
+- `DeclaredName` (`string?`, init-only, additive to the positional constructor) — the declared name of
+  the declaration the edge came from, for a kind whose source is not that declaration itself. A
+  `Dependency` edge runs from the client to the supplier, so `ReferenceResolver` records the
+  dependency's own name on it (`dependency link from A to B;` gives each of its edges
+  `DeclaredName == "link"`); two dependencies between the same pair of elements, one named and one
+  not, are therefore told apart by the edges alone, never by matching endpoints. It is `null` for
+  every other edge, for an unnamed dependency, for hand-built edges and for data serialized before the
+  property existed, and is omitted from JSON when `null`. Because record equality includes it, edges
+  that differ only in the declaration they came from are distinct values.
 
 N/A — `SysmlEdge` is a pure data record with no logic or validation.
 

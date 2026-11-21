@@ -23,7 +23,8 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// package name in the folder's tab), and routes the specification's relationship glyphs
 /// orthogonally between the boxes: specialization, owner feature membership (filled or hollow
 /// diamond), feature typing, subsetting, reference subsetting, redefinition, satisfy, verify and
-/// import edges, whichever packages their endpoints sit in.
+/// import edges, whichever packages their endpoints sit in. An exposed definition or usage is drawn
+/// with the usages it owns as nodes of its own (a part tree, see <see cref="CollectDefinitions"/>).
 /// </summary>
 /// <remarks>
 /// Every definition, usage and package folder is expressed as a single <see cref="LayoutGraph"/> —
@@ -237,7 +238,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         /// <summary>
         /// A resolved standalone <c>dependency</c> reference: dashed line, open chevron at the
-        /// depended-upon element.
+        /// depended-upon element, with a midpoint label that is the dependency's declared name or,
+        /// for an unnamed dependency, <c>«depend»</c>.
         /// </summary>
         Dependency,
 
@@ -494,7 +496,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         // Collect all user-defined definitions, sized for rendering, restricted to the resolved
         // scope when one applies.
-        var defs = CollectDefinitions(context.Workspace, scope, AnnotationVisible);
+        var defs = CollectDefinitions(context.Workspace, scope, AnnotationVisible, _policy);
 
         // Packages that are themselves exposed (SysML 8.3.26.3: `expose P;` and `expose P::**;`
         // expose the Package element P) are drawn as package nodes (SysML 8.2.3.5 package-node),
@@ -723,32 +725,86 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// an unnamed <see cref="SysmlDefinitionNode"/>, by contrast, is still admitted — it falls back to
     /// keying its box on the declaration's own qualified name, exactly as it did before usage-level
     /// candidates were introduced.
+    /// <para>
+    /// <b>Part trees.</b> A definition or node usage (<see cref="NodePolicy.IsNode"/>) that the
+    /// view exposes through an <c>expose</c> subject also exposes the node usages it owns, even
+    /// when the expose form (<c>expose V;</c>, <c>expose P::*;</c>) does not itself reach them, so
+    /// the diagram shows the owner with its owned parts as nodes joined by composition edges
+    /// instead of as <c>parts</c> rows (the OMG Pilot's part tree). The rule is an
+    /// ownership closure: a node usage admitted this way exposes the node usages it owns in turn
+    /// (inline <c>part a { part b; }</c> nesting), but it never follows feature typing — a
+    /// definition that an owned usage is typed by is drawn only when the view exposes it itself —
+    /// and never admits nested definitions, attributes, plain ports or other row usages. The
+    /// closure admits each qualified name at most once, so it adds nothing under a recursive
+    /// expose (<c>expose V::**;</c>), where every owned usage is already in scope, and an
+    /// element is therefore never drawn both as a row and as a node nor as two nodes. A
+    /// bracket-filter match (<see cref="ExposedScope.ExplicitMembers"/>) is a precise selection and
+    /// does not trigger the closure.
+    /// </para>
     /// </remarks>
     /// <seealso cref="RemoveRowUsages"/>
     private static IReadOnlyList<DefBox> CollectDefinitions(
         SysmlWorkspace workspace,
         ExposedScope? scope,
-        Func<string, string, bool> annotationVisible)
+        Func<string, string, bool> annotationVisible,
+        NodePolicy policy)
     {
         var result = new List<DefBox>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        // Each qualified name is admitted at most once (admitted), but a declaration reached first
+        // without an exposed owner (for example straight from Declarations) must be reconsidered
+        // when it is later reached through its exposed owner, so the visit record also remembers
+        // whether the owner was exposed on the visit (visited): the outcome is then independent of
+        // the order in which Declarations lists an owner and its nested usages.
+        var admitted = new HashSet<string>(StringComparer.Ordinal);
+        var visited = new Dictionary<string, bool>(StringComparer.Ordinal);
+
+        // The owner-exposure rule is driven by the expose *subjects* only: a bracket-filter match
+        // (ExplicitMembers) is a precise selection of that one element, so it never pulls its
+        // owned usages in (they stay rows of the selected element). A typing target that the
+        // resolver added for an exposed usage (`expose myVehicle;` adds Vehicle) is included as a
+        // box but is not itself exposed, so it does not own part-tree nodes either.
+        var subjectsOnly = scope is null
+            ? null
+            : new ExposedScope(scope.Subjects.Where(s => !s.IsTypingTarget).ToList(), []);
 
         // Visits one declaration (and, recursively, the usages nested in its Children): a real
         // workspace registers every nested declaration under its own qualified name in
         // Declarations, while a hand-built one may list nested usages only as Children, so both
-        // sources are walked and each qualified name is admitted once.
-        void Visit(string qualifiedName, SysmlNode declaration)
+        // sources are walked and each qualified name is admitted once. ownerExposed is true when
+        // the declaration's owner is a definition or node usage that the view exposes (directly by
+        // an expose subject, or by this very rule), which admits the declaration when it is a node.
+        void Visit(string qualifiedName, SysmlNode declaration, bool ownerExposed)
         {
             if (declaration is not (SysmlDefinitionNode or SysmlFeatureNode) ||
                 declaration.IsExcludedFromDiagrams ||
                 (declaration is SysmlFeatureNode && declaration.Name is null) ||
-                !seen.Add(qualifiedName))
+                (visited.TryGetValue(qualifiedName, out var previous) && (previous || !ownerExposed)))
             {
                 return;
             }
 
-            if (!StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames) &&
-                (scope is null || ExposeScopeResolver.IsInSubjectScope(qualifiedName, scope)))
+            visited[qualifiedName] = ownerExposed;
+
+            // Decide whether the declaration is drawn, and whether its own owned node usages are
+            // drawn in turn: an element exposed by a subject exposes the node usages it owns
+            // (a definition or node-kind usage; an attribute or plain port owns no nodes), and an
+            // element admitted only as such an owned usage continues the chain, so the usages of
+            // a nested usage are drawn too — never the definitions that usages are typed by.
+            var isStdlib = StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames);
+            var admit = !isStdlib && (scope is null || ExposeScopeResolver.IsInSubjectScope(qualifiedName, scope));
+            var ownsNodes = false;
+            if (!isStdlib && scope is not null)
+            {
+                var canOwnNodes = declaration is SysmlDefinitionNode ||
+                    (declaration is SysmlFeatureNode ownerFeature && policy.IsNode(ownerFeature));
+                var ownedUsageNode = ownerExposed && canOwnNodes && declaration is SysmlFeatureNode;
+                admit |= ownedUsageNode;
+                ownsNodes = canOwnNodes &&
+                    (ownedUsageNode || ExposeScopeResolver.IsInSubjectScope(qualifiedName, subjectsOnly!));
+            }
+
+            if (admit && admitted.Add(qualifiedName))
             {
                 result.Add(CreateBox(qualifiedName, declaration, annotationVisible));
             }
@@ -757,14 +813,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             {
                 if (child is SysmlFeatureNode { Name: { } childName })
                 {
-                    Visit(child.QualifiedName ?? $"{qualifiedName}::{childName}", child);
+                    Visit(child.QualifiedName ?? $"{qualifiedName}::{childName}", child, ownsNodes);
                 }
             }
         }
 
         foreach (var (qualifiedName, declaration) in workspace.Declarations)
         {
-            Visit(qualifiedName, declaration);
+            Visit(qualifiedName, declaration, false);
         }
 
         return result;
@@ -1749,7 +1805,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, usageBoxes);
                         if (source is not null && target is not null && source != target)
                         {
-                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
+                            edges.Add(new ModelEdge(
+                                source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency, DependencyLabel(edge)));
                         }
                         else
                         {
@@ -1824,6 +1881,25 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             edges.Add(edge);
         }
     }
+
+    /// <summary>The label of a dependency edge whose dependency declares no name (SysML v2 graphical notation: the relationship keyword in guillemet marks).</summary>
+    private const string DependencyKeywordLabel = "«depend»";
+
+    /// <summary>
+    /// Returns the label of a dependency edge: the declared name of the dependency the edge came from
+    /// when it is named, else the <c>«depend»</c> keyword label. The choice is this single expression,
+    /// so a different rule (for example showing both) is a one-line change.
+    /// </summary>
+    /// <remarks>
+    /// The name travels on the semantic edge itself (<see cref="SysmlEdge.DeclaredName"/>), so two
+    /// dependencies between the same client and supplier — one named, one not, in either declaration
+    /// order — each keep their own label; no matching by endpoints is involved. An edge with no
+    /// declared name (an unnamed dependency, or an edge in a hand-built workspace) shows the keyword.
+    /// </remarks>
+    /// <param name="edge">The dependency edge.</param>
+    /// <returns>The edge label.</returns>
+    private static string DependencyLabel(SysmlEdge edge) =>
+        edge.DeclaredName is { Length: > 0 } name ? name : DependencyKeywordLabel;
 
     /// <summary>
     /// Resolves the rendered box nearest to <paramref name="qualifiedName"/>: the name itself when it
