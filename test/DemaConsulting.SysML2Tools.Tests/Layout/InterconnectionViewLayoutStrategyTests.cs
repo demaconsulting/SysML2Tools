@@ -2187,13 +2187,13 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     An <c>expose</c> edge that resolves to a feature usage (not a definition) still narrows
-    ///     the interconnection to that usage's containment subtree via the shared usage-to-type
-    ///     fallback in <c>ExposeScopeResolver.ResolveExposedScope</c>: exposing a usage
-    ///     <c>myPart</c> typed by <c>SysA</c> selects <c>SysA</c> as the root.
+    ///     An <c>expose</c> edge that resolves to a part usage (not a definition) draws that usage as
+    ///     the root frame with the interior its type provides, not the type's definition: exposing a
+    ///     usage <c>myPart</c> typed by <c>SysB</c> selects <c>myPart : SysB</c> as the root (the
+    ///     typing target the shared resolver adds still scopes the type's own members).
     /// </summary>
     [Fact]
-    public void InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot()
+    public void InterconnectionView_BuildLayout_ExposedUsage_DrawsUsageWithTypeInteriorAsRoot()
     {
         var strategy = new InterconnectionViewLayoutStrategy();
         var workspace = BuildTwoRootWorkspace();
@@ -2201,6 +2201,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "myPart",
             QualifiedName = "M::myPart",
+            FeatureKeyword = "part",
             FeatureTyping = "SysB",
             ResolvedEdges = [new SysmlEdge("M::myPart", "M::SysB", SysmlEdgeKind.Typing)]
         });
@@ -2216,8 +2217,10 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
-        Assert.Equal("SysB", container.Label);
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.DoesNotContain(boxes, b => b.Keyword == "part def");
+        var frame = Assert.Single(boxes, b => b.Keyword == "part" && b.Label == "myPart : SysB");
+        Assert.NotEmpty(frame.Children.OfType<LayoutBox>());
     }
 
     /// <summary>
@@ -3260,6 +3263,150 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
         Assert.DoesNotContain(labels, l => l?.StartsWith("a1", StringComparison.Ordinal) == true);
         Assert.Empty(layout.Warnings);
+    }
+
+    /// <summary>
+    ///     Model for the exposed-definition and exposed-usage tests: <c>Car</c> has two nested parts, a
+    ///     port and a connection between the parts; <c>Plain</c> has no parts; <c>Fleet</c> holds a
+    ///     nested container part; <c>car</c> is a usage of <c>Car</c>.
+    /// </summary>
+    private const string ExposedCarSysml = """
+        package Q {
+            port def FuelPort;
+            part def Engine { part cylinder : Cylinder; }
+            part def Cylinder;
+            part def Wheel;
+            part def Car {
+                port fuelIn : FuelPort;
+                part engine : Engine;
+                part wheels : Wheel [4];
+                connect engine to wheels;
+            }
+            part def Plain;
+            part def Fleet { part lead : Car; part spare : Wheel; }
+            part car : Car;
+            view ExposeDef { expose Car; render asInterconnectionDiagram; }
+            view ExposeUsage { expose car; render asInterconnectionDiagram; }
+            view ExposeRecursive { expose Car::**; render asInterconnectionDiagram; }
+            view ExposePlain { expose Plain; render asInterconnectionDiagram; }
+            view ExposeFleet { expose Fleet; render asInterconnectionDiagram; }
+            view ExposeNarrow { expose Fleet::lead; render asInterconnectionDiagram; }
+        }
+        """;
+
+    /// <summary>
+    ///     <c>expose Car;</c> draws the part definition's frame with its nested parts inside, as the
+    ///     dynamic view does (issue #145).
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ExposePartDef_DrawsFrameWithNestedParts()
+    {
+        // Act
+        var layout = await LayOutOuterViewAsync(ExposedCarSysml, "Q::ExposeDef");
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        var frame = Assert.Single(boxes, b => b.Keyword == "part def" && b.Label == "Car");
+        Assert.Contains(frame.Compartments, c => c.Title == "interconnection");
+        var nested = frame.Children.OfType<LayoutBox>().Select(b => b.Label).ToList();
+        Assert.Contains("engine : Engine", nested);
+        Assert.Contains("wheels : Wheel [4]", nested);
+    }
+
+    /// <summary>
+    ///     An exposed part definition's frame also carries its ports, and the connection between its
+    ///     parts is drawn as a line.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ExposePartDef_DrawsPortsAndConnections()
+    {
+        // Act
+        var layout = await LayOutOuterViewAsync(ExposedCarSysml, "Q::ExposeDef");
+
+        // Assert
+        var frame = Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "Car");
+        Assert.Contains(frame.Children.OfType<LayoutPort>(), p => p.ExternalLabel == "fuelIn : FuelPort");
+        Assert.Single(CollectLines(layout.Nodes));
+    }
+
+    /// <summary>
+    ///     An exposed definition is not expanded recursively: a nested part that is itself a container
+    ///     stays a leaf box, as for any non-recursive expose.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ExposePartDef_NestedContainerPartStaysLeaf()
+    {
+        // Act
+        var layout = await LayOutOuterViewAsync(ExposedCarSysml, "Q::ExposeFleet");
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.Contains(boxes, b => b.Label == "lead : Car");
+        Assert.DoesNotContain(boxes, b => b.Label == "engine : Engine");
+    }
+
+    /// <summary>
+    ///     <c>expose car;</c> draws the usage <c>car : Car</c> as the frame — not its definition —
+    ///     with the parts, ports and connections it gets from its type.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ExposePartUsage_DrawsUsageFrameWithTypeStructure()
+    {
+        // Act
+        var layout = await LayOutOuterViewAsync(ExposedCarSysml, "Q::ExposeUsage");
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.DoesNotContain(boxes, b => b.Keyword == "part def");
+        var frame = Assert.Single(boxes, b => b.Keyword == "part" && b.Label == "car : Car");
+        var nested = frame.Children.OfType<LayoutBox>().Select(b => b.Label).ToList();
+        Assert.Contains("engine : Engine", nested);
+        Assert.Contains("wheels : Wheel [4]", nested);
+        Assert.Contains(frame.Children.OfType<LayoutPort>(), p => p.ExternalLabel == "fuelIn : FuelPort");
+        Assert.Single(CollectLines(layout.Nodes));
+    }
+
+    /// <summary>
+    ///     <c>expose Car::**;</c> still draws the nested parts exactly once, with no repeated top-level boxes.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ExposePartDefRecursive_DrawsEachNestedPartOnce()
+    {
+        // Act
+        var layout = await LayOutOuterViewAsync(ExposedCarSysml, "Q::ExposeRecursive");
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.Single(boxes, b => b.Label == "Car");
+        Assert.Single(boxes, b => b.Label == "engine : Engine");
+        Assert.Single(boxes, b => b.Label == "wheels : Wheel [4]");
+    }
+
+    /// <summary>
+    ///     Exposing one nested part of a definition (<c>expose Fleet::lead;</c>) still narrows the frame
+    ///     of its owner to that part: the owner's other parts are not drawn.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ExposeNestedPart_StillNarrowsToThatPart()
+    {
+        // Act
+        var layout = await LayOutOuterViewAsync(ExposedCarSysml, "Q::ExposeNarrow");
+
+        // Assert
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("lead : Car", labels);
+        Assert.DoesNotContain("spare : Wheel", labels);
+    }
+
+    /// <summary>An exposed part definition without nested parts has nothing to draw: the canvas stays empty.</summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ExposePartDefWithoutParts_DrawsNothing()
+    {
+        // Act
+        var layout = await LayOutOuterViewAsync(ExposedCarSysml, "Q::ExposePlain");
+
+        // Assert
+        Assert.Empty(CollectBoxes(layout.Nodes));
     }
 
     /// <summary>Loads <paramref name="sysml"/> and lays out the interconnection view named <paramref name="viewQualifiedName"/>.</summary>

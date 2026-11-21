@@ -79,6 +79,16 @@ configuration are required beyond a standard .NET SDK installation.
 - `IsRootRelevantToScope` returns `false` for an unrelated candidate.
 - (Phase 2a) `IsRootRelevantToScope` returns `true` when the candidate exactly equals an
   `ExplicitMembers` entry.
+- A `MembershipExact` subject, a `MembershipRecursive` subject and nothing else names an element by name
+  (`ExposesByName`): a namespace-form subject, an ancestor and a typing target do not.
+- For a namespace-valued entry (`expose A::*;`, `A::*::**;`, `A::**;`) `Subjects` also holds the
+  memberships `A` brings in through its `public` imports — each public member of a wildcard import
+  (exact, or whole subtree when the expose or the import is recursive), the member of a membership
+  import, and, transitively, those of the public imports of every imported namespace — added once, with
+  import cycles terminating; `private` imports, private members and standard library targets add nothing
+  (the one rule `ExposeFollowsPrivateImports`, deliberately `false`), and a bare `expose A;` adds nothing.
+  These imported-membership rules are verified through the laid-out diagram in
+  `GeneralViewLayoutStrategyTests`.
 - With no current best candidate, `IsMoreSpecificCandidate` returns `true` for any candidate.
 - `IsMoreSpecificCandidate` returns `true` for a candidate with a longer qualified name than the
   current best, regardless of score.
@@ -196,3 +206,16 @@ configuration are required beyond a standard .NET SDK installation.
 - `IsAnnotationExposed_DependsOnExposeForm`:
   Annotations are exposed by `::*`/`::**` exposes of the owner (or recursive ancestors) and by an
   unscoped view, but not by a bare membership expose
+- `ExposesByName_DependsOnSubjectKindAndOrigin`:
+  Only an exact or recursive membership subject that names the element exposes it by name; a
+  namespace-form subject, a typing target and an ancestor do not
+- Imported-membership expansion (`GeneralViewLayoutStrategyTests`, through the laid-out diagram):
+  `..._ExposeNamespace_PublicWildcardImport_DrawsImportedMembers`,
+  `..._ExposeNamespace_PublicMembershipImport_DrawsOnlyThatMember`,
+  `..._ExposeNamespace_PublicRecursiveImport_DrawsWholeImportedTree`,
+  `..._ExposeNamespace_PrivateImport_DrawsNothingFromIt`,
+  `..._ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly`,
+  `..._ExposeRecursive_FollowsPublicImportsIntoImportedPackages`,
+  `..._ExposeRecursive_ImportCycle_TerminatesWithoutDuplicates` and
+  `..._BareNamespaceExpose_DrawsNoImportedMember` (the full names are listed in the
+  `GeneralViewLayoutStrategy` verification)

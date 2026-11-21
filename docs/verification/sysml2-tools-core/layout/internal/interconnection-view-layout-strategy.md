@@ -147,8 +147,15 @@ configuration are required beyond a standard .NET SDK installation.
 - A view whose resolved `Expose` edge names a single part narrows the container to that part.
 - A view with an `expose` statement naming two separate parts unions both their containment
   subtrees, keeping the connection between them.
-- A view whose resolved `Expose` edge names a feature usage (not a definition) still resolves to
-  the usage's type as the root, via the shared usage-to-type fallback.
+- A view whose resolved `Expose` edge names a part usage (not a definition) draws that usage as the
+  root frame, labeled `name : Type` with the `part` keyword, with the parts, ports and connections its
+  type provides — not the type's definition.
+- A view that exposes a part definition by name (`expose Car;`) draws the definition's frame with its
+  direct nested parts, its ports and the connection between its parts inside it, the `interconnection`
+  compartment title included, so the compartment is never empty; a nested container part stays a leaf
+  box, `expose Car::**;` draws each nested part exactly once, exposing one nested part of a definition
+  still narrows its owner's frame to that part, and an exposed definition without nested parts draws
+  nothing.
 - A view whose resolved `Expose` edge names an inner part of a definition genuinely nested inside
   another eligible root candidate selects the nested definition, not the ancestor, even though the
   ancestor has more connections/parts and would win the old pure-score tie-break.
@@ -232,7 +239,14 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas` | Unrelated def |
 | `InterconnectionView_BuildLayout_ExposeSinglePart_NarrowsToThatPart` | Single exposed part narrows the container |
 | `InterconnectionView_BuildLayout_ExposeMultipleParts_UnionsBothSubtrees` | Two exposed parts union both subtrees |
-| `InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
+| `InterconnectionView_BuildLayout_ExposedUsage_DrawsUsageWithTypeInteriorAsRoot` | Usage is the root |
+| `InterconnectionView_BuildLayout_ExposePartDef_DrawsFrameWithNestedParts` | `expose Car;` draws parts |
+| `InterconnectionView_BuildLayout_ExposePartDef_DrawsPortsAndConnections` | Ports, connection |
+| `InterconnectionView_BuildLayout_ExposePartDef_NestedContainerPartStaysLeaf` | Container part is a leaf |
+| `InterconnectionView_BuildLayout_ExposePartUsage_DrawsUsageFrameWithTypeStructure` | `expose car;` draws usage |
+| `InterconnectionView_BuildLayout_ExposePartDefRecursive_DrawsEachNestedPartOnce` | No duplicate boxes |
+| `InterconnectionView_BuildLayout_ExposeNestedPart_StillNarrowsToThatPart` | Still narrows |
+| `InterconnectionView_BuildLayout_ExposePartDefWithoutParts_DrawsNothing` | Empty canvas |
 | `InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
 | `InterconnectionView_BuildLayout_ExposeTwoIndependentRoots_DrawsBothSideBySide` | Every exposed root drawn |
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoRootDef_RendersTopLevelFeatureWithoutFrame` | Alone |

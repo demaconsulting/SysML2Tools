@@ -234,3 +234,61 @@ sections:
           define which memberships each expose form imports.
         tests:
           - IsAnnotationExposed_DependsOnExposeForm
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeFollowsPublicImports
+        title: >-
+          ExposeScopeResolver.ResolveExposedScope shall add, for a namespace-valued expose entry
+          (expose A::*;, expose A::*::**; or expose A::**;), the memberships the exposed namespace
+          re-exports through its public imports — a public wildcard import adds the imported
+          namespace's public members, a public membership import adds that member, a public
+          recursive import adds the member and its subtree, and a recursive expose adds imported
+          members as whole subtrees — while a bare expose A; follows no import.
+        justification: |
+          A namespace expose is a namespace import of A (formal-26-03-02.md §8.3.26.4), and a
+          namespace import brings in the memberships A's own imports provide. Models cannot merge
+          packages, so they split content into packages and re-export it through a system package;
+          without this, exposing that package drew only its owned members (issue #148).
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicWildcardImport_DrawsImportedMembers
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicMembershipImport_DrawsOnlyThatMember
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicRecursiveImport_DrawsWholeImportedTree
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_FollowsPublicImportsIntoImportedPackages
+          - GeneralViewLayoutStrategy_BuildLayout_BareNamespaceExpose_DrawsNoImportedMember
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportVisibility
+        title: >-
+          ExposeScopeResolver shall follow only public imports when it collects the memberships an
+          expose imports, at every level — never a private import of the exposed namespace and never
+          a private import of a namespace reached through a public import — and shall add only the
+          public members of an imported namespace.
+        justification: |
+          Nearly every package starts with a private import of a standard library that its author
+          never meant to re-export, and following it would flood a view with library content. This
+          deliberately differs from the OMG Pilot, which also draws the exposed namespace's own
+          private imports (an Expose has isImportAll = true, §8.3.26.2). The rule is the single
+          constant ExposeFollowsPrivateImports.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateImport_DrawsNothingFromIt
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportCycleSafe
+        title: >-
+          ExposeScopeResolver shall terminate when the imports it follows form a cycle and shall
+          not add the same imported subject twice.
+        justification: |
+          Packages may import each other; an unguarded walk would never end and a duplicate subject
+          would draw an element twice.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportCycle_TerminatesWithoutDuplicates
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposesByName
+        title: >-
+          ExposeScopeResolver.ExposesByName shall return true only for an element named by a
+          written exact or recursive membership subject, and false for a namespace-form subject, an
+          ancestor of an exposed element and the typing target added for an exposed usage.
+        justification: |
+          An element the view exposes by name is drawn with its own structure, whereas an element
+          reached only as the ancestor of a narrower exposed element, or as the type of an exposed
+          usage, must not be treated as exposed itself.
+        tests:
+          - ExposesByName_DependsOnSubjectKindAndOrigin

@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1027.00" height="226.40" viewBox="0 0 1027.00 226.40">
+  <defs>
+    <marker id="line-end-open-chevron" markerWidth="10.165175" markerHeight="7" refX="10.165175" refY="3.5" orient="auto">
+      <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+    </marker>
+    <marker id="line-end-hollow-triangle" markerWidth="10.165175" markerHeight="7" refX="10.165175" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+    </marker>
+    <marker id="line-end-filled-arrow" markerWidth="10.165175" markerHeight="7" refX="10.165175" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#000000" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+    </marker>
+    <marker id="line-end-hollow-triangle-crossbar" markerWidth="14.665175" markerHeight="7" refX="14.665175" refY="3.5" orient="auto">
+      <polygon points="4.5 0, 14.5 3.5, 4.5 7" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+      <line x1="1" y1="0" x2="1" y2="7" stroke="#000000" stroke-width="1.00"/>
+    </marker>
+    <marker id="line-end-hollow-diamond" markerWidth="14" markerHeight="8" refX="13.27735" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+    </marker>
+    <marker id="line-end-filled-diamond" markerWidth="14" markerHeight="8" refX="13.27735" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#000000" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+    </marker>
+    <marker id="line-end-circle" markerWidth="10" markerHeight="10" refX="9.5" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="4" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+    </marker>
+    <marker id="line-end-bar" markerWidth="4" markerHeight="12" refX="2.5" refY="6" orient="auto">
+      <line x1="2" y1="0" x2="2" y2="12" stroke="#000000" stroke-width="1.00"/>
+    </marker>
+    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">
+      <feFlood flood-color="#FFFFFF"/>
+      <feComposite in="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+  <rect x="125.88" y="0.00" width="901.12" height="226.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="576.44" y="12.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="576.44" y="31.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">Rover</text>
+  <line x1="125.88" y1="44.00" x2="1027.00" y2="44.00" stroke="#000000" stroke-width="1.00"/>
+  <text x="576.44" y="56.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">interconnection</text>
+  <rect x="157.88" y="106.00" width="159.56" height="88.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
+  <text x="237.66" y="118.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="237.66" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">battery : Battery</text>
+  <rect x="655.44" y="106.00" width="159.56" height="88.40" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
+  <text x="735.22" y="118.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="735.22" y="137.00" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">drive : DriveUnit</text>
+  <rect x="885.00" y="125.20" width="110.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
+  <text x="940.00" y="137.20" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="940.00" y="156.20" font-family="Noto Sans, sans-serif" font-size="14.00" fill="#000000" text-anchor="middle" dominant-baseline="middle">mast : Mast</text>
+  <path d="M 317.44 178.20 L 655.44 178.20" fill="none" stroke="#000000" stroke-width="1.00"/>
+  <path d="M 815.00 178.20 L 821.00 178.20 A 4.00 4.00 0 0 0 825.00 174.20 L 825.00 154.20 A 4.00 4.00 0 0 1 829.00 150.20 L 885.00 150.20" fill="none" stroke="#000000" stroke-width="1.00"/>
+  <rect x="311.44" y="172.20" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <polyline points="320.44,178.20 314.44,178.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="316.44,176.20 314.44,178.20 316.44,180.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="318.44,176.20 320.44,178.20 318.44,180.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="329.44" y="162.40" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">power : PowerPort</text>
+  <rect x="649.44" y="172.20" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <polyline points="652.44,178.20 658.44,178.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="656.44,180.20 658.44,178.20 656.44,176.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="654.44,180.20 652.44,178.20 654.44,176.20" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="643.44" y="162.40" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">power : PowerPort</text>
+  <rect x="119.88" y="97.60" width="12.00" height="12.00" rx="2.00" ry="2.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <polyline points="122.88,103.60 128.88,103.60" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="126.88,105.60 128.88,103.60 126.88,101.60" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="124.88,105.60 122.88,103.60 124.88,101.60" fill="none" stroke="#000000" stroke-width="1.00" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="113.88" y="87.80" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="end" dominant-baseline="middle">charge : PowerPort</text>
+  <text x="486.44" y="178.20" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">«interface»</text>
+</svg>

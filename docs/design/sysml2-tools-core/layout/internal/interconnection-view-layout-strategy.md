@@ -430,12 +430,30 @@ resolved, and are considered without a scope only when there is no part definiti
 unscoped model with a part definition keeps selecting that definition. Candidates are still scored by
 their nested `part` usages only (an element that composes only items is not a root).
 
+Relevance is judged against the written subjects only: the typing target `ExposeScopeResolver` adds for an
+exposed usage is ignored (the scope is copied without its `IsTypingTarget` subjects), so `expose car;` does
+not make the definition `Car` a candidate root. Instead a top-level part usage that the view exposes by name
+(`ExposeScopeResolver.ExposesByName`) and whose interior is non-empty is a candidate
+(`IsExposedContainerUsage`). A usage's interior comes from `InteriorSourceOf`: the usage itself when its body
+declares nested parts, otherwise the part definition its type resolves to (the same resolution
+`TryResolveContainer` uses for nested container parts). The candidate's connector and part scores, and the
+composition-graph test, use that interior source.
+
 ###### `CollectParts` and `ResolveConnections(root, partIndex, parts)`
 
 `CollectParts` gathers the root's nested node usages (`IsNodeUsage`: `part`, `item`, `action`, `state`,
 and `occurrence`; attributes and plain references stay compartment rows), sizing each box from its
 `name : Type` label, additionally excluding — when a scope is resolved and `depth == 0` — any part feature whose
-qualified name fails `ExposeScopeResolver.IsInSubjectScope`. `ResolveConnections` maps each binary
+qualified name fails `ExposeScopeResolver.IsInSubjectScope`, **unless the view exposes the root element
+itself by name** (`rootExposedByName`, computed in `BuildRootBox` with `ExposesByName`): an exposed
+definition's or usage's own parts are its structure, not separate members of the exposed namespace, so
+`expose Car;` draws `Car`'s parts (issue #145) while a root reached only as the ancestor of a narrower
+exposed element (`expose Sys::sub;`) still narrows to that element. Whether a part's own interior is
+expanded is unchanged and still depends on the subject that matched (`MatchesUnlimitedSubject`), so
+`expose Car;` draws nested container parts as leaf boxes. A root usage with no nested parts of its own is
+laid out from `InteriorSourceOf` (its type's definition, which joins the cycle-guard set) while the frame
+stays the usage — `«part» car : Car`, rounded, with the ports its type declares; the "nothing to draw" test
+looks at that interior source. `ResolveConnections` maps each binary
 connection's dotted endpoint references to nested-part indices and port-name labels via
 `ResolveEndpoint` (matching the first dotted segment against the (possibly narrowed) part names and
 attaching each end through the declared port its next segment names — see *Ports* and *Cross-boundary
