@@ -70,3 +70,18 @@ sections:
           - ParseSource_KermlMembersAtRootNamespace_NoErrors
           - ParseSource_SysmlUsagesNamedLikeKermlKeywords_NoErrors
           - ParseSource_SysmlKeywordsAlsoUsedAsKermlNames_KeepSysmlMeaning
+
+      - id: SysML2Tools-Language-Parser-WorkspaceParser-UnaryOperandClassificationTest
+        title: >-
+          WorkspaceParser.ParseSource shall report a syntax error at the `@` token when a
+          classification test (`@T`) is the unparenthesized operand of a unary operator (`not`,
+          `-`, `+`, `~`), and shall accept the parenthesized form (`not (@T)`).
+        justification: |
+          The KerML and SysML expression grammars (KerML 8.2.5.8.1) take a primary expression as
+          the operand of a unary operator and place the classification test at a lower precedence,
+          so `filter not @T;` has no derivation and spec-conforming tools such as the OMG Pilot
+          reject it. Accepting it silently made models that other tools cannot load pass lint.
+        tests:
+          - ParseSource_UnaryOperatorWithBareClassificationTest_ReportsSyntaxErrorAtAtSign
+          - ParseSource_ExposeFilterWithNotBareClassificationTest_ReportsSyntaxError
+          - ParseSource_UnaryOperatorWithParenthesizedClassificationTest_NoErrors

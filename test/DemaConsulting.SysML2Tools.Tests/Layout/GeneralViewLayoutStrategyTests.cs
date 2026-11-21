@@ -3133,7 +3133,7 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A view condition <c>filter not @SysML::Documentation;</c> (SysML 7.26.2) hides the
+    ///     A view condition <c>filter not (@SysML::Documentation);</c> (SysML 7.26.2) hides the
     ///     <c>doc</c> compartment, while the element itself and its comment note remain.
     /// </summary>
     [Fact]
@@ -3141,7 +3141,7 @@ public sealed class GeneralViewLayoutStrategyTests
     {
         // Arrange
         var workspace = BuildDocumentedBatteryWorkspace("Primary power source.");
-        var view = new SysmlViewNode { Name = "v", QualifiedName = "P::v", FilterExpressionTexts = ["not @SysML::Documentation"] };
+        var view = new SysmlViewNode { Name = "v", QualifiedName = "P::v", FilterExpressionTexts = ["not (@SysML::Documentation)"] };
 
         // Act
         var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace, view), new RenderOptions(Themes.Light));
@@ -3368,7 +3368,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     A view inherits the view conditions of its view definition (SysML 7.26.2): a view typed
-    ///     by a view definition owning <c>filter not @SysML::Documentation;</c> hides documentation.
+    ///     by a view definition owning <c>filter not (@SysML::Documentation);</c> hides documentation.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_InheritedViewCondition_HidesDoc()
@@ -3377,7 +3377,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = await LayOutViewVAsync(DocumentedPackageSysml + """
 
             package Diagrams {
-                view def NoDocs { filter not @SysML::Documentation; }
+                view def NoDocs { filter not (@SysML::Documentation); }
                 view V : NoDocs { expose P::**; }
             }
             """);
@@ -3399,7 +3399,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = await LayOutViewVAsync(DocumentedPackageSysml + """
 
             package Diagrams {
-                view V : StandardViewDefinitions::GeneralView { expose P::**; filter not @SysML::Documentation; }
+                view V : StandardViewDefinitions::GeneralView { expose P::**; filter not (@SysML::Documentation); }
             }
             """);
 
@@ -3409,7 +3409,7 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     An expose filter (<c>expose P::**[not @SysML::Documentation];</c>, SysML 7.26.2) excludes
+    ///     An expose filter (<c>expose P::**[not (@SysML::Documentation)];</c>, SysML 7.26.2) excludes
     ///     the exposed documentation while still exposing the definitions and comments.
     /// </summary>
     [Fact]
@@ -3418,7 +3418,7 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = await LayOutViewVAsync(DocumentedPackageSysml + """
 
-            package Diagrams { view V { expose P::**[not @SysML::Documentation]; } }
+            package Diagrams { view V { expose P::**[not (@SysML::Documentation)]; } }
             """);
 
         // Assert

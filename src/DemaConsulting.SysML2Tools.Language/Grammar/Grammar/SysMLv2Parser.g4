@@ -34,7 +34,10 @@ ownedExpression
     | ownedExpression ( PLUS | MINUS ) ownedExpression
     | ownedExpression ( STAR | SLASH | PERCENT ) ownedExpression
     | <assoc=right> ownedExpression ( STAR_STAR | CARET ) ownedExpression
-    | ( PLUS | MINUS | TILDE | NOT ) ownedExpression
+    // Local Patch 5: a unary operand is never a prefix classification test (`not @T`, `-@T`)
+    | ( PLUS | MINUS | TILDE | NOT )
+      {TokenStream.LA(1) != AT_SIGN && TokenStream.LA(1) != AT_AT}?<fail='a classification test (@T) cannot be the operand of a unary operator; parenthesize it, e.g. not (@T)'>
+      ownedExpression
     | ( AT_SIGN | AT_AT ) typeReference
     | ownedExpression ( ISTYPE | HASTYPE | AT_SIGN ) typeReference
     | ownedExpression AS typeReference

@@ -31,15 +31,15 @@ docs/sysml2/
 ├── common/
 │   └── software-items.sysml           # shared SoftwareItemMetadata::SoftwareInfo metadata def
 ├── model/
-│   ├── {system-name}.sysml            # system-level part def only (no subsystems/units inline)
+│   ├── {system-name}.sysml            # package {SystemName}; system-level part def only (no subsystems/units inline)
 │   ├── {system-name}/
-│   │   ├── {subsystem-name}.sysml     # subsystem part def; nests further for sub-subsystems
+│   │   ├── {subsystem-name}.sysml     # package {SystemName}_{SubsystemName}Subsystem; nests further for sub-subsystems
 │   │   └── {subsystem-name}/
-│   │       └── {unit-name}.sysml      # one file per unit
-│   ├── ots.sysml                      # OTS dependency parts (optional; if OTS items exist)
-│   └── shared.sysml                   # Shared Package parts (optional; if Shared Packages exist)
+│   │       └── {unit-name}.sysml      # package {SystemName}_{UnitName}; one file per unit
+│   ├── ots.sysml                      # package OtsDependencies: OTS parts (optional; if OTS items exist)
+│   └── shared.sysml                   # package SharedPackages: Shared Package parts (optional; if Shared Packages exist)
 └── views/
-    └── design-views.sysml             # named view usages rendered for the design document
+    └── design-views.sysml             # package {RepoName}DesignViews; named view usages rendered for the design document
 ```
 
 `docs/sysml2/common/software-items.sysml` defines the `SoftwareItemMetadata::SoftwareInfo`
@@ -62,14 +62,42 @@ so no single alias name would generalize. Agents discover the system(s) present 
 `docs/sysml2/**/*.sysml`, not by assuming a fixed name.
 
 Always pass the full set of `.sysml` files (or an equivalent glob) to every `sysml2tools`
-invocation — the model spans multiple files and cross-references between them; files sharing
-the same `package Name { ... }` merge into one namespace automatically with no `import`
-required, as long as all files are passed together. As of `sysml2tools` 0.1.0-beta.5,
+invocation — the model spans multiple files and cross-references between them, and a
+reference only resolves when the file declaring its target is loaded (see Package Structure
+below for how files reference each other). As of `sysml2tools` 0.1.0-beta.5,
 `lint` and `render` both expand `*`/`**` glob patterns internally (recursing correctly into
 subdirectories), so pass a single **quoted** glob string (e.g. `'docs/sysml2/**/*.sysml'`)
 and let the tool resolve it — do not rely on the shell to expand it, and do not quote-strip
 the pattern before it reaches the tool. Quoting keeps the behavior identical across
 PowerShell and bash, since neither shell needs to (or reliably does) expand `**` itself.
+
+## Package Structure
+
+SysML v2 has no package merging: each file is its own root namespace, and two root packages
+with the same name are duplicate members of the global namespace (the OMG Pilot
+Implementation reports "Duplicate of other owned member name" for each, and references across
+the halves do not resolve). A model that only loads because a tool is lenient is not portable,
+so:
+
+- Each `.sysml` file declares **exactly one uniquely named package**, and a package is never
+  declared (or "reopened") in more than one file.
+- Name each package from its place in the hierarchy, joined with an underscore:
+  `{SystemName}` for the system file, `{SystemName}_{SubsystemName}Subsystem` for a subsystem
+  (including a nested sub-subsystem, which is not prefixed with its parent subsystem), and
+  `{SystemName}_{UnitName}` for a unit. The system prefix keeps names unique across systems.
+  The shared files use `OtsDependencies` and `SharedPackages`, and the single views file uses
+  one repository-level package, `{RepoName}DesignViews` (not one per system).
+- Package names must be unique **repository-wide**. The short forms above are the default;
+  when one would collide (two `Storage` subsystems in different branches, or two units named
+  `Cache` in different subsystems), qualify it with the owning subsystem path, for example
+  `{SystemName}_{SubsystemName}_{UnitName}` (`Acme_Ingest_Cache` and `Acme_Query_Cache`).
+- Reference other files with an explicit `private import {PackageName}::*;` (a system or
+  subsystem file imports the package of each direct member so its `part` usages resolve; every
+  file that applies `SoftwareInfo` imports `SoftwareItemMetadata::*`).
+- Where an import would form a cycle (for example a unit that depends on a package that
+  already imports it), or for a one-off reference into another system, use the qualified name
+  instead, e.g. `dependency {UnitName} to {SystemName}_{OtherUnit}::{OtherUnit};`.
+  Import cycles raise a lint warning; qualified references do not.
 
 ## Model Content
 
@@ -174,11 +202,13 @@ Views control what gets rendered into diagrams for the design document. Use name
 **usages** (not `view def` **definitions**) — `expose` is only valid inside a usage:
 
 ```sysml
-package {SystemName} {
+package {RepoName}DesignViews {
     private import StandardViewDefinitions::*;
+    private import {SystemName}::*;
+    private import {SystemName}_{SubsystemName}Subsystem::*;
 
     view SoftwareStructureView : InterconnectionView {
-        expose {SystemName}::**;     // all members, recursively: system + subsystems + units
+        expose {SystemName}::{SystemName}System::**;  // system part def, recursively: subsystems + units
     }
 
     view {SystemName}View {
@@ -186,10 +216,12 @@ package {SystemName} {
     }
 
     view {SubsystemName}View {
-        expose {SubsystemName};      // one subsystem def only
+        expose {SubsystemName}Subsystem;      // one subsystem def only
     }
 }
 ```
+
+Views import (or qualify) every package whose members they expose, like any other file.
 
 Type `SoftwareStructureView` by a standard view definition from the SysML v2 Views library
 (`GeneralView`, `InterconnectionView`, ...; requires `sysml2tools` 0.3.0-beta.3+). The view
@@ -223,25 +255,27 @@ There is no dedicated `DependencyView`/`{SubsystemName}DependencyView` diagram c
 above), not rendered.
 
 When a repository has multiple systems, type `SoftwareStructureView` by `GeneralView`,
-expose each system package's members, and filter out documentation so the overview stays
-readable — the general view draws one package frame per system, while an interconnection
-view places all systems in a single row:
+expose each system's part def (and each subsystem's, by qualified name), and filter out
+documentation so the overview stays readable — the general view draws one package frame per
+system, while an interconnection view places all systems in a single row:
 
 ```sysml
 package {RepoName}DesignViews {
     private import StandardViewDefinitions::*;
 
     view SoftwareStructureView : GeneralView {
-        expose {SystemNameA}::**;
-        expose {SystemNameB}::**;
-        filter not @SysML::Documentation;
+        expose {SystemNameA}::{SystemNameA}System;
+        expose {SystemNameA}_{SubsystemName}Subsystem::{SubsystemName}Subsystem;
+        expose {SystemNameB}::{SystemNameB}System;
+        filter not (@SysML::Documentation);
     }
 }
 ```
 
 Documentation (`doc`) is exposed with its owner and drawn as a `doc` compartment unless a
-view filters it out; use `filter not @SysML::Documentation;` wherever doc text would clutter
-a diagram.
+view filters it out; use `filter not (@SysML::Documentation);` wherever doc text would clutter
+a diagram. The parentheses are required: the SysML v2 grammar does not accept the unparenthesized
+`filter not @SysML::Documentation;`.
 
 ## Diagram Embedding
 
@@ -313,6 +347,9 @@ sync.
   `sourceFiles`; the purpose statement appears only in the `doc` comment, never in `SoftwareInfo`
 - [ ] `docs/sysml2/views/design-views.sysml` uses `view Name { expose ...; }` usages, not
   `view def` definitions
+- [ ] Each `.sysml` file declares exactly one uniquely named package (never the same package
+  in two files), named per Package Structure, and references other files through
+  `private import` or qualified names (qualified where an import would form a cycle)
 - [ ] View names follow the `SoftwareStructureView` / `{SystemName}View` /
   `{SubsystemName}View` convention (no dedicated `DependencyView`)
 - [ ] Each Unit's real collaborators are captured as `dependency A to B;` statements, and each

@@ -368,7 +368,7 @@ package MyDesignViews {
 
     view SystemStructure : GeneralView {
         expose MySystem::**;
-        filter not @SysML::Documentation;
+        filter not (@SysML::Documentation);
     }
 
     view SystemInternals : InterconnectionView {
@@ -783,18 +783,20 @@ conditions. Use the standard view condition to hide documentation (comments rema
 ```sysml
 view Overview {
     expose MySystem::**;
-    filter not @SysML::Documentation;
+    filter not (@SysML::Documentation);
 }
 ```
 
 View conditions (`filter <expr>;`) select exposed elements by metaclass (`@SysML::PartUsage`,
 `@SysML::PartDefinition`, `@SysML::Documentation`, `@SysML::Comment`, and so on, also accepted as
-`@KerML::…`) or by applied metadata, combined with `not`, `and`, `or`, and `xor`. All of a view's
+`@KerML::…`) or by applied metadata, combined with `not`, `and`, `or`, and `xor`. A classification
+test must be parenthesized after `not` (`not (@X)`); `not @X` is a syntax error, as in the OMG
+reference implementation. All of a view's
 conditions apply, including those inherited from its view definition
-(`view def NoDocs { filter not @SysML::Documentation; }` then `view Overview : NoDocs { … }`). A
+(`view def NoDocs { filter not (@SysML::Documentation); }` then `view Overview : NoDocs { … }`). A
 positive condition such as `filter @SysML::PartDefinition;` also hides documentation and comments,
 since they are not part definitions. An expose filter applies a condition to one expose only:
-`expose MySystem::**[not @SysML::Documentation];`.
+`expose MySystem::**[not (@SysML::Documentation)];`.
 
 ## Expose vs. Render: Worked Examples
 

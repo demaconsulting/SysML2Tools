@@ -673,7 +673,7 @@ definitions (SysML 2.1 7.26.2; 8.3.26.11 `viewCondition`/`includeAsExposed`) —
 `@SysML::PartUsage`, SysML 7.5.4). An owned `doc` or `comment` is visible when
 `ExposeScopeResolver.IsAnnotationExposed` reports it exposed (including through an expose filter,
 `expose P::**[expr];`) and it satisfies every condition for its metaclass (`Documentation` or `Comment`)
-via `FilterExpressionEvaluator.EvaluateForMetaclass` — so `filter not @SysML::Documentation;` hides
+via `FilterExpressionEvaluator.EvaluateForMetaclass` — so `filter not (@SysML::Documentation);` hides
 documentation while keeping comments, and a positive condition such as `filter @SysML::PartDefinition;`
 hides both. These decisions are made per element, so a nested usage that is a node carries its own
 documentation and comments.

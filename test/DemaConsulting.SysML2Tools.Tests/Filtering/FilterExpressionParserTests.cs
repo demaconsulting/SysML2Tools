@@ -92,10 +92,26 @@ public sealed class FilterExpressionParserTests
     [Fact]
     public void Parse_Not_ReturnsNotExpression()
     {
-        var result = FilterExpressionParser.Parse("not @Safety");
+        var result = FilterExpressionParser.Parse("not (@Safety)");
 
         var expression = Assert.IsType<NotFilterExpression>(result.Expression);
         Assert.IsType<ClassificationTestExpression>(expression.Operand);
+    }
+
+    /// <summary>
+    /// A classification test cannot be the bare operand of <c>not</c> (KerML 8.2.5.8.1): the
+    /// unparenthesized form is rejected with a syntax-error diagnostic.
+    /// </summary>
+    [Theory]
+    [InlineData("not @Safety")]
+    [InlineData("@Critical and not @Safety")]
+    [InlineData("not not @Safety")]
+    public void Parse_NotWithBareClassificationTest_ReturnsSyntaxError(string expressionText)
+    {
+        var result = FilterExpressionParser.Parse(expressionText);
+
+        Assert.Null(result.Expression);
+        Assert.NotEmpty(result.Diagnostics);
     }
 
     /// <summary>Parenthesization groups sub-expressions without altering their meaning.</summary>
@@ -472,12 +488,12 @@ public sealed class FilterExpressionParserTests
     [InlineData("@Safety and @Critical")]
     [InlineData("@Safety or @Critical")]
     [InlineData("@Safety xor @Critical")]
-    [InlineData("not @Safety")]
+    [InlineData("not (@Safety)")]
     [InlineData("(as Safety).isMandatory")]
     [InlineData("(as Safety).isMandatory == true")]
     [InlineData("(as Safety).level != \"low\"")]
     [InlineData("(as Safety).level == 4")]
-    [InlineData("@Safety and @Critical or not @Other")]
+    [InlineData("@Safety and @Critical or not (@Other)")]
     [InlineData("@Safety and (as Safety).isMandatory")]
     public void Parse_RoundTrip_PrettyPrintedTextReparsesToEquivalentTree(string expressionText)
     {

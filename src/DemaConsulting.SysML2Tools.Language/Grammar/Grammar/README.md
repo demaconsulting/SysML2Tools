@@ -231,6 +231,38 @@ To keep SysML unchanged, the `stateBodyItem` alternatives `entryActionMember`, `
 **This patch is superseded when issue #89 adopts the official OMG grammar**, which defines these
 productions itself; re-apply it (or drop it) when the upstream grammar is next updated.
 
+---
+
+### Patch 5 — A classification test is not a valid unary operand (`not @T`)
+
+**Rule affected:** `ownedExpression` (the unary-operator alternative)
+
+Upstream the unary alternative is `( PLUS | MINUS | TILDE | NOT ) ownedExpression`, and the prefix
+classification test `( AT_SIGN | AT_AT ) typeReference` is an ordinary primary alternative of
+`ownedExpression`, so `filter not @SysML::Documentation;` parsed. In the KerML expression grammar
+(8.2.5.8.1; the OMG Pilot's executable form of it) the operand of a unary operator is an
+`ExtentExpression`, and `@ T` is only reachable at the lower-precedence `ClassificationExpression`
+level, so `not @T` has no derivation (the Pilot reports `no viable alternative at input '@'`) and the
+model must be written `not (@T)`. The same applies to `and not @T` and the expose filter
+`[not @T]`.
+
+**Fix:** a semantic predicate after the operator rejects a following `@` or `@@`, with a message that
+asks for parentheses (the error is raised at the `@` token):
+
+```antlr
+    | ( PLUS | MINUS | TILDE | NOT )
+      {TokenStream.LA(1) != AT_SIGN && TokenStream.LA(1) != AT_AT}?<fail='a classification test (@T) cannot be the operand of a unary operator; parenthesize it, e.g. not (@T)'>
+      ownedExpression
+```
+
+A predicate was used rather than restructuring the rule because ANTLR left-recursion rewriting cannot
+exclude one primary alternative from one operand position without duplicating the postfix alternatives,
+and the predicate leaves the parse tree shape of every accepted input unchanged. The predicate is C#
+target code (`TokenStream` is the C# runtime's parser property). Other operators whose precedence the
+flattened rule differs from the spec (for example `-x ** y`) are unchanged.
+
+**Spec reference:** KerML 8.2.5.8.1 `UnaryOperatorExpression`, `ClassificationExpression`.
+
 ## Regenerating the Parser
 
 To regenerate `../../Parser/Antlr/` after a grammar update:
