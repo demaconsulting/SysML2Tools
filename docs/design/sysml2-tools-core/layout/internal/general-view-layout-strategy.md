@@ -241,8 +241,9 @@ owner reaches it later: the result does not depend on the order of `Declarations
 - *Annotations are unchanged.* A usage admitted by this rule is exposed by its owner, not as a member of
   an expose: its `doc` and `comment` are drawn only when an expose also exposes the owner's members
   (`::*`, `::**`), as `ExposeScopeResolver.IsAnnotationExposed` decides for any element.
-- *Imported members.* `expose A::*;`, `A::*::**;` and `A::**;` also admit the members `A` re-exports
-  through its `public import`s (the resolver adds them as ordinary subjects, see the *ExposeScopeResolver*
+- *Imported members.* `expose A::*;`, `A::*::**;` and `A::**;` also admit the members `A` brings in
+  through its imports, whatever their visibility, since an `expose` has `isImportAll = true` (the resolver adds
+  them as ordinary subjects, see the *ExposeScopeResolver*
   chapter), so they are in scope and drawn like owned members, with the same part-tree rule. An imported
   member is owned by its own package, not by `A`, so it is placed in the folder of its **owner**: it is
   promoted to the root when that package is not itself exposed (`PlanFolders` folders only the exposed

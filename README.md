@@ -344,7 +344,8 @@ now scope the rendered diagram to the union of the exposed entries' resolved sco
 match, direct children only, or the entire containment subtree, depending on each entry's SysML
 v2 `expose` grammar form and recursion setting (`expose X;`/`expose X::**;`/`expose X::*;`/
 `expose X::*::**;`) — instead of always rendering the full workspace; the namespace forms also include
-the members `X` re-exports through a `public import` (private imports are not followed), and an
+the members `X` brings in through its imports — an `expose` ignores visibility, so `private import`s count too,
+and an imported package contributes its public members only — and an
 Interconnection View that exposes a part definition or part usage draws its nested parts, ports and
 connections; a view with no `expose`
 statement continues to render

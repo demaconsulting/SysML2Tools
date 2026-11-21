@@ -82,12 +82,14 @@ configuration are required beyond a standard .NET SDK installation.
 - A `MembershipExact` subject, a `MembershipRecursive` subject and nothing else names an element by name
   (`ExposesByName`): a namespace-form subject, an ancestor and a typing target do not.
 - For a namespace-valued entry (`expose A::*;`, `A::*::**;`, `A::**;`) `Subjects` also holds the
-  memberships `A` brings in through its `public` imports — each public member of a wildcard import
-  (exact, or whole subtree when the expose or the import is recursive), the member of a membership
-  import, and, transitively, those of the public imports of every imported namespace — added once, with
-  import cycles terminating; `private` imports, private members and standard library targets add nothing
-  (the one rule `ExposeFollowsPrivateImports`, deliberately `false`), and a bare `expose A;` adds nothing.
-  These imported-membership rules are verified through the laid-out diagram in
+  memberships `A` brings in through its imports — each member of a wildcard import (exact, or whole
+  subtree when the expose or the import is recursive), the member of a membership import, and,
+  transitively, those of the public imports of every imported namespace — added once, with import
+  cycles terminating. An expose ignores visibility (`isImportAll = true`): all of `A`'s own imports are
+  followed whatever their visibility, as are those of every namespace `A` owns for a recursive expose,
+  while a namespace reached through an import contributes only public members and public imports and is
+  descended into only through a recursive import. Standard library targets add nothing, and a bare
+  `expose A;` adds nothing. These imported-membership rules are verified through the laid-out diagram in
   `GeneralViewLayoutStrategyTests`.
 - With no current best candidate, `IsMoreSpecificCandidate` returns `true` for any candidate.
 - `IsMoreSpecificCandidate` returns `true` for a candidate with a longer qualified name than the
@@ -213,9 +215,13 @@ configuration are required beyond a standard .NET SDK installation.
   `..._ExposeNamespace_PublicWildcardImport_DrawsImportedMembers`,
   `..._ExposeNamespace_PublicMembershipImport_DrawsOnlyThatMember`,
   `..._ExposeNamespace_PublicRecursiveImport_DrawsWholeImportedTree`,
-  `..._ExposeNamespace_PrivateImport_DrawsNothingFromIt`,
+  `..._ExposeNamespace_PrivateImportOfExposedNamespace_DrawsImportedPublicMembers`,
+  `..._ExposeNamespace_PrivateOwnedMembers_AreDrawn`,
+  `..._ExposeNamespace_ImportsOfNestedPackages_AreNotFollowed`,
   `..._ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly`,
-  `..._ExposeRecursive_FollowsPublicImportsIntoImportedPackages`,
+  `..._ExposeNamespace_RecursiveImport_FollowsOnlyPublicImportsBelow`,
+  `..._ExposeRecursive_FollowsPrivateImportsOfNestedPackages`,
+  `..._ExposeRecursive_DoesNotDescendIntoImportedNamespaces`,
   `..._ExposeRecursive_ImportCycle_TerminatesWithoutDuplicates` and
   `..._BareNamespaceExpose_DrawsNoImportedMember` (the full names are listed in the
   `GeneralViewLayoutStrategy` verification)

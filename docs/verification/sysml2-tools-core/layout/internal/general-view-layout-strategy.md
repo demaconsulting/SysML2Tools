@@ -240,10 +240,14 @@ configuration are required beyond a standard .NET SDK installation.
 - The gallery model `docs/gallery/models/11-nested-packages-general.sysml` renders `Powertrain` and
   `Body` folders inside the `Vehicle` folder with the cross-package specialization and the
   compositions into `Car` drawn in the `Vehicle` scope between the actual endpoint boxes.
-- Members an exposed package re-exports through `public import` are drawn by `expose A::*;`,
+- Members an exposed package brings in through an import are drawn by `expose A::*;`,
   `expose A::*::**;` and `expose A::**;` (membership, wildcard and recursive imports, transitively
-  through public imports, import cycles terminating); a `private` import is never followed, at any level,
-  and `expose A;` follows no import. The imported members are drawn outside the importing package's
+  through the public imports of imported packages, import cycles terminating). An expose ignores visibility
+  (SysML v2 §8.3.26.2, `isImportAll = true`; KerML 1.0 §8.3.2.4.5 `visibleMemberships` with
+  `includeAll = true`), so the exposed package's `private` imports and `private` members are drawn, and a
+  recursive expose also follows the private imports of the packages it owns; a package reached through an
+  import contributes only its public members and public imports, and a recursive expose does not descend into
+  it. `expose A;` follows no import. The imported members are drawn outside the importing package's
   frame, in the folder of their own package.
 - The relationships that leave a package folder are drawn without crossing one another in the
   deep-nesting and sibling-nested-package examples, whichever way the folder's definitions were declared
@@ -923,8 +927,13 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   workspace without them
 - `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicWildcardImport_DrawsImportedMembers`:
   `expose A::*;` draws `A`'s own `Owner` and the members `B` it re-exports through `public import B::*;`
-- `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateImport_DrawsNothingFromIt`:
-  `A`'s `private import C::*;` brings in nothing, nor does a private member of an imported package
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateImportOfExposedNamespace_DrawsImportedPublicMembers`:
+  `A`'s `private import C::*;` brings in `C`'s public member `Cee` (an expose ignores visibility), but not
+  `C`'s private member nor a private member of an imported package
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateOwnedMembers_AreDrawn`:
+  `expose A::*;` draws `A`'s private part definition and its private nested package
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_ImportsOfNestedPackages_AreNotFollowed`:
+  The non-recursive `expose A::*;` does not follow the private imports of `A`'s nested packages
 - `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicMembershipImport_DrawsOnlyThatMember`:
   `public import B::Widget;` draws `Widget` but not `Gadget`
 - `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicRecursiveImport_DrawsWholeImportedTree`:
@@ -932,10 +941,16 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly`:
   A public import of a package that itself publicly imports another draws that package's members,
   but not those of a private import of the imported package
-- `GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_FollowsPublicImportsIntoImportedPackages`:
-  `expose A::**;` draws the imported package `Inner` with its `Deep` inside, and not the private import
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_FollowsPrivateImportsOfNestedPackages`:
+  `expose A::**;` draws the imported package `Inner` with its `Deep` inside and follows the private
+  imports of the nested package `Nested` and of the private nested package `Secret`
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_DoesNotDescendIntoImportedNamespaces`:
+  `expose A5::**;` with `public import R::*;` draws `R`'s members but does not follow the imports of
+  the imported package `RSub`
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_RecursiveImport_FollowsOnlyPublicImportsBelow`:
+  `public import R::**;` follows `RSub`'s public import but not its private one
 - `GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportCycle_TerminatesWithoutDuplicates`:
-  Two packages publicly importing each other terminate and draw each member once
+  Two packages importing each other (one privately, one publicly) terminate and draw each member once
 - `GeneralViewLayoutStrategy_BuildLayout_BareNamespaceExpose_DrawsNoImportedMember`:
   `expose A;` draws only the package
 - `GeneralViewLayoutStrategy_BuildLayout_ExposePackageAndMembers_DrawsImportedMembersOutsideFrame`:

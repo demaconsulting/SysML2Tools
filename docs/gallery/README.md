@@ -530,14 +530,14 @@ SVG: [`svg/VehicleStructureGeneralView.svg`](svg/VehicleStructureGeneralView.svg
 ## 18. Expose Through Imports and of an Exposed Part Definition
 
 Two `expose` behaviors in one model. In the General View `expose RoverSystem; expose RoverSystem::*;`
-draws the `RoverSystem` frame with the member it owns (`RoverController`) and, outside the frame, the
-members the package re-exports through `public import RoverPropulsion::*;` (`Motor`, `Gearbox`) and
+draws the `RoverSystem` frame with the members it owns (`RoverController` and the `private`
+`RoverDiagnostics`, since an `expose` ignores visibility) and, outside the frame, the members the package
+brings in through `public import RoverPropulsion::*;` (`Motor`, `Gearbox`),
 `public import RoverSensing::Camera;` (`Camera`, joined to the frame by the `«import»` dependency a
-membership import draws). An imported member is owned by its own package, so it is never drawn inside the
-frame of the package that imports it. `RoverSensing::Lidar` is not imported and `RoverInternals::Bracket`
-is reached only through a `private import`, which is not a re-export, so neither is drawn. (The OMG Pilot
-would also draw `Bracket`; SysML2Tools follows public imports only, so that the private library imports of
-a package do not flood a view.)
+membership import draws) and `private import RoverInternals::*;` (`Bracket`). An imported member is owned by
+its own package, so it is never drawn inside the frame of the package that imports it. The imported side is
+limited to what the imported package makes public: `RoverSensing::Lidar` is not imported and
+`RoverInternals::Fastener` is private, so neither is drawn.
 
 An Interconnection View that exposes a part definition (`expose Rover;`) draws the definition as the frame
 with its parts (`battery`, `drive`, `mast`), the interface between the power ports and the connection
@@ -550,7 +550,7 @@ SVG: [`svg/ImportedUnitsGeneralView.svg`](svg/ImportedUnitsGeneralView.svg),
 [`svg/RoverInterconnectionView.svg`](svg/RoverInterconnectionView.svg),
 [`svg/RoverUsageInterconnectionView.svg`](svg/RoverUsageInterconnectionView.svg)
 
-![Imported Units General View: the RoverSystem frame holding RoverController, with Camera joined to it by an import dependency and Motor and Gearbox drawn outside the frame](png/ImportedUnitsGeneralView.png)
+![Imported Units General View: the RoverSystem frame holding RoverController and RoverDiagnostics, with Camera joined to it by an import dependency and Motor, Gearbox and Bracket drawn outside the frame](png/ImportedUnitsGeneralView.png)
 
 ![Rover Interconnection View: the Rover part definition frame with the battery, drive and mast parts, the interface between their power ports, and the charge port on its border](png/RoverInterconnectionView.png)
 
