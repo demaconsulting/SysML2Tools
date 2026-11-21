@@ -219,13 +219,14 @@ package SysML2ToolsDesignViews {
     }
 
     view CoreLayoutInternalStrategyView : GeneralView {
-        doc /* Dependencies among the layout strategies: the five strategies built on the general view strategy and the three that use the layered placement helper. The subsystem def is left out (see CoreLayoutInternalView). Hub dependencies (DemaRendering, LayoutWarnings, ExposeScopeResolver) are omitted; see CoreLayoutInternalSharedView. */
+        doc /* Dependencies among the seven layout strategies: five are built on the general view strategy, three use the layered placement helper, and the grid strategy has only hub dependencies, so it stands alone. The subsystem def is left out (see CoreLayoutInternalView). Hub dependencies (DemaRendering, LayoutWarnings, ExposeScopeResolver) are omitted; see CoreLayoutInternalSharedView. */
         expose SysML2ToolsCore_GeneralViewLayoutStrategy::GeneralViewLayoutStrategy;
         expose SysML2ToolsCore_InterconnectionViewLayoutStrategy::InterconnectionViewLayoutStrategy;
         expose SysML2ToolsCore_StateTransitionViewLayoutStrategy::StateTransitionViewLayoutStrategy;
         expose SysML2ToolsCore_ActionFlowViewLayoutStrategy::ActionFlowViewLayoutStrategy;
         expose SysML2ToolsCore_SequenceViewLayoutStrategy::SequenceViewLayoutStrategy;
         expose SysML2ToolsCore_BrowserViewLayoutStrategy::BrowserViewLayoutStrategy;
+        expose SysML2ToolsCore_GridViewLayoutStrategy::GridViewLayoutStrategy;
         expose SysML2ToolsCore_LayeredPlacement::LayeredPlacement;
         filter @SysML::PartDefinition;
     }
