@@ -156,8 +156,9 @@ instance serves one workspace.
 - *File-root imports* (resolving mode only): the imports written at the root of a source file are
   not part of any namespace's `Children` in the declarations, so `RegisterRootImports` records
   them against the qualified name of **every declaration the file contributes** (not merely its
-  top-level names: a package may be split across files, each with its own root imports, so a
-  top-level name cannot identify the file). Full resolution consults them after the owning
+  top-level names, so the imports of two files never mix: `WorkspaceLoader` ignores a later user
+  declaration of an already-used root-level name, so this keying now serves a user declaration
+  named like a standard-library one). Full resolution consults them after the owning
   namespaces and before the global namespace: the referencing file's imports when the caller
   supplies them (the semantic pass always does), otherwise those registered for the local
   namespace's declaration. A type's own general types (and a feature's redefined feature) are

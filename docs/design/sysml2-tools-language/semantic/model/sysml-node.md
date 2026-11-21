@@ -70,6 +70,10 @@ All nodes carry:
   the element was not built from a source file, such as a synthesized `--auto` or dynamic view, or
   one loaded from the pre-compiled stdlib) and the one-based line and one-based column (matching
   the `SysmlDiagnostic.Column` convention) at which its declaration starts, 0 when unknown.
+- `NamePosition` — the `SourcePosition` (line, column) of the token that spells the declared name
+  (quotes included for a quoted name), the default `(0, 0)` when unknown. For a `package` the
+  declaration starts at the keyword, so a diagnostic about the name itself — the duplicate
+  declaration warning — uses this position instead.
 - `ReferencePositions` — the `SourcePosition` (line, column) of the first token of each reference
   text the node declares (supertypes, subsetting, typing, redefinition, imports, `expose`
   members, view definition, connector endpoints, transition source/target, `satisfy`, `verify`,
@@ -84,8 +88,8 @@ All nodes carry:
   every unresolved one at its position, recording no edge (see the `AstBuilder` and
   `ReferenceResolver` designs).
 
-  These five are populated by `AstBuilder` and consumed by `ReferenceResolver` and
-  `SupertypeWalker` to locate diagnostics. They are marked `[JsonIgnore]` on `SysmlNode`
+  These six are populated by `AstBuilder` and consumed by `ReferenceResolver`, `SupertypeWalker`,
+  and `WorkspaceLoader` to locate diagnostics. They are marked `[JsonIgnore]` on `SysmlNode`
   (`SysmlViewNode`'s forwarding location properties excepted — see the view section): positions are only
   needed while a workspace's own source files are being resolved (the stdlib is resolved when it
   is pre-compiled, and its diagnostics, with positions, are what is serialized), so they are

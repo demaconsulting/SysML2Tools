@@ -101,11 +101,14 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-SourcePositions
         title: >-
           SysmlNode shall expose SourceFilePath, SourceLine, and SourceColumn (the declaring file
-          and the declaration's position) and ReferencePositions (the position of each reference
-          text the node declares, keyed by that text); none of them shall be part of the
-          serialized standard-library format.
+          and the declaration's position), NamePosition (the position of the declared name's
+          token), and ReferencePositions (the position of each reference text the node declares,
+          keyed by that text); none of them shall be part of the serialized standard-library
+          format.
         justification: |
-          Reference resolution must be able to report where an unresolved reference is written.
+          Reference resolution must be able to report where an unresolved reference is written,
+          and a diagnostic about a declaration (such as a duplicate name) must point at its name
+          rather than at its first keyword.
           Positions are only needed while a workspace's own source files are resolved (the
           standard library's diagnostics are produced, with their positions, when it is
           pre-compiled), so leaving them out of the serialized format keeps the embedded

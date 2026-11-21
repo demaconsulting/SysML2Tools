@@ -153,7 +153,9 @@ N/A — not a safety-classified software item.
 2. All caller-supplied file paths are dispatched to the thread pool via `Task.WhenAll`, each
    reading file content asynchronously and calling `WorkspaceParser.ParseSourceToCst` followed
    by `AstBuilder.Build`; file I/O failures are caught and returned as Error-severity diagnostics.
-3. `SymbolTable.RegisterAll` is called for each user AST root, adding qualified-name entries.
+3. `WorkspaceLoader` leaves out of each user AST root every root-level declaration whose name an
+   earlier declaration (in canonical file order) already uses, with a Warning at its name, and
+   `SymbolTable.RegisterAll` is called for each resulting root, adding qualified-name entries.
 4. `ReferenceResolver.ResolveAll` iterates all user AST roots, resolving every reference by
    KerML 8.2.3.5 name resolution (through `NameResolver`) and emitting diagnostics for
    unresolved names (Warning by default, Error when `LoadAsync` is called with `strictUnresolved`;

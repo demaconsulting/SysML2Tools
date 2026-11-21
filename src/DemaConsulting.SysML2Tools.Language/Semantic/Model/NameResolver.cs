@@ -265,11 +265,12 @@ public sealed class NameResolver
     ///     namespaces and before the global namespace.
     /// </summary>
     /// <remarks>
-    ///     The imports are keyed by declaration qualified name, never by top-level name alone: two
-    ///     files may each declare a top-level package of the same name (a package split across
-    ///     files), and each must see only its own file's root imports. Callers register the
-    ///     qualified names of every declaration the file contributes; a name already registered
-    ///     (a duplicate declaration in another file) keeps its first registration.
+    ///     The imports are keyed by declaration qualified name, never by top-level name alone, so
+    ///     each file sees only its own root imports. Two user files never declare the same root
+    ///     name (the workspace loader ignores a later declaration of a name that is already used),
+    ///     so the keying now matters for a user declaration named like a standard-library one.
+    ///     Callers register the qualified names of every declaration the file contributes; a name
+    ///     already registered keeps its first registration.
     /// </remarks>
     /// <param name="declarationNames">The qualified names of the file's declarations.</param>
     /// <param name="rootImports">The file-root import nodes.</param>
@@ -841,8 +842,8 @@ public sealed class NameResolver
     ///     Full resolution (KerML 8.2.3.5.4): local resolution in the namespace, then each owning
     ///     namespace outward, then the imports at the root of the file, then the global namespace.
     ///     The file is the referencing one when the caller supplies its root imports; otherwise it is
-    ///     the file declaring <paramref name="localNamespace"/> (a top-level name alone cannot say,
-    ///     as a package may be split across files). <paramref name="localScope"/> selects which
+    ///     the file declaring <paramref name="localNamespace"/> (a top-level name alone cannot say
+    ///     which file's imports apply). <paramref name="localScope"/> selects which
     ///     memberships of <paramref name="localNamespace"/> itself are considered (the outer
     ///     namespaces always use local resolution).
     /// </summary>

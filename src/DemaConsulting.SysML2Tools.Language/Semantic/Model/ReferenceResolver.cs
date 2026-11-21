@@ -204,8 +204,8 @@ internal sealed class ReferenceResolver
         var resolver = new NameResolver(_symbolTable.Symbols, importFilter, declaredReferencesOnly: true);
         foreach (var file in files.Where(file => file.RootImports.Count > 0))
         {
-            // Key by declaration (not top-level name): a package may be split across files, each
-            // with its own root imports. Only nodes that ARE the symbol-table entry for their
+            // Key by declaration (not top-level name), so each file sees only its own root
+            // imports. Only nodes that ARE the symbol-table entry for their
             // qualified name belong to this file's registration.
             var declarations = new List<string>();
             CollectDeclarationNames(file.Root, declarations);

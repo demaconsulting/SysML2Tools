@@ -49,6 +49,21 @@ sections:
           - WorkspaceLoader_LoadAsync_ReferenceNamedLikeDeclaration_LocatedAtReferenceToken
           - WorkspaceLoader_LoadAsync_SelfSpecialization_ReportsReferenceColumn
 
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-NameSourcePosition
+        title: >-
+          AstBuilder shall record, in NamePosition on every named node it builds, the one-based
+          line and column of the token that spells the node's declared name (including the quotes
+          of a quoted name), leaving it unset for a name with no matching token (a synthesized
+          name).
+        justification: |
+          The first token of a declaration is usually a keyword (`package`, `part def`), so a
+          diagnostic about the declared name itself, such as a duplicate declaration, needs the
+          name token's own position. It is recorded during AST construction, where the parse tree's
+          token positions are available.
+        tests:
+          - WorkspaceLoader_LoadAsync_Declarations_CaptureNamePosition
+          - WorkspaceLoader_LoadAsync_RootAliasAndPackageWithSameName_WarnsAndFirstFileWins
+
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-MembershipVisibilityAndAliases
         title: >-
           AstBuilder shall record each package or definition body member's declared visibility

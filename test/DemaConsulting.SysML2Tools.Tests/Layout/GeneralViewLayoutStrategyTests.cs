@@ -6170,7 +6170,7 @@ public sealed class GeneralViewLayoutStrategyTests
     [InlineData("14-usages-typing-general.sysml", "DriveSystem::DriveUnitGeneralView", false)]
     [InlineData("15-doc-comment-general.sysml", "ChargingStation::ChargerGeneralView", true)]
     [InlineData("15-doc-comment-general.sysml", "ChargingStation::ChargerGeneralView", false)]
-    [InlineData("16-nested-packages-typing-general.sysml", "Vehicle::VehicleTypingGeneralView", true)]
+    [InlineData("16-nested-packages-typing-general.sysml", "TypedVehicle::VehicleTypingGeneralView", true)]
     public async Task GeneralViewLayoutStrategy_BuildLayout_GalleryGeneralViews_EndDecorationsHaveCleanApproach(
         string modelFile, string viewQualifiedName, bool plainTheme)
     {

@@ -548,6 +548,7 @@ public sealed class AstSerializerTests
             SourceFilePath = "model.sysml",
             SourceLine = 7,
             SourceColumn = 4,
+            NamePosition = new SourcePosition(7, 13),
             ReferencePositions = new Dictionary<string, SourcePosition> { ["Base"] = new(7, 18) },
         });
 
@@ -557,7 +558,7 @@ public sealed class AstSerializerTests
         var (result, _) = AstDeserializer.Deserialize(bytes);
 
         // Assert: nothing about positions is written, and the round trip restores the defaults
-        foreach (var name in new[] { "SourceFilePath", "SourceLine", "SourceColumn", "ReferencePositions", "model.sysml" })
+        foreach (var name in new[] { "SourceFilePath", "SourceLine", "SourceColumn", "NamePosition", "ReferencePositions", "model.sysml" })
         {
             Assert.DoesNotContain(name, json);
         }
@@ -566,6 +567,7 @@ public sealed class AstSerializerTests
         Assert.Null(roundTripped.SourceFilePath);
         Assert.Equal(0, roundTripped.SourceLine);
         Assert.Equal(0, roundTripped.SourceColumn);
+        Assert.Equal(default, roundTripped.NamePosition);
         Assert.Empty(roundTripped.ReferencePositions);
     }
 

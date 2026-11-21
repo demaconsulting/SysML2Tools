@@ -103,8 +103,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
     /// <summary>
     ///     Records the declaration position of <paramref name="node"/> (the first token of
-    ///     <paramref name="context"/>) the first time the node is seen, and locates each reference
-    ///     text the node declares among the context's tokens (see <see cref="LocateReferences"/>).
+    ///     <paramref name="context"/>) the first time the node is seen, locates its declared name
+    ///     among the context's tokens (see <see cref="LocateName"/>), and locates each reference
+    ///     text the node declares (see <see cref="LocateReferences"/>).
     /// </summary>
     private void Stamp(SysmlNode node, Antlr4.Runtime.ParserRuleContext context)
     {
@@ -115,7 +116,30 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             node.SourceColumn = start.Column + 1;
         }
 
+        LocateName(node, context);
         LocateReferences(node, context);
+    }
+
+    /// <summary>
+    ///     Records in <see cref="SysmlNode.NamePosition"/> the position of the first header token of
+    ///     <paramref name="context"/> that spells the node's declared name (quoted or not), unless it
+    ///     is already recorded. A node whose name has no such token (a synthesized name) is left
+    ///     unlocated.
+    /// </summary>
+    private static void LocateName(SysmlNode node, Antlr4.Runtime.ParserRuleContext context)
+    {
+        if (node.NamePosition != default || string.IsNullOrEmpty(node.Name))
+        {
+            return;
+        }
+
+        var quoted = $"'{node.Name}'";
+        var token = CollectTokens(context, headerOnly: true)
+            .Find(t => t.Text == node.Name || t.Text == quoted);
+        if (token is not null)
+        {
+            node.NamePosition = new SourcePosition(token.Line, token.Column + 1);
+        }
     }
 
     /// <summary>
