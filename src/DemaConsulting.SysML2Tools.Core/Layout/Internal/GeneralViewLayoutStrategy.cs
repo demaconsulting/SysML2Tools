@@ -489,7 +489,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // An owned `doc`/`comment` of a rendered element is itself an exposed element when the
         // expose that exposed its owner also exposes the owner's members (KerML 7.2.4.2:
         // documentation is an owned member of the documented element), and it is drawn only when
-        // it also satisfies every view condition (e.g. `filter not @SysML::Documentation;`).
+        // it also satisfies every view condition (e.g. `filter not (@SysML::Documentation);`).
         bool AnnotationVisible(string ownerQualifiedName, string metaclass) =>
             ExposeScopeResolver.IsAnnotationExposed(context.Workspace, ownerQualifiedName, metaclass, scope) &&
             conditions.TrueForAll(condition => FilterExpressionEvaluator.EvaluateForMetaclass(context.Workspace, metaclass, condition));

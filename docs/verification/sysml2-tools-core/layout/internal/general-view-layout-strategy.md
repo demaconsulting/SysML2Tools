@@ -772,15 +772,15 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   onto several rows, and each fit within the box width; the comment note is drawn and the doc
   text is in no note
 - `GeneralViewLayoutStrategy_BuildLayout_FilterNotDocumentation_HidesDocButKeepsComment`:
-  `filter not @SysML::Documentation;` hides the `doc` compartment but keeps the comment note
+  `filter not (@SysML::Documentation);` hides the `doc` compartment but keeps the comment note
 - `GeneralViewLayoutStrategy_BuildLayout_PositiveFilterExcludingDocumentation_HidesDoc`:
   `filter @SysML::PartDefinition;` keeps the part definition but hides its doc and comment
 - `GeneralViewLayoutStrategy_BuildLayout_InheritedViewCondition_HidesDoc`:
-  a view typed by a view definition owning `filter not @SysML::Documentation;` hides the doc
+  a view typed by a view definition owning `filter not (@SysML::Documentation);` hides the doc
 - `GeneralViewLayoutStrategy_BuildLayout_ViewTypedByStandardViewDefinition_AppliesOwnConditions`:
   a view typed by the library's `StandardViewDefinitions::GeneralView` applies its own conditions
 - `GeneralViewLayoutStrategy_BuildLayout_ExposeFilterNotDocumentation_HidesDoc`:
-  `expose P::**[not @SysML::Documentation];` hides the doc but keeps the definition and comment
+  `expose P::**[not (@SysML::Documentation)];` hides the doc but keeps the definition and comment
 - `GeneralViewLayoutStrategy_BuildLayout_MembershipExpose_ExposesDocOnlyWhenRecursive`:
   a bare `expose P::Battery;` draws no doc compartment; `expose P::**;` does
 - `GeneralViewLayoutStrategy_WrapText_LongWord_IsHardBroken`:

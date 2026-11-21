@@ -42,6 +42,11 @@ declaration (`inv { ... }`, `step;`), as in the KerML grammar. The KerML alterna
 after the SysML ones, so SysML models — including usages named `feature`, `type`, `behavior`, or
 `step` — parse as before. See `Grammar/README.md` for the exact productions.
 
+Through Local Patch 5, a classification test (`@T`, `@@T`) is rejected as the bare operand of a
+unary operator (`not`, `-`, `+`, `~`), as in the KerML expression grammar and the OMG Pilot:
+`filter not @T;` is a syntax error reported at the `@` token, and the model must be written
+`filter not (@T);`. The same rule covers `and not @T` and the bracket form `[not @T]`.
+
 #### Dependencies
 
 - **SysmlDiagnosticListener** — receives lexer and parser syntax errors and appends them to the

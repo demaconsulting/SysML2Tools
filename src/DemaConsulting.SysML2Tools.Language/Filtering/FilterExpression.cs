@@ -89,7 +89,10 @@ public sealed record BooleanFilterExpression(
 public sealed record NotFilterExpression(FilterExpression Operand) : FilterExpression
 {
     /// <inheritdoc/>
-    public override string ToString() => $"not {Parenthesize(Operand)}";
+    public override string ToString() =>
+        Operand is ClassificationTestExpression
+            ? $"not ({Operand})" // the grammar rejects a bare classification test as a unary operand
+            : $"not {Parenthesize(Operand)}";
 }
 
 /// <summary>

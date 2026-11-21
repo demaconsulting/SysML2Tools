@@ -5553,7 +5553,7 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile, """
                 package P {
                     part def A;
-                    view def Def { filter @SysML::PartUsage; filter not @SysML::Documentation; }
+                    view def Def { filter @SysML::PartUsage; filter not (@SysML::Documentation); }
                     view V : Def { expose A; }
                 }
                 """, TestContext.Current.CancellationToken);
@@ -5565,7 +5565,7 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(result.Workspace.Declarations["P::Def"]);
-            Assert.Equal(["@SysML::PartUsage", "not @SysML::Documentation"], def.FilterExpressionTexts);
+            Assert.Equal(["@SysML::PartUsage", "not (@SysML::Documentation)"], def.FilterExpressionTexts);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(result.Workspace.Declarations["P::V"]);
             Assert.Equal("Def", view.ViewDefinitionName);
             Assert.Contains(view.ResolvedEdges, e =>

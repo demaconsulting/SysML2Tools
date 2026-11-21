@@ -340,7 +340,7 @@ public class ExportRenderingTests
         Assert.Equal(0, exitCodeBaseline);
 
         // --- --target + --filter together: --target narrows to the 'Vehicle' subtree; the
-        // "not @NoSuchMetadataType" --filter expression is a supported Phase 1 construct
+        // "not (@NoSuchMetadataType)" --filter expression is a supported Phase 1 construct
         // (negated classification test) that matches every candidate (since none carry that
         // nonexistent metadata type), so it exercises the composed pipeline without further
         // narrowing, keeping the expected result predictable. ---
@@ -348,7 +348,7 @@ public class ExportRenderingTests
             out var scopedOutput,
             "dotnet", dllPath, "export", "--format", "json",
             "--target", "VehicleDefinitions::Vehicle",
-            "--filter", "not @NoSuchMetadataType",
+            "--filter", "not (@NoSuchMetadataType)",
             fixtureFile);
         Assert.Equal(0, exitCodeScoped);
 

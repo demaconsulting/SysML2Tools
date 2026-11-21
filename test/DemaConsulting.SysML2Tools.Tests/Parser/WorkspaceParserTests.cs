@@ -11,6 +11,54 @@ namespace DemaConsulting.SysML2Tools.Tests.Parser;
 public sealed class WorkspaceParserTests
 {
     /// <summary>
+    ///     A classification test is not a valid bare operand of a unary operator (KerML 8.2.5.8.1):
+    ///     <c>filter not @X;</c>, <c>... and not @X</c>, and <c>-@X</c> are reported as syntax errors
+    ///     on the <c>@</c> token that follows the operator.
+    /// </summary>
+    [Theory]
+    [InlineData("filter not @SysML::Documentation;", 3, 20)]
+    [InlineData("filter @SysML::PartDefinition and not @SysML::Documentation;", 3, 47)]
+    [InlineData("filter -@SysML::Documentation;", 3, 17)]
+    public void ParseSource_UnaryOperatorWithBareClassificationTest_ReportsSyntaxErrorAtAtSign(
+        string statement, int line, int column)
+    {
+        var source = $"package P {{\n    view V {{\n        {statement}\n    }}\n}}\n";
+
+        var diagnostics = WorkspaceParser.ParseSource("<test>", source);
+
+        var error = Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Equal((line, column), (error.Line, error.Column));
+        Assert.Contains("parenthesize", error.Message);
+    }
+
+    /// <summary>The expose-filter bracket form <c>[not @X]</c> is rejected the same way.</summary>
+    [Fact]
+    public void ParseSource_ExposeFilterWithNotBareClassificationTest_ReportsSyntaxError()
+    {
+        const string source = "package P {\n    view V {\n        expose P::**[not @SysML::Documentation];\n    }\n}\n";
+
+        var diagnostics = WorkspaceParser.ParseSource("<test>", source);
+
+        Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error && d.Line == 3);
+    }
+
+    /// <summary>Parenthesized classification tests (and plain classification-test operands) stay valid.</summary>
+    [Theory]
+    [InlineData("filter not (@SysML::Documentation);")]
+    [InlineData("filter @SysML::PartDefinition and not (@SysML::Documentation);")]
+    [InlineData("filter @SysML::PartDefinition and @SysML::PartUsage;")]
+    [InlineData("expose P::**[not (@SysML::Documentation)];")]
+    public void ParseSource_UnaryOperatorWithParenthesizedClassificationTest_NoErrors(string statement)
+    {
+        var source = $"package P {{\n    view V {{\n        {statement}\n    }}\n}}\n";
+
+        var diagnostics = WorkspaceParser.ParseSource("<test>", source);
+
+        Assert.True(
+            diagnostics.Count == 0,
+            string.Join("\n", diagnostics.Select(d => $"({d.Line},{d.Column}) {d.Message}")));
+    }
+    /// <summary>
     ///     An empty SysML file (just EOF) should produce no diagnostics.
     /// </summary>
     [Fact]

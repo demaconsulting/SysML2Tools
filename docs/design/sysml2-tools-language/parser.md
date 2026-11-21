@@ -74,6 +74,12 @@ file path for diagnostic attribution.
   (it omits the members `packageMember` already reaches); an overlap forces ANTLR into
   full-context prediction over the whole member and slowed parsing by more than an order of
   magnitude. Patch 4 is superseded when #89 adopts the official OMG grammar.
+- Patch 5 corrects the unary-operator alternative of `ownedExpression`: upstream let any expression,
+  including the prefix classification test `@T`, be a unary operand, so `filter not @T;` parsed
+  although the KerML expression grammar and the OMG Pilot reject it. A semantic predicate on the
+  token after the operator now rejects `@`/`@@`, so the error is reported at that token with a
+  message asking for parentheses. It is a lookahead on one token and does not change the parse
+  tree shape of any accepted input.
 - `WorkspaceParser` performs syntax-only parsing. Semantic model construction, symbol
   registration, and reference resolution are performed by `WorkspaceLoader` in the Semantic
   subsystem.

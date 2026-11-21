@@ -234,14 +234,15 @@ package {RepoName}DesignViews {
     view SoftwareStructureView : GeneralView {
         expose {SystemNameA}::**;
         expose {SystemNameB}::**;
-        filter not @SysML::Documentation;
+        filter not (@SysML::Documentation);
     }
 }
 ```
 
 Documentation (`doc`) is exposed with its owner and drawn as a `doc` compartment unless a
-view filters it out; use `filter not @SysML::Documentation;` wherever doc text would clutter
-a diagram.
+view filters it out; use `filter not (@SysML::Documentation);` wherever doc text would clutter
+a diagram. Parenthesize a classification test after `not`: `filter not @SysML::Documentation;`
+is a syntax error in the SysML v2 grammar.
 
 ## Diagram Embedding
 

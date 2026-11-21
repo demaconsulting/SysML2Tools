@@ -22,11 +22,13 @@ sections:
             children:
               - SysML2Tools-Language-Parser-WorkspaceParser-SyntaxErrorReporting
               - SysML2Tools-Language-Parser-WorkspaceParser-PathAttribution
+              - SysML2Tools-Language-Parser-WorkspaceParser-UnaryOperandClassificationTest
               - SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener-CaptureSyntaxErrors
               - SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener-PathPropagation
             tests:
               - ParseSource_InvalidSyntax_ReportsError
               - ParseSource_ErrorPath_MatchesSuppliedPath
+              - ParseSource_UnaryOperatorWithBareClassificationTest_ReportsSyntaxErrorAtAtSign
 
           - id: SysML2Tools-Language-Parser-ParseSource
             title: >-

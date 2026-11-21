@@ -914,7 +914,7 @@ public sealed class ExposeScopeResolverTests
         {
             Name = "Def",
             QualifiedName = "P::Def",
-            FilterExpressionTexts = ["not @SysML::Documentation"],
+            FilterExpressionTexts = ["not (@SysML::Documentation)"],
             ResolvedEdges = [new SysmlEdge("P::Def", "P::Base", SysmlEdgeKind.Supertype)],
         };
         var view = new SysmlViewNode
@@ -933,7 +933,7 @@ public sealed class ExposeScopeResolverTests
         var conditions = ExposeScopeResolver.CollectViewConditions(workspace, view);
 
         // Assert
-        Assert.Equal(["@Safety", "not @SysML::Documentation", "@SysML::PartUsage"], conditions);
+        Assert.Equal(["@Safety", "not (@SysML::Documentation)", "@SysML::PartUsage"], conditions);
     }
 
     /// <summary>
