@@ -699,18 +699,24 @@ entire workspace:
     depth — unlike `NamespaceDirectChildren`, which stops at one level.
 
   **Imported members.** `expose A::*;`, `expose A::*::**;` and `expose A::**;` are namespace imports of
-  `A`, so they also include the members `A` **re-exports through a `public import`** — a wildcard
+  `A`, so they also include the members `A` **brings in through its imports** — a wildcard
   import (`public import B::*;`) adds `B`'s public members, a membership import
   (`public import B::Widget;`) adds that member, and a recursive import (`public import B::**;`) adds
   the member and everything below it. With `expose A::**;` and `expose A::*::**;` the imported members'
-  contents are drawn too (for example the elements inside an imported package). Imports are followed
-  **transitively through public imports**, and an import cycle between packages terminates. **Private
-  imports are deliberately not followed**, at any level: a package that merely uses another through
-  `private import C::*;` (for instance `private import StandardViewDefinitions::*;`) does not re-export
-  it, so `expose A::*;` does not draw `C`'s members. This differs from the OMG Pilot implementation,
-  which also draws the exposed package's own private imports (an `expose` ignores visibility, SysML v2
-  §8.3.26.2); following them would pull the contents of every private library import into the view.
-  A bare `expose A;` exposes only `A` and follows no import. In a General View an imported member is owned
+  contents are drawn too (for example the elements inside an imported package). An `expose` always ignores
+  visibility (SysML v2 §8.3.26.2, `isImportAll = true`), exactly as the OMG Pilot implementation does
+  (KerML 1.0 §8.3.2.4.5, `Namespace::visibleMemberships` with `includeAll = true`). So for the exposed
+  package `A`: its `private` members are exposed, **every one of its imports counts whether `public` or
+  `private`** (`private import C::*;` brings in `C`'s members), and — for `A::**` and `A::*::**` — the
+  private members and private imports of the packages nested in `A`, private ones included, count too. The
+  imports themselves are ordinary imports, so the other side is limited: an imported package contributes
+  only its **public** members and follows only its **public** imports (transitively), unless the import is
+  `import all`. A recursive expose descends into the packages `A` owns, not into packages that arrived
+  through an import (a recursive import such as `import B::**;` does descend, again public-only). Standard
+  library imports (for instance `private import StandardViewDefinitions::*;`) add nothing, and an import
+  cycle between packages terminates. To keep a library's members out of a view, qualify the reference
+  instead of importing the library into the exposed package. A bare `expose A;` exposes only `A` and
+  follows no import. In a General View an imported member is owned
   by its own package, so it is drawn in that package's folder — at the top level when that package is not
   exposed itself — and **never inside `A`'s frame**, which holds the members `A` owns. Imports through an
   alias, and imports of a package that an `expose` with a bracket filter selects, are not followed.

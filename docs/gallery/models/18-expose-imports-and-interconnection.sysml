@@ -1,8 +1,9 @@
 // Two `expose` behaviors in one model:
 //
-// 1. A General View that exposes a package which re-exports the members of its unit packages
-//    through `public import`. `expose RoverSystem::*;` draws the members the package owns and the
-//    members it re-exports; a `private import` is not a re-export, so RoverInternals stays out.
+// 1. A General View that exposes a package, `expose RoverSystem::*;`. An expose ignores visibility,
+//    so it draws every member the package owns (public or private) and every member it brings in
+//    through an import, whether the import is `public import` (a re-export) or `private import`
+//    (a use). Only the members the imported packages make public come in.
 // 2. Interconnection Views that expose a part definition (`expose Rover;`) and a part usage
 //    (`expose rover;`), each drawn with the parts, ports and connection inside its frame.
 
@@ -16,24 +17,27 @@ package RoverSensing {
     part def Lidar;
 }
 
-// Used by RoverSystem but not re-exported: its private import keeps Bracket out of the view.
+// Brought in through RoverSystem's private import; its private member Fastener is not imported.
 package RoverInternals {
     part def Bracket;
+    private part def Fastener;
 }
 
 package RoverSystem {
-    // Re-exports every member of RoverPropulsion and the one member Camera of RoverSensing.
+    // Every member of RoverPropulsion and the one member Camera of RoverSensing.
     public import RoverPropulsion::*;
     public import RoverSensing::Camera;
     private import RoverInternals::*;
 
     part def RoverController;
+    private part def RoverDiagnostics;
 }
 
 package RoverViews {
 
-    // The RoverSystem frame holds the member it owns (RoverController); the re-exported members
-    // belong to their own packages, so they are drawn outside the frame.
+    // The RoverSystem frame holds the members it owns (RoverController and the private
+    // RoverDiagnostics); the imported members belong to their own packages, so they are drawn
+    // outside the frame.
     view ImportedUnitsGeneralView {
         expose RoverSystem;
         expose RoverSystem::*;

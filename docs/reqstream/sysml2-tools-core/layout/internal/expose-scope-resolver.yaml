@@ -235,40 +235,50 @@ sections:
         tests:
           - IsAnnotationExposed_DependsOnExposeForm
 
-      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeFollowsPublicImports
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeFollowsImports
         title: >-
           ExposeScopeResolver.ResolveExposedScope shall add, for a namespace-valued expose entry
           (expose A::*;, expose A::*::**; or expose A::**;), the memberships the exposed namespace
-          re-exports through its public imports — a public wildcard import adds the imported
-          namespace's public members, a public membership import adds that member, a public
-          recursive import adds the member and its subtree, and a recursive expose adds imported
-          members as whole subtrees — while a bare expose A; follows no import.
+          brings in through its imports — a wildcard import adds the imported namespace's members, a
+          membership import adds that member, a recursive import adds the member and its subtree,
+          and a recursive expose adds imported members as whole subtrees — while a bare expose A;
+          follows no import.
         justification: |
           A namespace expose is a namespace import of A (formal-26-03-02.md §8.3.26.4), and a
-          namespace import brings in the memberships A's own imports provide. Models cannot merge
+          namespace import brings in the memberships A's own imports provide
+          (Namespace::visibleMemberships, KerML 1.0 §8.3.2.4.5). Models cannot merge
           packages, so they split content into packages and re-export it through a system package;
           without this, exposing that package drew only its owned members (issue #148).
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicWildcardImport_DrawsImportedMembers
           - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicMembershipImport_DrawsOnlyThatMember
           - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PublicRecursiveImport_DrawsWholeImportedTree
-          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_FollowsPublicImportsIntoImportedPackages
           - GeneralViewLayoutStrategy_BuildLayout_BareNamespaceExpose_DrawsNoImportedMember
 
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportVisibility
         title: >-
-          ExposeScopeResolver shall follow only public imports when it collects the memberships an
-          expose imports, at every level — never a private import of the exposed namespace and never
-          a private import of a namespace reached through a public import — and shall add only the
-          public members of an imported namespace.
+          ExposeScopeResolver shall ignore visibility for the exposed namespace — following every
+          import of it, whatever its visibility, and, for a recursive expose, every import of each
+          namespace it owns at any depth, private ones included, and drawing its private members —
+          while a namespace reached through an import shall contribute only its public members and
+          follow only its public imports (unless the import is an import all), and recursion shall
+          descend into an imported namespace only through a recursive import.
         justification: |
-          Nearly every package starts with a private import of a standard library that its author
-          never meant to re-export, and following it would flood a view with library content. This
-          deliberately differs from the OMG Pilot, which also draws the exposed namespace's own
-          private imports (an Expose has isImportAll = true, §8.3.26.2). The rule is the single
-          constant ExposeFollowsPrivateImports.
+          An Expose has isImportAll = true, so visibility is always ignored for it (SysML v2
+          §8.3.26.2, validateExposeIsImportAll). The exposed namespace's memberships are therefore
+          visibleMemberships(excluded, isRecursive, includeAll = true) (KerML 1.0 §8.3.2.4.5,
+          §8.3.2.4.6): all owned memberships and all owned imports, with includeAll passed through
+          to the recursion into owned namespaces. The import from the exposed namespace is an
+          ordinary Import with isImportAll = false (KerML 1.0 §8.3.2.4.2), so the imported side is
+          limited to public memberships and public imports, and the recursion into owned
+          namespaces never descends into imported ones. This is exactly what the OMG Pilot draws.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateImport_DrawsNothingFromIt
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateImportOfExposedNamespace_DrawsImportedPublicMembers
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_PrivateOwnedMembers_AreDrawn
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_ImportsOfNestedPackages_AreNotFollowed
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_FollowsPrivateImportsOfNestedPackages
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_DoesNotDescendIntoImportedNamespaces
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_RecursiveImport_FollowsOnlyPublicImportsBelow
           - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly
 
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportCycleSafe

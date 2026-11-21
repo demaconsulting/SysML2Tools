@@ -1,5 +1,8 @@
+// The import is written at file level (not inside the package) so that the view's
+// `expose OtsDependencies::**;` does not follow it and draw the SoftwareInfo metadata definition.
+private import SoftwareItemMetadata::*;
+
 package OtsDependencies {
-    private import SoftwareItemMetadata::*;
 
     doc /* Off-the-shelf (OTS) items used by SysML2Tools: the ANTLR4 and DemaConsulting.Rendering runtime dependencies plus build, test, and compliance tooling. */
 

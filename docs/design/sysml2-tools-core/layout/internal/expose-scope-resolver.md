@@ -93,22 +93,43 @@ membership:
   for an `import all`), then follows `B`'s own imports;
 - a membership import (`import B::Widget;`, `import B::**;`) adds exactly the imported member;
 - the added subject is `MembershipExact` for a non-recursive expose and `MembershipRecursive` (the member's
-  whole subtree) when the expose or the import is recursive; a recursive expose also walks the imports of
-  every namespace nested in `A` and in each imported package.
+  whole subtree) when the expose or the import is recursive.
 
-**Which imports are followed — one rule.** The private constant `ExposeFollowsPrivateImports` (`false`) is
-passed to `AddImportedMemberships` and decides whether an import that is not `public` is followed. With the
-default only `public` imports — the namespace's re-exports — are followed, **at every level**: the exposed
-namespace's own `private import` is not followed, and neither is a private import of a namespace reached
-through a public import, so imports are followed transitively through public re-exports only. This
-**deliberately differs from the OMG Pilot**, which also draws the exposed namespace's own private imports
-(an `Expose` has `isImportAll = true`, §8.3.26.2, so the exposed namespace's own imports count whatever
-their visibility): nearly every package begins with a private import of a standard library — for example
-`private import StandardViewDefinitions::*;` — and following those would flood a view with library content
-its author never meant to re-export. Setting the constant to `true` restores the Pilot behavior.
+**Which imports are followed — the `includeAll` rule.** The walk mirrors the KerML operation
+`Namespace::visibleMemberships(excluded, isRecursive, includeAll)` (KerML 1.0 §8.3.2.4.5), which the
+`NamespaceImport` and `MembershipImport` of an `Expose` evaluate (§8.3.2.4.6 and §8.3.2.4.4,
+`importedNamespace.visibleMemberships(excluded, isRecursive, isImportAll)`), and is the same computation the
+OMG Pilot implementation performs:
 
-A visited set of `(namespace, recursive)` pairs guards import cycles, subjects are never added twice
-(`QualifiedName` and recursion kind), unresolved imports and imports of standard library namespaces are
+- An `Expose` has `isImportAll = true` — "visibility is always ignored for an Expose" (SysML v2 §8.3.26.2,
+  constraint `validateExposeIsImportAll`; §8.3.26.3 and §8.3.26.4 inherit it). The exposed namespace is
+  therefore walked with `includeAll = true`: `membershipsOfVisibility(null, …)` returns all its owned
+  memberships — `private` members included, which the expose scope already matches by qualified name without
+  any visibility test — **and all of its owned imports, whatever their visibility**. `expose A::*;` thus
+  draws what `A` brings in through a `private import C::*;` exactly as through a `public import`.
+- When the expose is recursive (`A::**`, `A::*::**`) `visibleMemberships` recurses into each owned
+  `Namespace` passing `includeAll` through unchanged (`select(includeAll or owningMembership.visibility =
+  public)->visibleMemberships(excluded->including(self), true, includeAll)`): every nested package or
+  definition, `private` ones too, is walked with `includeAll = true`, so **its** private imports count as
+  well. The recursion covers only the namespaces `A` *owns*; a namespace that arrived through an import is not
+  descended into merely because the expose is recursive.
+- The namespace an import reaches is evaluated with **the import's own flags**, not the expose's: an ordinary
+  `import B::*;` has `isImportAll = false` and `isRecursive = false` (§8.3.2.4.2 `Import`), so `B` contributes
+  only its `public` memberships and only its `public` imports, transitively, and `B`'s nested namespaces are
+  not walked. `import all B::*;` walks `B` with `includeAll = true`, and a recursive import
+  (`import B::**;`, `import B::*::**;`) walks `B`'s public nested namespaces too — still with
+  `includeAll = false`, so a private import below `B` stays out. `FollowImports(ns, name, recursive,
+  includeAll)` carries the two flags, and the cycle guard is keyed on `(namespace, recursive, includeAll)`.
+
+The rule is OMG-Pilot-faithful (probed with nested packages carrying private members and private imports, an
+imported package carrying private members and imports, a private nested package, and a cyclic pair; the
+imported side contributed public members only and the exposed side everything). Imports of the standard library
+are skipped, so the ubiquitous `private import StandardViewDefinitions::*;` adds nothing. The cost is that a
+private import of a *user* library in the exposed namespace brings that library's public members into the
+view, as it does in the Pilot — a model that wants them out qualifies the reference instead of importing.
+
+A visited set of `(namespace, recursive, includeAll)` triples guards import cycles, subjects are never added
+twice (`QualifiedName` and recursion kind), unresolved imports and imports of standard library namespaces are
 skipped, and an import's bracket filter, when it parses, narrows its members through
 `FilterExpressionEvaluator` (otherwise the import is followed unfiltered). Aliases are not followed.
 Imported subjects are ordinary subjects, so every strategy honors them through `IsInSubjectScope`; they are
