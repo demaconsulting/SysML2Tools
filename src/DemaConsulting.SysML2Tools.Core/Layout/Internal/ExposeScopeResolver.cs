@@ -74,7 +74,28 @@ internal sealed record FilteredExpose(string QualifiedName, FilterExpression Fil
 /// subject, but a consumer that must know what the view itself exposes — for example the General
 /// View's part-tree rule — ignores it. <see langword="false"/> for every written expose entry.
 /// </param>
-internal sealed record ExposeSubject(string QualifiedName, ExposeRecursionKind Recursion, bool IsTypingTarget = false);
+/// <param name="ExcludedSubtrees">
+/// Qualified names of containment subtrees a recursive subject does <em>not</em> cover — the
+/// non-public descendants of a membership reached through an ordinary (non-<c>all</c>) import, which
+/// contributes its public memberships only. Null (or empty) for every other subject.
+/// </param>
+internal sealed record ExposeSubject(
+    string QualifiedName,
+    ExposeRecursionKind Recursion,
+    bool IsTypingTarget = false,
+    IReadOnlyList<string>? ExcludedSubtrees = null)
+{
+    /// <summary>
+    /// Returns whether <paramref name="qualifiedName"/> lies in one of this subject's
+    /// <see cref="ExcludedSubtrees"/> (the excluded element itself or anything beneath it).
+    /// </summary>
+    /// <param name="qualifiedName">The candidate qualified name.</param>
+    /// <returns>Whether the candidate is excluded from this subject's coverage.</returns>
+    public bool IsExcluded(string qualifiedName) =>
+        ExcludedSubtrees is { Count: > 0 } &&
+        ExcludedSubtrees.Any(excluded =>
+            qualifiedName == excluded || qualifiedName.StartsWith(excluded + "::", StringComparison.Ordinal));
+}
 
 /// <summary>
 /// A single <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c> bracket-filter expression that failed to
@@ -260,7 +281,8 @@ internal static class ExposeScopeResolver
 
         return scope.Subjects.Any(subject => subject.Recursion switch
             {
-                ExposeRecursionKind.MembershipRecursive or ExposeRecursionKind.NamespaceRecursive => Covers(subject.QualifiedName),
+                ExposeRecursionKind.MembershipRecursive or ExposeRecursionKind.NamespaceRecursive =>
+                    Covers(subject.QualifiedName) && !subject.IsExcluded(ownerQualifiedName),
                 ExposeRecursionKind.NamespaceDirectChildren => ownerQualifiedName == subject.QualifiedName,
                 _ => false,
             }) ||
@@ -322,11 +344,16 @@ internal static class ExposeScopeResolver
     /// never merely because the expose is recursive. A wildcard import (<c>import B::*;</c>) adds
     /// each named member of <c>B</c> its visibility admits; a membership import
     /// (<c>import B::Widget;</c>, <c>import B::**;</c>) adds exactly that member (and its subtree
-    /// when recursive). Members are matched exactly for a non-recursive expose and as whole
-    /// subtrees when either the expose or the import is recursive. Import cycles are guarded by a
+    /// when recursive). Members are matched exactly for a non-recursive expose and as subtrees
+    /// when either the expose or the import is recursive — but a subtree reached through an import
+    /// keeps the import's visibility (KerML <c>visibleMemberships</c> with <c>includeAll</c> =
+    /// <c>isImportAll</c>): an ordinary import covers only the <c>public</c> descendants, so a
+    /// private nested member of an imported membership is never exposed. A bracket filter
+    /// (<c>import B::**[@Safety];</c>) is tested against every candidate the import reaches, nested
+    /// ones included, and each accepted candidate is exposed exactly. Import cycles are guarded by a
     /// visited set and duplicate subjects are not added twice. Imports of standard library
-    /// namespaces and unresolved imports are skipped, and an import's bracket filter narrows its
-    /// members when it parses (otherwise the import is followed unfiltered).
+    /// namespaces and unresolved imports are skipped, and an unparsable bracket filter leaves the
+    /// import followed unfiltered.
     /// </remarks>
     private static void AddImportedMemberships(
         SysmlWorkspace workspace,
@@ -408,12 +435,10 @@ internal static class ExposeScopeResolver
                 return;
             }
 
-            var kind = exposeRecursive || recursive || import.IsRecursive
-                ? ExposeRecursionKind.MembershipRecursive
-                : ExposeRecursionKind.MembershipExact;
+            var expandSubtrees = exposeRecursive || recursive || import.IsRecursive;
             if (import.IsMembershipImport)
             {
-                AddMembers(import, [importedName], kind);
+                AddMembers(import, [importedName], expandSubtrees);
             }
             else if (IsNamespace(imported))
             {
@@ -426,7 +451,7 @@ internal static class ExposeScopeResolver
                         (import.IsImportAll || child.Visibility == SysmlVisibility.Public))
                     .Select(child => child.QualifiedName!)
                     .ToList();
-                AddMembers(import, members, kind);
+                AddMembers(import, members, expandSubtrees);
             }
             else
             {
@@ -442,19 +467,105 @@ internal static class ExposeScopeResolver
             }
         }
 
-        /// <summary>Adds each member subject once, narrowed by the import's bracket filter when it parses.</summary>
-        private void AddMembers(SysmlImportNode import, List<string> members, ExposeRecursionKind kind)
+        /// <summary>
+        /// Adds the subjects for the members one import brings in. Without a (parsable) bracket
+        /// filter each member is added once — exactly, or, when <paramref name="expandSubtrees"/>,
+        /// as a recursive subject covering its subtree minus the descendants the import's
+        /// visibility hides (everything but <c>public</c> memberships unless the import is
+        /// <c>import all</c>). With a bracket filter, every candidate — each member and, when
+        /// <paramref name="expandSubtrees"/>, each visible descendant — is tested individually
+        /// (as <c>NameResolver</c> tests each recursive candidate) and each accepted one is added
+        /// exactly.
+        /// </summary>
+        private void AddMembers(SysmlImportNode import, List<string> members, bool expandSubtrees)
         {
             if (import.BracketFilterExpressionText is { Length: > 0 } filterText &&
                 FilterExpressionParser.Parse(filterText).Expression is { } expression)
             {
-                members = [.. FilterExpressionEvaluator.Evaluate(workspace, members, expression).MatchedQualifiedNames];
+                var candidates = new List<string>(members);
+                if (expandSubtrees)
+                {
+                    foreach (var member in members)
+                    {
+                        CollectDescendants(member, import.IsImportAll, candidates, hidden: null);
+                    }
+                }
+
+                foreach (var match in FilterExpressionEvaluator.Evaluate(workspace, candidates, expression).MatchedQualifiedNames)
+                {
+                    AddSubjectOnce(new ExposeSubject(match, ExposeRecursionKind.MembershipExact));
+                }
+
+                return;
             }
 
-            foreach (var member in members.Where(member =>
-                !subjects.Any(subject => subject.QualifiedName == member && subject.Recursion == kind)))
+            foreach (var member in members)
             {
-                subjects.Add(new ExposeSubject(member, kind));
+                if (!expandSubtrees)
+                {
+                    AddSubjectOnce(new ExposeSubject(member, ExposeRecursionKind.MembershipExact));
+                    continue;
+                }
+
+                var hidden = new List<string>();
+                if (!import.IsImportAll)
+                {
+                    CollectDescendants(member, includeAll: false, visible: [], hidden);
+                }
+
+                AddSubjectOnce(new ExposeSubject(member, ExposeRecursionKind.MembershipRecursive, ExcludedSubtrees: hidden));
+            }
+        }
+
+        /// <summary>
+        /// Collects the named descendants of <paramref name="member"/> that an import with the given
+        /// visibility reaches into <paramref name="visible"/> — every descendant when
+        /// <paramref name="includeAll"/>, otherwise only those reachable through <c>public</c>
+        /// memberships — and, into <paramref name="hidden"/> when supplied, the topmost descendants it
+        /// does not reach.
+        /// </summary>
+        private void CollectDescendants(string member, bool includeAll, List<string> visible, List<string>? hidden)
+        {
+            if (workspace.Declarations.TryGetValue(member, out var node))
+            {
+                Walk(node);
+            }
+
+            void Walk(SysmlNode owner)
+            {
+                foreach (var child in owner.Children)
+                {
+                    if (child.QualifiedName is not { Length: > 0 } childName)
+                    {
+                        continue;
+                    }
+
+                    if (!includeAll && child.Visibility != SysmlVisibility.Public)
+                    {
+                        hidden?.Add(childName);
+                        continue;
+                    }
+
+                    if (child is not (SysmlImportNode or SysmlAliasNode) && child.Name is { Length: > 0 })
+                    {
+                        visible.Add(childName);
+                    }
+
+                    Walk(child);
+                }
+            }
+        }
+
+        /// <summary>Adds <paramref name="subject"/> unless an equivalent subject (same name, kind, and exclusions) is already present.</summary>
+        private void AddSubjectOnce(ExposeSubject subject)
+        {
+            var excluded = subject.ExcludedSubtrees ?? [];
+            if (!subjects.Any(existing =>
+                existing.QualifiedName == subject.QualifiedName &&
+                existing.Recursion == subject.Recursion &&
+                (existing.ExcludedSubtrees ?? []).SequenceEqual(excluded)))
+            {
+                subjects.Add(subject);
             }
         }
     }
@@ -504,8 +615,9 @@ internal static class ExposeScopeResolver
         scope.Subjects.Any(subject => subject.Recursion switch
         {
             ExposeRecursionKind.MembershipRecursive =>
-                qualifiedName == subject.QualifiedName ||
-                qualifiedName.StartsWith(subject.QualifiedName + "::", StringComparison.Ordinal),
+                (qualifiedName == subject.QualifiedName ||
+                qualifiedName.StartsWith(subject.QualifiedName + "::", StringComparison.Ordinal)) &&
+                !subject.IsExcluded(qualifiedName),
             ExposeRecursionKind.NamespaceRecursive =>
                 qualifiedName.StartsWith(subject.QualifiedName + "::", StringComparison.Ordinal),
             ExposeRecursionKind.MembershipExact => qualifiedName == subject.QualifiedName,
@@ -543,8 +655,9 @@ internal static class ExposeScopeResolver
         scope.Subjects.Any(subject => subject.Recursion switch
         {
             ExposeRecursionKind.MembershipRecursive =>
-                qualifiedName == subject.QualifiedName ||
-                qualifiedName.StartsWith(subject.QualifiedName + "::", StringComparison.Ordinal),
+                (qualifiedName == subject.QualifiedName ||
+                qualifiedName.StartsWith(subject.QualifiedName + "::", StringComparison.Ordinal)) &&
+                !subject.IsExcluded(qualifiedName),
             ExposeRecursionKind.NamespaceRecursive =>
                 qualifiedName.StartsWith(subject.QualifiedName + "::", StringComparison.Ordinal),
             _ => false,

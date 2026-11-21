@@ -712,7 +712,10 @@ entire workspace:
   imports themselves are ordinary imports, so the other side is limited: an imported package contributes
   only its **public** members and follows only its **public** imports (transitively), unless the import is
   `import all`. A recursive expose descends into the packages `A` owns, not into packages that arrived
-  through an import (a recursive import such as `import B::**;` does descend, again public-only). Standard
+  through an import (a recursive import such as `import B::**;` does descend, again public-only: a
+  `private` nested member of an imported member is not exposed). A bracket filter on an import
+  (`public import B::**[@Safety];`) is tested against every member the import reaches, nested ones
+  included. Standard
   library imports (for instance `private import StandardViewDefinitions::*;`) add nothing, and an import
   cycle between packages terminates. To keep a library's members out of a view, qualify the reference
   instead of importing the library into the exposed package. A bare `expose A;` exposes only `A` and

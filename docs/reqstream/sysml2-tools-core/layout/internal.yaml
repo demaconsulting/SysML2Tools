@@ -272,6 +272,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-UnlimitedSubjectMatch
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeFollowsImports
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportVisibility
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportBracketFilter
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportCycleSafe
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposesByName
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ImportedMembersOutsideImporterFrame

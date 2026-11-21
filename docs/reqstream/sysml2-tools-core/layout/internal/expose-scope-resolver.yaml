@@ -241,7 +241,7 @@ sections:
           (expose A::*;, expose A::*::**; or expose A::**;), the memberships the exposed namespace
           brings in through its imports — a wildcard import adds the imported namespace's members, a
           membership import adds that member, a recursive import adds the member and its subtree,
-          and a recursive expose adds imported members as whole subtrees — while a bare expose A;
+          and a recursive expose adds imported members as subtrees — while a bare expose A;
           follows no import.
         justification: |
           A namespace expose is a namespace import of A (formal-26-03-02.md §8.3.26.4), and a
@@ -262,7 +262,9 @@ sections:
           namespace it owns at any depth, private ones included, and drawing its private members —
           while a namespace reached through an import shall contribute only its public members and
           follow only its public imports (unless the import is an import all), and recursion shall
-          descend into an imported namespace only through a recursive import.
+          descend into an imported namespace only through a recursive import; the subtree an
+          import brings in shall keep the import's visibility, so a non-public nested member of an
+          imported membership is not exposed unless the import is an import all.
         justification: |
           An Expose has isImportAll = true, so visibility is always ignored for it (SysML v2
           §8.3.26.2, validateExposeIsImportAll). The exposed namespace's memberships are therefore
@@ -280,6 +282,21 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_DoesNotDescendIntoImportedNamespaces
           - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_RecursiveImport_FollowsOnlyPublicImportsBelow
           - GeneralViewLayoutStrategy_BuildLayout_ExposeNamespace_TransitiveImports_FollowsPublicImportsOnly
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportedPrivateNestedMember_IsNotDrawn
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportAll_DrawsImportedPrivateNestedMember
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportBracketFilter
+        title: >-
+          ExposeScopeResolver shall apply the bracket filter of an import followed by an expose to
+          every candidate the import reaches, nested members of a recursive import included, and
+          expose exactly the candidates the filter accepts.
+        justification: |
+          Name resolution tests each recursive candidate of a filtered import (import P::**[@Safety];)
+          against the filter, so a nested member that does not satisfy it is not imported and one
+          that does is imported even when its owner is not. An expose that followed the import
+          unfiltered below the first level would draw members the import never brings in.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToNestedCandidates
 
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ExposeImportCycleSafe
         title: >-

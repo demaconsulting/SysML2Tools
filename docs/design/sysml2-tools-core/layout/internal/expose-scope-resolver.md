@@ -27,12 +27,14 @@ parameters, and resolution output is returned as three internal record types:
   definitions-only, see below) — matched by a successfully-evaluated bracket filter — exact
   matches only, not their own nested members unless those also match. A settable `Failures`
   init-property (default empty) carries any bracket filters that failed to parse or evaluate.
-- `ExposeSubject(string QualifiedName, ExposeRecursionKind Recursion, bool IsTypingTarget = false)` — one
+- `ExposeSubject(string QualifiedName, ExposeRecursionKind Recursion, bool IsTypingTarget = false,
+  IReadOnlyList<string>? ExcludedSubtrees = null)` — one
   resolved `expose` subject qualified name paired with the recursion kind governing how it matches
   candidates. `IsTypingTarget` is `true` only for the subject `AddSubject` adds for an exposed usage's
   typing target (see the usage-to-type fallback below): it matches candidates exactly like any other
   subject (so membership, recursion and annotation checks behave the same), but a consumer that needs
-  what the view itself exposes — the General View's part-tree rule — filters it out.
+  what the view itself exposes — the General View's part-tree rule — filters it out. `ExcludedSubtrees`
+  lists the containment subtrees a recursive subject does not cover (`IsExcluded` tests a name against them).
 - `BracketFilterFailure(string ExpressionText, string? Reason)` — one failed bracket-filter
   expression's raw source text plus a short human-readable reason, feeding
   `LayoutWarnings.ForUnevaluatedExposeBracketFilter`.
@@ -93,7 +95,16 @@ membership:
   for an `import all`), then follows `B`'s own imports;
 - a membership import (`import B::Widget;`, `import B::**;`) adds exactly the imported member;
 - the added subject is `MembershipExact` for a non-recursive expose and `MembershipRecursive` (the member's
-  whole subtree) when the expose or the import is recursive.
+  subtree) when the expose or the import is recursive. The imported side keeps the import's visibility
+  (`includeAll = isImportAll`, so `false` for an ordinary import): the recursive subject carries
+  `ExcludedSubtrees`, the topmost non-`public` descendants of the member, and `IsInSubjectScope`,
+  `MatchesUnlimitedSubject` and `IsAnnotationExposed` do not treat an excluded subtree as covered. For an
+  `import all` the exclusion list is empty;
+- when the import has a bracket filter that parses, the filter is applied to every candidate the import
+  reaches, as `NameResolver.LookupRecursive` applies it to each recursive candidate: the members and, when the
+  expose or the import is recursive, every descendant the import's visibility admits are evaluated with
+  `FilterExpressionEvaluator`, and each accepted candidate becomes a `MembershipExact` subject (a rejected
+  owner does not hide an accepted nested member).
 
 **Which imports are followed — the `includeAll` rule.** The walk mirrors the KerML operation
 `Namespace::visibleMemberships(excluded, isRecursive, includeAll)` (KerML 1.0 §8.3.2.4.5), which the
@@ -128,12 +139,11 @@ are skipped, so the ubiquitous `private import StandardViewDefinitions::*;` adds
 private import of a *user* library in the exposed namespace brings that library's public members into the
 view, as it does in the Pilot — a model that wants them out qualifies the reference instead of importing.
 
-A visited set of `(namespace, recursive, includeAll)` triples guards import cycles, subjects are never added
-twice (`QualifiedName` and recursion kind), unresolved imports and imports of standard library namespaces are
-skipped, and an import's bracket filter, when it parses, narrows its members through
-`FilterExpressionEvaluator` (otherwise the import is followed unfiltered). Aliases are not followed.
-Imported subjects are ordinary subjects, so every strategy honors them through `IsInSubjectScope`; they are
-not typing targets and get no usage-to-type expansion.
+A visited set of `(namespace, recursive, includeAll)` triples guards import cycles, subjects are never added twice
+(`QualifiedName`, recursion kind and exclusions), unresolved imports and imports of standard library namespaces are
+skipped, and an import whose bracket filter does not parse is followed unfiltered. Aliases are not followed. Imported
+subjects are ordinary subjects, so every strategy honors them through `IsInSubjectScope`; they are not typing targets
+and get no usage-to-type expansion.
 
 ###### `ExposesByName(string qualifiedName, ExposedScope scope)`
 

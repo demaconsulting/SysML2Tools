@@ -915,6 +915,96 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Model for the imported-visibility and imported-filter tests: <c>Lib::Widget</c> owns a public
+    ///     <c>Gear</c> and a private <c>Secret</c> (which owns <c>Cog</c>); <c>Reach</c> imports
+    ///     <c>Lib</c> publicly, <c>ReachAll</c> through <c>import all</c>. <c>Marks::Flagged</c> and
+    ///     <c>Marks::Host::Inner</c> carry <c>@Safety</c>; <c>Filtered</c> imports <c>Marks</c>
+    ///     recursively through <c>[@Safety]</c>.
+    /// </summary>
+    private const string ExposeImportFiltersSysml = """
+        metadata def Safety { }
+        package Lib {
+            part def Widget {
+                part def Gear;
+                private part def Secret { part def Cog; }
+            }
+        }
+        package Reach { public import Lib::*; }
+        package ReachAll { public import all Lib::*; }
+        package Marks {
+            part def Flagged { @Safety; part def FlaggedChild; }
+            part def Plain;
+            part def Host {
+                part def Inner { @Safety; }
+                part def Unmarked;
+            }
+        }
+        package Filtered { public import Marks::**[@Safety]; }
+        package Diagrams {
+            view Visibility { expose Reach::**; }
+            view VisibilityAll { expose ReachAll::**; }
+            view Marked { expose Filtered::**; }
+        }
+        """;
+
+    /// <summary>
+    ///     A recursive expose of a package that publicly imports another keeps the imported side's
+    ///     visibility (KerML <c>visibleMemberships</c>): the public <c>Widget</c> and its public
+    ///     <c>Gear</c> are drawn, its private nested <c>Secret</c> and everything below it are not.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportedPrivateNestedMember_IsNotDrawn()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportFiltersSysml, "Visibility");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Widget", labels);
+        Assert.Contains("Gear", labels);
+        Assert.DoesNotContain("Secret", labels);
+        Assert.DoesNotContain("Cog", labels);
+    }
+
+    /// <summary>
+    ///     An <c>import all</c> ignores visibility on the imported side, so the same recursive expose
+    ///     does draw the private nested <c>Secret</c> and its <c>Cog</c>.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportAll_DrawsImportedPrivateNestedMember()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportFiltersSysml, "VisibilityAll");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Widget", labels);
+        Assert.Contains("Secret", labels);
+        Assert.Contains("Cog", labels);
+    }
+
+    /// <summary>
+    ///     The bracket filter of a recursive import is applied to every candidate the import reaches,
+    ///     nested ones included (as name resolution does): <c>import Marks::**[@Safety];</c> exposes the
+    ///     <c>@Safety</c> elements <c>Flagged</c> and the nested <c>Inner</c>, and rejects <c>Plain</c>,
+    ///     <c>Host</c>, <c>Unmarked</c> and the unmarked <c>FlaggedChild</c>.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeRecursive_ImportBracketFilter_AppliesToNestedCandidates()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeImportFiltersSysml, "Marked");
+
+        // Assert
+        var labels = LabelsOf(layout);
+        Assert.Contains("Flagged", labels);
+        Assert.Contains("Inner", labels);
+        Assert.DoesNotContain("Plain", labels);
+        Assert.DoesNotContain("Unmarked", labels);
+        Assert.DoesNotContain("FlaggedChild", labels);
+    }
+
+    /// <summary>
     ///     Packages that import each other (one privately, one publicly) do not make the expose loop: it terminates and
     ///     draws each member once.
     /// </summary>

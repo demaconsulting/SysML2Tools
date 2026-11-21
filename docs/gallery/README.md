@@ -528,7 +528,7 @@ SVG: [`svg/VehicleStructureGeneralView.svg`](svg/VehicleStructureGeneralView.svg
 
 ---
 
-## 18. Expose Through Imports and of an Exposed Part Definition
+## 18. Expose Through Imports and an Exposed Part Definition
 
 Two `expose` behaviors in one model. In the General View `expose RoverSystem; expose RoverSystem::*;`
 draws the `RoverSystem` frame with the members it owns (`RoverController` and the `private`
