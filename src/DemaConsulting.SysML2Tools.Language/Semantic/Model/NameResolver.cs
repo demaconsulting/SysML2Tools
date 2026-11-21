@@ -85,6 +85,8 @@ public sealed class NameResolver
     private readonly Dictionary<string, HashSet<string>> _redefinedMembers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _redefinedMembersInProgress = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<SysmlImportNode>> _rootImportsByDeclaration = new(StringComparer.Ordinal);
+    private readonly List<(SysmlAliasNode Alias, IReadOnlyList<SysmlImportNode> RootImports)> _rootAliases = new();
+    private readonly HashSet<SysmlAliasNode> _rootAliasesInProgress = new();
 
     // Implicit specialization tables (KerML 7.3.4 / SysML v2 default general types).
     // Source: the OMG Pilot Implementation's ImplicitGeneralizationMap
@@ -265,11 +267,12 @@ public sealed class NameResolver
     ///     namespaces and before the global namespace.
     /// </summary>
     /// <remarks>
-    ///     The imports are keyed by declaration qualified name, never by top-level name alone: two
-    ///     files may each declare a top-level package of the same name (a package split across
-    ///     files), and each must see only its own file's root imports. Callers register the
-    ///     qualified names of every declaration the file contributes; a name already registered
-    ///     (a duplicate declaration in another file) keeps its first registration.
+    ///     The imports are keyed by declaration qualified name, never by top-level name alone, so
+    ///     each file sees only its own root imports. Two user files never declare the same root
+    ///     name (the workspace loader ignores a later declaration of a name that is already used),
+    ///     so the keying now matters for a user declaration named like a standard-library one.
+    ///     Callers register the qualified names of every declaration the file contributes; a name
+    ///     already registered keeps its first registration.
     /// </remarks>
     /// <param name="declarationNames">The qualified names of the file's declarations.</param>
     /// <param name="rootImports">The file-root import nodes.</param>
@@ -286,6 +289,21 @@ public sealed class NameResolver
         }
     }
 
+
+    /// <summary>
+    ///     Registers the aliases written at the root of a source file (outside any package) as
+    ///     memberships of the global namespace (KerML 8.2.3.5.2): a global name that matches one
+    ///     resolves to the alias's target, which is resolved from the root of the same file.
+    /// </summary>
+    /// <param name="aliases">The file-root alias nodes the workspace keeps.</param>
+    /// <param name="rootImports">The file-root import nodes of the same file.</param>
+    internal void RegisterRootAliases(IEnumerable<SysmlAliasNode> aliases, IReadOnlyList<SysmlImportNode> rootImports)
+    {
+        foreach (var alias in aliases)
+        {
+            _rootAliases.Add((alias, rootImports));
+        }
+    }
 
     /// <summary>
     ///     Resolves <paramref name="reference"/> relative to <paramref name="localNamespace"/>
@@ -841,8 +859,8 @@ public sealed class NameResolver
     ///     Full resolution (KerML 8.2.3.5.4): local resolution in the namespace, then each owning
     ///     namespace outward, then the imports at the root of the file, then the global namespace.
     ///     The file is the referencing one when the caller supplies its root imports; otherwise it is
-    ///     the file declaring <paramref name="localNamespace"/> (a top-level name alone cannot say,
-    ///     as a package may be split across files). <paramref name="localScope"/> selects which
+    ///     the file declaring <paramref name="localNamespace"/> (a top-level name alone cannot say
+    ///     which file's imports apply). <paramref name="localScope"/> selects which
     ///     memberships of <paramref name="localNamespace"/> itself are considered (the outer
     ///     namespaces always use local resolution).
     /// </summary>
@@ -893,11 +911,50 @@ public sealed class NameResolver
             return otherForm;
         }
 
+        // A root-level alias is a membership of the global namespace too: it resolves to its target.
+        if (ResolveRootAlias(name, byShortName: false) is { } aliased)
+        {
+            return aliased;
+        }
+
         // A top-level element may also be found by its short name.
         return _declarations
             .Where(kvp => !kvp.Key.Contains("::", StringComparison.Ordinal) && NamesEqual(kvp.Value.ShortName, name))
             .Select(kvp => kvp.Key)
-            .FirstOrDefault();
+            .FirstOrDefault()
+            ?? ResolveRootAlias(name, byShortName: true);
+    }
+
+    /// <summary>
+    ///     Resolves <paramref name="name"/> through the root-level aliases registered with
+    ///     <see cref="RegisterRootAliases"/>, by declared name or by short name, following the first
+    ///     matching alias whose target resolves. An alias already being followed contributes nothing,
+    ///     so a cycle of aliases ends unresolved.
+    /// </summary>
+    private string? ResolveRootAlias(string name, bool byShortName)
+    {
+        foreach (var (alias, rootImports) in _rootAliases)
+        {
+            if (!NamesEqual(byShortName ? alias.ShortName : alias.Name, name) ||
+                !_rootAliasesInProgress.Add(alias))
+            {
+                continue;
+            }
+
+            try
+            {
+                if (Resolve(alias.TargetName, null, rootImports) is { } target)
+                {
+                    return target;
+                }
+            }
+            finally
+            {
+                _rootAliasesInProgress.Remove(alias);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

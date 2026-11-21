@@ -68,20 +68,65 @@ sections:
       - id: SysML2Tools-Language-Semantic-WorkspaceLoader-DeterministicOrder
         title: >-
           WorkspaceLoader.LoadAsync shall process the user files in a canonical order, the ordinal
-          order of their full paths with directory separators normalized to '/', whatever order
-          the caller supplies them in, so that when several files declare the same top-level
-          qualified name the declaration in the canonically first file wins, and the declarations,
-          file list and diagnostics are identical on every platform.
+          order of their full paths with directory separators normalized to '/' (and the source
+          order within a file), whatever order the caller supplies them in, so that when several
+          declarations share a root-level name the first one in that order is used and the later
+          ones are ignored, and the declarations, file list and diagnostics are identical on every
+          platform.
         justification: |
-          The symbol table keeps the first registration of a qualified name, and KerML leaves
-          unspecified which of several same-named top-level declarations is meant. Without a
-          stable rule the result would depend on the caller's file order (for example a platform's
-          directory enumeration order), so identical inputs would give different diagnostics on
-          Windows and Linux. A canonical processing order makes the winner, and therefore every
-          diagnostic, deterministic.
+          KerML leaves unspecified which of several same-named root-level declarations is meant.
+          Without a stable rule the result would depend on the caller's file order (for example a
+          platform's directory enumeration order), so identical inputs would give different
+          diagnostics on Windows and Linux. A canonical processing order makes the declaration
+          that is used, and therefore every diagnostic, deterministic.
         tests:
           - WorkspaceLoader_LoadAsync_DuplicateTopLevelName_IsIndependentOfFileOrder
+          - WorkspaceLoader_LoadAsync_SameRootPackageInTwoFiles_IsIndependentOfFileOrder
           - SemanticOmgModels_StrictUnresolved_IndependentOfFileOrder
+
+      - id: SysML2Tools-Language-Semantic-WorkspaceLoader-DuplicateRootDeclaration
+        title: >-
+          WorkspaceLoader.LoadAsync shall report a Warning at the name of every named
+          root-level declaration (a package, a KerML `namespace`, a definition, a usage, or an alias;
+          a named `comment` is not detected) in any user file (including a second declaration in
+          the same file), whose name, quotes ignored, an earlier root-level declaration in canonical order
+          already uses, naming the file and position of the declaration that is used; shall exclude
+          the later declaration entirely from the workspace, so that none of its members is merged
+          into the earlier declaration and no diagnostic originates from inside it; shall not
+          report a path supplied more than once; and shall not treat a user declaration named like a
+          standard-library package as a duplicate.
+        justification: |
+          The members of a namespace must have distinct names (KerML 8.3.2.4), the global
+          namespace holds every root-level member, and a SysML package cannot be reopened in another
+          file (SysML 8.2.2.5.1), so a second root-level declaration of a name is an error in the
+          model; the OMG Pilot Implementation reports it as "Duplicate of other owned member name".
+          Merging the declarations instead made a package's imports and aliases depend on which
+          file declared it first (issue #144), silently dropped a definition that shared its
+          name with a package (issues #139 and #146), and gave the same model different results
+          under different file layouts. Ignoring the later declaration as a whole is deterministic
+          and keeps the workspace consistent, and a Warning, also in strict mode, tells the author
+          exactly which declaration is ignored without turning unresolved-reference strictness
+          into a naming check. The standard library is not part of the comparison, because a user
+          package of that name is an established extension of it.
+        tests:
+          - WorkspaceLoader_LoadAsync_SameRootPackageInTwoFiles_WarnsAtLaterDeclarationNamingFirstFile
+          - WorkspaceLoader_LoadAsync_SameRootPackageInTwoFiles_DoesNotMergeMembers
+          - WorkspaceLoader_LoadAsync_SplitPackageWithWildcardImport_ReportsOnlyTheDuplicate
+          - WorkspaceLoader_LoadAsync_SplitPackageWithNamedImports_ReportsOnlyTheDuplicate
+          - WorkspaceLoader_LoadAsync_PackageAndPartDefWithSameName_WarnsAndFirstFileWins
+          - WorkspaceLoader_LoadAsync_SameNameTwiceInOneFile_WarnsAtSecondDeclaration
+          - WorkspaceLoader_LoadAsync_QuotedAndUnquotedSameName_AreDuplicates
+          - WorkspaceLoader_LoadAsync_RootAliasAndPackageWithSameName_WarnsAndFirstFileWins
+          - WorkspaceLoader_LoadAsync_TwoRootAliasesWithSameName_WarnsAtSecondAlias
+          - WorkspaceLoader_LoadAsync_ShortNameEqualToDeclaredName_WarnsAtDeclaredName
+          - WorkspaceLoader_LoadAsync_RootAlias_ResolvesToItsTargetFromAnotherFile
+          - WorkspaceLoader_LoadAsync_RootAlias_WithUnresolvedOrCyclicTarget_IsUnresolved
+          - WorkspaceLoader_LoadAsync_RootNamespace_OwnsItsMembers
+          - WorkspaceLoader_LoadAsync_RootNamespace_DuplicateNameWarnsAndMembersStayQualified
+          - WorkspaceLoader_LoadAsync_DuplicateQuotedNameWithSpace_MessageShowsNameOnce
+          - WorkspaceLoader_LoadAsync_SamePathSuppliedTwice_ReportsNoDuplicate
+          - WorkspaceLoader_LoadAsync_DistinctRootNames_ReportNoDuplicate
+          - WorkspaceLoader_LoadAsync_UserPackageNamedLikeStdlibPackage_MembersAreNotStdlibOrigin
 
       - id: SysML2Tools-Language-Semantic-WorkspaceLoader-StdlibOrigin
         title: >-

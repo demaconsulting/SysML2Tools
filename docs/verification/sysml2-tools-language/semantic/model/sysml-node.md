@@ -85,7 +85,7 @@ external services or additional configuration are required beyond a standard .NE
 | `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | View `SourceFilePath`/`SourceLine`/`SourceColumn` | `WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation` |
 | View source location serialized | `Serialize_ViewNodeSourceLocation_RoundTrips` |
-| Source positions are not serialized | `Serialize_SourcePositions_AreNotPersisted` |
+| Source positions (including `NamePosition`) are not serialized | `Serialize_SourcePositions_AreNotPersisted` |
 | `Visibility`, `ShortName`, `SysmlAliasNode` | `WorkspaceLoader_LoadAsync_VisibilityShortNameAndAlias_Captured` |
 | `FilterExpressionTexts`, `ViewDefinitionName` | `WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured` |
 | `ExposeMembers` from a `view` usage | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |

@@ -15,6 +15,11 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 ///     supertype/typing/import references, and walks specialization chains — returning a fully
 ///     resolved <see cref="SysmlWorkspace"/> plus the aggregated diagnostics from every phase.
 ///     <para>
+///     Every root-level name may be declared once per workspace: a later declaration of a name that an
+///     earlier one (in canonical file order, then source order) already uses is ignored as a whole
+///     and reported as a Warning, never merged into the earlier one.
+///     </para>
+///     <para>
 ///     Always seed the <c>seedSymbolTable</c> parameter with the pre-compiled standard library
 ///     symbol table (<c>StdlibProvider.GetSymbolTable()</c>) unless the caller has a specific
 ///     reason to load user files against an empty namespace; without the stdlib seed, references
@@ -112,20 +117,25 @@ public static class WorkspaceLoader
         var unorderedResults = await Task.WhenAll(parseTasks).ConfigureAwait(false);
 
         // Process the files in a canonical order, independent of the caller's order and of the
-        // platform: when several files declare the same top-level name, the symbol table keeps
-        // the first registration (KerML leaves which duplicate wins unspecified), so the
-        // registration order must be stable. The sort is stable, so repeated paths keep their
-        // relative order.
+        // platform: when several declarations share a root-level name, the first one in this
+        // order is the one the model keeps (KerML leaves which duplicate wins unspecified), so
+        // the order must be stable. Within one file the source order decides. A path supplied
+        // more than once is one file and is processed once.
         var parseResults = unorderedResults
-            .OrderBy(result => CanonicalPathKey(result.Path), StringComparer.Ordinal)
+            .GroupBy(result => CanonicalPathKey(result.Path), StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => group.First())
             .ToList();
 
-        // Register user file ASTs
+        // Register user file ASTs, leaving out every root-level declaration whose name an earlier
+        // declaration already uses: it is reported and ignored as a whole, never merged.
         var userAstRoots = new List<(string Path, SysmlNode? Root)>();
-        foreach (var (path, root, diagnostics) in parseResults)
+        var claimedNames = new Dictionary<string, (string Path, SourcePosition Position)>(StringComparer.Ordinal);
+        foreach (var (path, parsedRoot, diagnostics) in parseResults)
         {
             loadedFiles.Add(path);
             allDiagnostics.AddRange(diagnostics);
+            var root = ExcludeDuplicateRootDeclarations(path, parsedRoot, claimedNames, allDiagnostics);
             symbolTable.RegisterAll(root);
             userAstRoots.Add((path, root));
         }
@@ -154,6 +164,106 @@ public static class WorkspaceLoader
 
         return new SysmlLoadResult(workspace, allDiagnostics);
     }
+
+    /// <summary>
+    ///     Leaves out of a file's root namespace every declaration whose name an earlier
+    ///     declaration already uses, reporting each as a Warning at its name.
+    /// </summary>
+    /// <remarks>
+    ///     Every named root-level member of every user file shares the one global namespace, so a
+    ///     second member with an already-used name (quotes ignored: <c>'P'</c> is <c>P</c>) is a
+    ///     duplicate: a package, a definition, a usage, or an alias (by its declared name, not its
+    ///     short name). A named <c>comment</c> is not detected. The earlier
+    ///     declaration in canonical order is used; the later one is ignored as a whole subtree — it is not merged into the earlier one, is not
+    ///     registered, and nothing inside it is resolved or reported. Imports are not members and
+    ///     never collide. Declarations of the standard library are not part of
+    ///     <paramref name="claimed"/>, so a user declaration named like a library package is not
+    ///     a duplicate.
+    /// </remarks>
+    /// <param name="path">The path of the file, as it appears in diagnostics.</param>
+    /// <param name="root">The file's root namespace, or <see langword="null"/> when it could not be read.</param>
+    /// <param name="claimed">The root names already declared by earlier files and declarations.</param>
+    /// <param name="diagnostics">Receives one Warning per ignored declaration.</param>
+    /// <returns>
+    ///     <paramref name="root"/> itself when nothing is ignored; otherwise a root namespace holding
+    ///     only the declarations that are kept.
+    /// </returns>
+    private static SysmlNode? ExcludeDuplicateRootDeclarations(
+        string path,
+        SysmlNode? root,
+        Dictionary<string, (string Path, SourcePosition Position)> claimed,
+        List<SysmlDiagnostic> diagnostics)
+    {
+        if (root is null)
+        {
+            return root;
+        }
+
+        var kept = new List<SysmlNode>(root.Children.Count);
+        foreach (var child in root.Children)
+        {
+            var memberName = RootMemberName(child);
+            if (child is SysmlImportNode || string.IsNullOrEmpty(memberName))
+            {
+                kept.Add(child);
+                continue;
+            }
+
+            var key = UnquotedName(memberName);
+            var position = DeclarationNamePosition(child);
+            if (claimed.TryGetValue(key, out var first))
+            {
+                diagnostics.Add(new SysmlDiagnostic(
+                    path,
+                    position.Line,
+                    position.Column,
+                    DiagnosticSeverity.Warning,
+                    $"Duplicate of other owned member name: '{key}' is also declared in " +
+                    $"{first.Path}({first.Position.Line},{first.Position.Column}); " +
+                    "that declaration is used and this one is ignored."));
+                continue;
+            }
+
+            claimed.Add(key, (path, position));
+            kept.Add(child);
+        }
+
+        return kept.Count == root.Children.Count
+            ? root
+            : new SysmlPackageNode
+            {
+                Children = kept,
+                Annotations = root.Annotations,
+                SourceFilePath = root.SourceFilePath,
+                SourceLine = root.SourceLine,
+                SourceColumn = root.SourceColumn,
+            };
+    }
+
+    /// <summary>
+    ///     Returns the name a root-level member declares in the global namespace, or null when it
+    ///     declares none. An alias has no qualified name, so its declared name is used.
+    /// </summary>
+    private static string? RootMemberName(SysmlNode node) =>
+        node is SysmlAliasNode ? node.Name : node.QualifiedName;
+
+    /// <summary>
+    ///     Returns where a declaration's name is written: its name token, or the start of the
+    ///     declaration when the name token is unknown.
+    /// </summary>
+    private static SourcePosition DeclarationNamePosition(SysmlNode node) =>
+        node.NamePosition != default
+            ? node.NamePosition
+            : new SourcePosition(node.SourceLine, node.SourceColumn);
+
+    /// <summary>
+    ///     Returns <paramref name="name"/> without one pair of enclosing single quotes, so that
+    ///     <c>'P'</c> and <c>P</c> compare as the same name (KerML 8.2.2.2.1).
+    /// </summary>
+    private static string UnquotedName(string name) =>
+        name.Length >= 2 && name[0] == '\'' && name[^1] == '\''
+            ? name[1..^1]
+            : name;
 
     /// <summary>
     ///     Returns the key that orders a user file canonically: its full path with directory

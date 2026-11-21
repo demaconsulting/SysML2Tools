@@ -34,13 +34,28 @@ default so that the two overloads never overlap and `LoadAsync(files)` and
 2. Dispatches all user file paths to `ParseUserFileAsync` in parallel via `Task.WhenAll`, then
    orders the results canonically: a stable ordinal sort on each file's full path with directory
    separators normalized to `/` (`CanonicalPathKey`). The order of the supplied paths is
-   therefore irrelevant, and so is the platform's directory enumeration order.
-3. Collects all AST roots, in that canonical order, and registers them into a shared
-   `SymbolTable`. The table keeps the first registration of a qualified name (as does the
-   file-root-import registration in `NameResolver`), so when several files declare the same
-   top-level name (KerML leaves which one is meant unspecified) the declaration in the
-   canonically first file wins, deterministically. The `SysmlWorkspace.Files` list and the
-   diagnostics follow the same order.
+   therefore irrelevant, and so is the platform's directory enumeration order. A path supplied
+   more than once (the same `CanonicalPathKey`) is one file: only its first occurrence is processed.
+3. Takes the ASTs in that canonical order (and each file's declarations in source order) and, for
+   each file, calls `ExcludeDuplicateRootDeclarations` before registering it. Every named
+   root-level member of every user file belongs to the one global namespace, so the helper claims
+   each root-level declaration's name (a package, a KerML `namespace`, a definition, a usage, or an
+   alias, an alias by its declared name, not its short name; a named `comment` is not detected; imports
+   are not members and never collide;
+   enclosing single quotes are ignored, so `'P'` and `P` are one name). A declaration whose name an
+   earlier declaration already claimed is *ignored*: it is dropped, with its whole subtree, from
+   the root namespace that is registered and resolved, and a `Warning` is added at its name
+   (`SysmlNode.NamePosition`): `Duplicate of other owned member name: 'P' is also declared in
+   a.sysml(1,9); that declaration is used and this one is ignored.` The first declaration in canonical
+   order is the one the model keeps (KerML leaves which duplicate is meant unspecified), so the
+   outcome is deterministic. Nothing is merged: the members, imports and aliases of an ignored
+   declaration are not registered, resolved or reported, so a package's contents never depend on
+   which file declared it first. When a file has an ignored declaration, a replacement root
+   (`SysmlPackageNode`) with only the kept declarations and the original annotations and position is
+   registered into the shared `SymbolTable` and passed on to reference resolution; otherwise the
+   parsed root is used unchanged. The seed (standard library) is not part of the claimed names, so
+   a user declaration named like a standard-library package is not a duplicate and still contributes
+   its members. The `SysmlWorkspace.Files` list and the diagnostics follow the canonical order.
 4. Runs `ReferenceResolver.ResolveAll` on all user file roots, constructing the resolver with the
    unresolved severity — `DiagnosticSeverity.Error` when `strictUnresolved` is `true`, otherwise
    `WorkspaceLoader.DefaultUserUnresolvedSeverity` (`Warning`) —
@@ -66,9 +81,11 @@ are caught and converted to a single Error diagnostic.
   not cause `HasErrors` to be set on the returned `SysmlLoadResult`; with `strictUnresolved: true`
   they are `Error` severity and do. The standard library is a pre-resolved seed that is never
   re-resolved here, so it contributes no unresolved-reference diagnostics.
-- Circular-import (`ReferenceResolver`), cyclic-specialization (`SupertypeWalker`), and
-  tool-render-selector portability diagnostics are always `Warning` severity and never set
-  `HasErrors`, independent of `strictUnresolved`.
+- Circular-import (`ReferenceResolver`), cyclic-specialization (`SupertypeWalker`),
+  tool-render-selector portability, and duplicate-root-declaration diagnostics are always
+  `Warning` severity and never set `HasErrors`, independent of `strictUnresolved`. The duplicate
+  warning is not an unresolved reference, so strict mode does not promote it; references from other
+  files into an ignored declaration are reported as unresolved in the usual way.
 
 #### Unresolved-Reference Severity Policy
 
@@ -85,8 +102,9 @@ The severity of an unresolved reference in a user file is chosen once, in `LoadA
 
 The default is `Warning` while the OMG corpus still reports strict-mode errors, all of them members
 `AstBuilder` does not record rather than name-resolution gaps (see the `ReferenceResolver`
-design): the OMG example corpus reports 48 strict-mode errors in 18 of its 251
-files, down from 94 in 36 before feature chains were resolved. These are tracked by issue #129
+design): the OMG example corpus reports 5 strict-mode errors in 3 of its files, down from 94 in 36
+before feature chains were resolved and from 8 before duplicate root declarations were
+ignored rather than merged. These are tracked by issue #129
 (implicit specialization, #93, is modeled for lookup). The
 plan is: once the OMG example corpus produces close to zero strict-mode errors, flip
 `DefaultUserUnresolvedSeverity` to `Error` and replace the `--strict-unresolved` option with an
@@ -95,7 +113,8 @@ opt-out (for example, a flag that downgrades unresolved references to warnings).
 #### Dependencies
 
 - **WorkspaceParser** (`ParseSourceToCst`) — parses source text into an ANTLR4 CST.
-- **AstBuilder** (`Build`) — transforms CST roots into typed AST nodes.
+- **AstBuilder** (`Build`) — transforms CST roots into typed AST nodes, including the position of
+  each declaration's name token that the duplicate-declaration warning points at.
 - **SymbolTable** (`RegisterAll`, `Symbols`) — stores and exposes all named declarations.
 - **ReferenceResolver** (`ResolveAll`) — resolves supertype, typing, and import references (and the
   other reference kinds) by KerML name resolution, and checks

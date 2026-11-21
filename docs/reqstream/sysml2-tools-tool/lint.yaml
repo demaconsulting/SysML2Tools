@@ -28,6 +28,7 @@ sections:
           - SysML2Tools-Tool-Lint-ExitCode
           - SysML2Tools-Tool-Lint-StrictUnresolved
           - SysML2Tools-Tool-Lint-PortabilityWarning
+          - SysML2Tools-Tool-Lint-DuplicateDeclarationWarning
           - SysML2Tools-Tool-Lint-LocalizableHelpText
         tests:
           - LintSubsystem_Patterns_AcceptsGlobPatterns_ResolvesFiles
@@ -122,6 +123,28 @@ sections:
           - LintSubsystem_Report_ToolRenderSelector_WritesPortabilityWarningAtToken
           - LintSubsystem_StrictUnresolved_ToolRenderSelector_RemainsWarning
           - LintSubsystem_Report_StandardRenderSelectors_NoDiagnostics
+
+      - id: SysML2Tools-Tool-Lint-DuplicateDeclarationWarning
+        title: >-
+          The LintCommand shall report, as a warning at the declaration's name in the format
+          path(line,col): warning: message, each root-level declaration that is ignored because
+          an earlier declaration already uses its name (naming the file and position of the
+          declaration that is used), shall leave the exit code unchanged, shall keep the diagnostic
+          a warning in strict mode, and shall report no unresolved reference for the parts of a
+          package that is declared in more than one file.
+        justification: |
+          A root-level name can be declared once per workspace, and a later declaration of the same
+          name is left out of the model. Authors need to see which declaration is ignored and where
+          the one in use is, without the diagnostic failing a build that gates only on unresolved
+          references; and a package split across files must not additionally produce confusing
+          unresolved references that depend on the order of the files.
+        tests:
+          - LintSubsystem_Report_DuplicateRootPackage_WritesWarningAtNameNamingOtherFile
+          - LintSubsystem_StrictUnresolved_DuplicateRootPackage_RemainsWarning
+          - LintSubsystem_StrictUnresolved_RootAliasDuplicatingPackage_WarnsAtAliasName
+          - LintSubsystem_Report_SplitPackageWithImport_NoUnresolvedReference
+          - LintSubsystem_SelfModel_AllFiles_NoDiagnosticsExitZero
+          - LintSubsystem_Gallery_AllModelsTogether_NoDiagnosticsExitZero
 
       - id: SysML2Tools-Tool-Lint-LocalizableHelpText
         title: >-

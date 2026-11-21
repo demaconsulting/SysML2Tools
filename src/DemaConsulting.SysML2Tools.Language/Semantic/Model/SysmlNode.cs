@@ -183,6 +183,21 @@ public abstract class SysmlNode
     public int SourceColumn { get; set; }
 
     /// <summary>
+    ///     Gets or sets the position of the token that spells this element's declared name
+    ///     (including the quotes of a quoted name), or the default position (line 0, column 0)
+    ///     when unknown.
+    /// </summary>
+    /// <remarks>
+    ///     Populated by <see cref="AstBuilder"/>. Unlike <see cref="SourceLine"/> and
+    ///     <see cref="SourceColumn"/>, which locate the first token of the declaration (for a
+    ///     <c>package</c> that is the keyword), this is where a diagnostic about the declared name
+    ///     itself, such as a duplicate declaration, points. Not part of the serialized
+    ///     standard-library format (<c>[JsonIgnore]</c>).
+    /// </remarks>
+    [JsonIgnore]
+    public SourcePosition NamePosition { get; set; }
+
+    /// <summary>
     ///     Gets or sets the source position of each reference text this element declares (its
     ///     supertypes, feature typing, redefinition, imports, <c>expose</c> members, connector
     ///     endpoints, transition source/target, and so on), keyed by the reference text exactly as
@@ -611,7 +626,9 @@ public enum SysmlVisibility
 /// <remarks>
 ///     An alias has no qualified name of its own, so it is not registered in the symbol table;
 ///     <see cref="NameResolver"/> finds it as a <see cref="SysmlNode.Children"/> entry of its owning
-///     namespace and resolves <see cref="TargetName"/> relative to that namespace.
+///     namespace and resolves <see cref="TargetName"/> relative to that namespace. An alias at the
+///     root of a file belongs to the global namespace: <see cref="ReferenceResolver"/> registers it
+///     with the resolver, which follows it for a global name.
 /// </remarks>
 public sealed class SysmlAliasNode : SysmlNode
 {

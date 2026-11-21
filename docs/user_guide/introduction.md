@@ -66,7 +66,9 @@ dotnet tool install -g DemaConsulting.SysML2Tools.Tool
 
 SysML2Tools operates on a **workspace** — a set of `.sysml` files loaded together. The OMG
 standard library (`stdlib`) is always implicitly included. You specify workspace files as
-glob patterns on the command line:
+glob patterns on the command line. Each root-level name (a package, a definition, ...) may be
+declared once per workspace: a package cannot be split across files (see
+[Duplicate Declarations](#duplicate-declarations)):
 
 ```bash
 # Single file
@@ -116,7 +118,8 @@ endpoint, transition source or target, `satisfy`, `verify`, `allocate`, `depende
 reference. A name that is synthesized rather than written (for example the implied source of a
 `then` succession) is reported at the position of the declaration that contains it. A circular
 import is reported at the `import` statement that closes the cycle, and a cyclic specialization
-at the supertype reference that closes it.
+at the supertype reference that closes it. A duplicate declaration is reported at the declaration's
+name.
 
 If the same name is unresolved several times in one file it is reported once, at its first use.
 (The references written inside expressions — see [Linting](#linting) — are the exception: each
@@ -185,7 +188,8 @@ statement is not honored when resolving imports.
 - **Errors** — syntax errors. The tool exits with code 1 when there is at least one. With
   `--strict-unresolved`, every `Unresolved reference` described above is an error too.
 - **Warnings** — the model parses but is incomplete, not portable, or inconsistent: circular imports,
-  cyclic specialization, SysML2Tools-specific `render` selectors (see
+  cyclic specialization, a root-level name declared more than once (see
+  [Duplicate Declarations](#duplicate-declarations)), SysML2Tools-specific `render` selectors (see
   [Choosing the Diagram Type](#choosing-the-diagram-type)), and, by default, every
   `Unresolved reference` described above. Warnings do not change the exit code.
 
@@ -194,6 +198,7 @@ statement is not honored when resolving imports.
 | Syntax error; a file that cannot be read | error | 1 |
 | Unresolved reference in a model file (any kind) | warning; error if strict | 0; 1 if strict |
 | Circular import; cyclic specialization | warning | 0 |
+| Root-level name declared more than once (the later declaration is ignored) | warning, also if strict | 0 |
 | SysML2Tools-specific `render` selector (portability) | warning | 0 |
 | Any diagnostic from the embedded standard library | never reported by `lint` | — |
 
@@ -216,21 +221,46 @@ Without the option, gate a pipeline on them by failing the build on any `warning
 sysml2tools lint --strict-unresolved "src/**/*.sysml"
 ```
 
-Strict reporting is not the default yet; the flip is a separate change (#123/#130). On the bundled
-OMG corpus (251 files) strict mode now reports 8 errors in 4 files (it was 48 in 18 files, and 94 in
-36 before feature chains were resolved), and each one is explained:
+### Duplicate Declarations
 
-- `17.Control/Camera.sysml` (3 errors, `Scene`, `Picture`, `Image`) is a name collision between two
-  corpus files, not a gap in the tool: the corpus is loaded as one workspace, and the root-level
-  `part def Camera` of `CameraExample/Camera.sysml` has the same name as this file's root-level
-  `package Camera`, so `Camera::Scene` is looked up in the part definition (when two files declare
-  the same top-level name, the one in the first file in path order wins, on every platform and
-  whatever order the files are given in). Each file is valid on its
-  own — loading just this file and the package it imports reports nothing.
+Every root-level declaration of every file in a workspace — a package, a definition, a usage, an
+alias — is a member of one shared namespace, so each root-level name can be declared **once** per
+workspace. (An alias is checked by its declared name, not its short name; a named `comment` is not
+checked.) A package is a single declaration: it cannot be split across files or re-opened later,
+and a package and a definition cannot share a name. The OMG Pilot Implementation rejects a second
+declaration the same way (`Duplicate of other owned member name`).
+
+When a name is declared again, SysML2Tools keeps the **first** declaration — the file that sorts
+first by full path (ordinal order, `/` separators), then the earlier one within a file, whatever
+order you list the files in — and **ignores the later one entirely**: nothing in it is merged into
+the first declaration, drawn, queried, or checked for unresolved references. `lint` reports a
+warning at the name of the ignored declaration, naming where the one in use is declared:
+
+```text
+b.sysml(1,9): warning: Duplicate of other owned member name: 'P' is also declared in a.sysml(1,9); that declaration is used and this one is ignored.
+```
+
+This is always a **warning** (exit code 0), also with `--strict-unresolved`, which promotes only
+unresolved references. A reference from another file to a member of an ignored declaration is
+reported as an unresolved reference. A quoted name is the same name as its unquoted form (`'P'` and
+`P`), and a file listed twice is one file, not a duplicate. To fix the warning, merge the
+declarations into one package, or rename one of them. A user package named like a standard-library
+package (for example `Parts`) is not treated as a duplicate.
+
+Strict reporting is not the default yet; the flip is a separate change (#123/#130). On the bundled
+OMG corpus (251 files) strict mode now reports 5 errors in 3 files (it was 8 in 4 files, 48 in 18
+files, and 94 in 36 before feature chains were resolved), and each one is explained:
+
 - `AHFNorwayTopics.sysml`, `AHFSequences.sysml` (1 error each) and `14c-LanguageExtensions.sysml`
   (3 errors) use user-defined keywords (`#service def`, `#cloud X`, `#cause occurrence`) whose
   members come from semantic metadata (a `SemanticMetadata` definition's `baseType`), which is not
   modeled yet.
+
+The corpus is also loaded as one workspace although its files are independent examples, so four of
+its files declare a root-level name that an earlier file already declares (for example
+`17.Control/Camera.sysml` declares `package Camera` while `CameraExample/Camera.sysml` declares
+`part def Camera`). Those are reported as [duplicate declaration](#duplicate-declarations) warnings,
+not as errors, and the later declaration is ignored.
 
 Dotted feature chains (`a.b.c`) and the synthetic action-node names resolve: each segment after the
 first is looked up in the previous feature's own members and everything it inherits (typing,
@@ -496,7 +526,7 @@ shows these in the examples
 `11-nested-packages-general.sysml` (nested packages and cross-package edges),
 `14-usages-typing-general.sysml` (usages, typing, subsetting, redefinition, reference and abstract
 styling), `15-doc-comment-general.sysml` (documentation and comments on nested parts), and
-`16-nested-packages-typing-general.sysml` (nested packages with typed usages, such as the `Vehicle`
+`16-nested-packages-typing-general.sysml` (nested packages with typed usages, such as the `TypedVehicle`
 package).
 
 ### State Transition and Action Flow View Notation

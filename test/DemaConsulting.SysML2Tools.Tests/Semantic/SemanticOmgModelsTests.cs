@@ -58,14 +58,6 @@ public sealed class SemanticOmgModelsTests
     ///     referenced name, reason). Each one is explained here; none is a name-resolution bug.
     ///     <list type="bullet">
     ///         <item>
-    ///             <c>Camera.sysml</c> (training): the corpus is loaded as one workspace, and the
-    ///             root-level <c>part def Camera</c> of <c>CameraExample/Camera.sysml</c> collides
-    ///             with this file's root-level <c>package Camera</c> (the first one registered wins),
-    ///             so <c>Camera::Scene</c> is looked up in the part definition. Each file is valid
-    ///             on its own: a genuine corpus artifact, see
-    ///             <see cref="SemanticOmgModels_CameraPackage_ResolvesInIsolation"/>.
-    ///         </item>
-    ///         <item>
     ///             <c>AHFNorwayTopics.sysml</c>, <c>AHFSequences.sysml</c>: <c>#service def</c> and
     ///             <c>#cloud X</c> are user-defined keywords whose members come from semantic
     ///             metadata (<c>SemanticMetadata::baseType</c>), which is not modeled.
@@ -76,17 +68,29 @@ public sealed class SemanticOmgModelsTests
     ///             metadata.
     ///         </item>
     ///     </list>
+    ///     The corpus also declares four root-level names twice (see <see cref="ExpectedDuplicateRootNames"/>);
+    ///     those are reported as duplicate-declaration warnings, not as unresolved references.
     /// </summary>
     private static readonly (string FileSuffix, string Name)[] ExpectedStrictErrors =
     [
         ("ArrowheadFrameworkExample/AHFNorwayTopics.sysml", "APISService"),
         ("ArrowheadFrameworkExample/AHFSequences.sysml", "AHFNorway_LocalCloudDD.APISConsumer"),
-        ("17.Control/Camera.sysml", "Scene"),
-        ("17.Control/Camera.sysml", "Picture"),
-        ("17.Control/Camera.sysml", "Image"),
         ("14-LanguageExtensions/14c-LanguageExtensions.sysml", "occurs"),
         ("14-LanguageExtensions/14c-LanguageExtensions.sysml", "detected"),
         ("14-LanguageExtensions/14c-LanguageExtensions.sysml", "severity"),
+    ];
+
+    /// <summary>
+    ///     The root-level names the OMG corpus declares in more than one file, as (path suffix of
+    ///     the ignored later declaration, name). Each is a corpus artifact: the examples are
+    ///     independent files that were never meant to be loaded as one workspace.
+    /// </summary>
+    private static readonly (string FileSuffix, string Name)[] ExpectedDuplicateRootNames =
+    [
+        ("training/14.ActionDefinitions/ActionSuccessionExample-2.sysml", "Action Definition Example"),
+        ("training/17.Control/Camera.sysml", "Camera"),
+        ("training/21.AsynchronousMessaging/MessagingWithPorts.sysml", "Messaging Example"),
+        ("training/24.States/StateDecomposition-2.sysml", "State Decomposition-1"),
     ];
 
     /// <summary>
@@ -234,7 +238,7 @@ public sealed class SemanticOmgModelsTests
     public async Task SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline()
     {
         // Arrange
-        const int baseline = 8;
+        const int baseline = 5;
         var modelsRoot = FindSysMLModelsRoot();
         if (modelsRoot is null)
         {
@@ -299,15 +303,14 @@ public sealed class SemanticOmgModelsTests
     }
 
     /// <summary>
-    ///     The training <c>Camera</c> package resolves completely on its own (with the package it
-    ///     imports), and its three strict-mode errors in the whole corpus come back exactly when the
-    ///     example whose root-level <c>part def Camera</c> shares its name is loaded too: the loader
-    ///     processes files in canonical path order (<c>examples</c> before <c>training</c>) whatever
-    ///     order they are supplied in, and the first declaration of a name wins, so the remaining
-    ///     <c>Camera</c> errors are a name collision between two corpus files, not a gap.
+    ///     The training <c>Camera</c> package (issue #139) resolves completely on its own, and when
+    ///     the example whose root-level <c>part def Camera</c> shares its name is loaded too, the
+    ///     package — the later declaration in canonical path order (<c>examples</c> before
+    ///     <c>training</c>), whatever order the files are supplied in — is reported as a duplicate
+    ///     at its name and ignored, so no unresolved reference is reported from it.
     /// </summary>
     [Fact]
-    public async Task SemanticOmgModels_CameraPackage_ResolvesInIsolation()
+    public async Task SemanticOmgModels_CameraPackage_CollidingWithPartDef_ReportsDuplicateNotUnresolved()
     {
         // Arrange
         var modelsRoot = FindSysMLModelsRoot();
@@ -337,15 +340,64 @@ public sealed class SemanticOmgModelsTests
 
         // Assert
         Assert.Empty(alone.Diagnostics);
-        Assert.Equal(
-            ["Image", "Picture", "Scene"],
-            together.Diagnostics
-                .Select(d => d.Message["Unresolved reference: '".Length..^1])
-                .Order(StringComparer.Ordinal));
-        Assert.All(together.Diagnostics, d => Assert.EndsWith("Camera.sysml", d.FilePath, StringComparison.Ordinal));
+        var duplicate = Assert.Single(together.Diagnostics);
+        Assert.Equal(package, duplicate.FilePath);
+        Assert.Equal(DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning, duplicate.Severity);
+        Assert.StartsWith("Duplicate of other owned member name: 'Camera'", duplicate.Message, StringComparison.Ordinal);
         Assert.Equal(
             together.Diagnostics.Select(d => d.ToString()),
             togetherReversed.Diagnostics.Select(d => d.ToString()));
+    }
+
+    /// <summary>
+    ///     The OMG corpus declares exactly four root-level names more than once; each later
+    ///     declaration is reported as a Warning (never an Error, also in strict mode) and no
+    ///     other duplicate appears. Adding a corpus file that collides, or a regression that
+    ///     reports a false duplicate, changes this list.
+    /// </summary>
+    [Fact]
+    public async Task SemanticOmgModels_DuplicateRootNames_AreExactlyTheKnownCorpusPairs()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var omgRoot = Path.Combine(modelsRoot, "OMG");
+        if (!Directory.Exists(omgRoot))
+        {
+            return;
+        }
+
+        var sysmlFiles = Directory.GetFiles(omgRoot, "*.sysml", SearchOption.AllDirectories);
+        if (sysmlFiles.Length == 0)
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var strictResult = await WorkspaceLoader.LoadAsync(sysmlFiles, stdlibTable, strictUnresolved: true);
+        var defaultResult = await WorkspaceLoader.LoadAsync(sysmlFiles, stdlibTable);
+
+        // Assert — the same four warnings in both modes, none of them an Error
+        foreach (var result in new[] { strictResult, defaultResult })
+        {
+            var duplicates = result.Diagnostics
+                .Where(d => d.Message.StartsWith("Duplicate of other owned member name:", StringComparison.Ordinal))
+                .ToList();
+            Assert.All(duplicates, d => Assert.Equal(DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning, d.Severity));
+            Assert.Equal(ExpectedDuplicateRootNames.Length, duplicates.Count);
+            foreach (var (fileSuffix, name) in ExpectedDuplicateRootNames)
+            {
+                Assert.Contains(
+                    duplicates,
+                    d => d.FilePath.Replace('\\', '/').EndsWith(fileSuffix, StringComparison.OrdinalIgnoreCase) &&
+                         d.Message.StartsWith($"Duplicate of other owned member name: '{name}' is also declared in", StringComparison.Ordinal));
+            }
+        }
     }
 
     /// <summary>

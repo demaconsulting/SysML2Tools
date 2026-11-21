@@ -159,9 +159,13 @@ resolves through `PkgA`'s `import A::*;`. The imports written at the root of a s
 (outside any package — `private import …::*;` before the first package) apply to every
 declaration in that file and to no other file: `ResolveAll` collects each file root's direct
 `SysmlImportNode` children and registers them (`NameResolver.RegisterRootImports`) against the
-qualified name of every declaration in that file (keyed by declaration, not top-level name, so a
-package of the same name split across two files keeps each file's imports separate), and they are
-consulted after the owning namespaces and before the global namespace.
+qualified name of every declaration in that file (keyed by declaration, not by top-level name, so
+the imports of two files never mix; two user files cannot declare the same root-level name, because
+`WorkspaceLoader` ignores the later declaration, and the by-declaration key now serves a user
+declaration named like a standard-library one), and they are
+consulted after the owning namespaces and before the global namespace. It also registers every
+file's root-level aliases (`NameResolver.RegisterRootAliases`), which are memberships of the global
+namespace and resolve to their targets.
 
 ##### Redefinition and Subsetting
 
@@ -493,32 +497,24 @@ severity is decided by *which resolver invocation produced the diagnostic*, not 
 
 **Unresolved-reference severity policy.** The default is Warning, not Error, because the OMG
 corpus still reports strict-mode errors for valid models (issue #129; issue #93, implicit
-specialization, and feature chains are resolved). As of the feature-chain stage it reports
-48 strict-mode errors in 18 of its 251 files (94 in 36 before). None is a name-resolution gap — each
-names a member `AstBuilder` does not record, so there is nothing for a name to resolve to:
+specialization, and feature chains are resolved). It now reports 5 strict-mode errors in 3 of its
+files (94 in 36 once feature chains were not yet resolved, and 8 in 4 before a duplicate root-level
+declaration was ignored instead of merged). None is a name-resolution gap — each names a member
+that comes from semantic metadata, which `AstBuilder` does not model, so there is nothing for a
+name to resolve to:
 
-- Nested bodies of action usages and of `constraint def`/`calc def` (members such as
-  `perform action producerBehavior { action publish send … }`, `calc def`/`constraint def`
-  parameters): 26 errors (`producer_2.producerBehavior.publish.sentMessage` ×12 in
-  `ServerSequence*-2`, `massAnalysis.totalMass`/`'Solve for Pressure1'.rho` ×8,
-  `'assemble vehicle'.'assemble engine into vehicle'.assembledVehicle`, `perform`-introduced
-  names such as `driver.turnVehicleOn`, `ActionTree::providePower.generateToAmplify`, and the
-  other Annex A `startVehicle` members).
-- Time slices and snapshots (`snapshot vehicle1_t0`, `assembly`/
-  `delivery`; #93 remainder): 5 errors.
-- Bare directed usages (`in scene : Scene;`) and bare features with no keyword
-  (`distancePerVolume :> scalarQuantities = …`), for which `AstBuilder` builds no node: 7 errors
-  (`focus.scene`, `shoot.picture`, `distancePerVolume`).
-- A nameless usage that owns members (`attribute :> differencesOf[1] { item :>> elements … }`),
-  which has no identity to resolve through: 2 errors (`elements`).
-- A redefinition list (`part :>> a :>> b`), of which only the first target is recorded: 3 errors
-  (`setSpeedPort`, `sensedSpeedPort`, `fuelCommandPort`).
-- A user-keyword definition (`#service def APISService`), not modeled: 2 errors (`APISService`,
-  `AHFNorway_LocalCloudDD.APISConsumer`).
-- A corpus artifact: `examples/CameraExample/Camera.sysml` declares a top-level `part def Camera`
-  that collides with `package Camera` of `training/17.Control/Camera.sysml`: 3 errors
-  (`Scene`, `Picture`, `Image`). The loader processes files in canonical path order, so the first
-  file's declaration (`examples/…`) wins on every platform.
+- A user-keyword definition or usage (`#service def APISService`, `#cloud X`), whose members come
+  from `SemanticMetadata::baseType`: 2 errors (`APISService`, `AHFNorway_LocalCloudDD.APISConsumer`).
+- The members of `#cause occurrence` (`occurs`, `detected`, `severity`), which also come from
+  semantic metadata: 3 errors in `14c-LanguageExtensions.sysml`.
+
+The corpus files are independent examples that were never meant to be one workspace, so four of them
+reuse the name of an earlier file's root-level declaration (for example `examples/CameraExample/Camera.sysml`
+declares a `part def Camera` and `training/17.Control/Camera.sysml` a `package Camera`). Those are not
+unresolved references: `WorkspaceLoader` reports each later declaration as a duplicate-declaration
+Warning and ignores it (files are processed in canonical path order, so the same declaration is
+ignored on every platform), which is also why the `Camera` package no longer reports `Scene`,
+`Picture`, and `Image`.
 
 `WorkspaceLoader.DefaultUserUnresolvedSeverity` is the single place to change the
 default. Once the OMG corpus produces close to zero strict-mode errors, the constant is flipped to

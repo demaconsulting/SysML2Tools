@@ -25,6 +25,7 @@ name, so their members are qualified under a scope that cannot collide with the 
 | `VisitRootNamespace` | `RootNamespaceContext` | `SysmlPackageNode` (root) |
 | `VisitPackage` | `PackageContext` | `SysmlPackageNode` |
 | `VisitLibraryPackage` | `LibraryPackageContext` | `SysmlPackageNode` |
+| `VisitNamespace` | `NamespaceContext` | `SysmlPackageNode` (unnamed namespace: none) |
 | `VisitPartDefinition` | `PartDefinitionContext` | `SysmlDefinitionNode` |
 | `VisitAttributeDefinition` | `AttributeDefinitionContext` | `SysmlDefinitionNode` |
 | `VisitItemDefinition` | `ItemDefinitionContext` | `SysmlDefinitionNode` |
@@ -788,25 +789,28 @@ body element, and every nested member is built, to stamp the node it returns (`S
   The innermost context that builds the node wins; wrapper contexts that only pass a node up do
   not overwrite it. Nodes wrapped in a `MultiNodeCapture` are each stamped with the capture's
   context.
-- **Reference positions** (`LocateReferences`) — for each reference text the node declares
-  (`ReferenceTexts`: supertype, import, verified-requirement, feature typing and redefinition,
-  metadata type, view `expose` members and view definition, connector endpoints, transition
-  source/target, `satisfy` requirement/subject, and `dependency` from/to names), the position of
-  the first matching token run is stored in `ReferencePositions`. Each reference text is built by
-  concatenating grammar tokens (`GetText()`), so it is located by `FindReference`, which matches
-  a run of consecutive terminal tokens whose texts concatenate to the reference (`A::B` is the
-  tokens `A`, `::`, `B`). The declaration *header* — the context's tokens up to the first `{` or
-  `;` — is searched first, since that is where specialization, typing, redefinition, import, and
-  connector references are written; the whole context is searched only when the header does not
-  contain the text (references written in a body, such as `expose` and `verify`). A run that is a
-  whole reference (not adjacent to a `::` or `.` qualifier token) is preferred over one embedded
-  in a longer qualified name. The declaration's own identifier tokens (its name and
-  `<short name>`) are not references: a
-  reference spelled like them (`part def A :> A;`, `attribute x redefines x;`) is located at the
-  reference token, and the identifier is used only when nothing else matches (an implied name
-  taken from the reference). A text with no match is left unlocated and diagnostics about it fall
-  back to the declaration position. This is done centrally, after each node is built, so the many
-  per-construct visitors need no change.
+- **Name position** (`LocateName`) — for a node with a non-empty `Name`, the declared-name slot of the declaration's
+  `identification` (or `aliasMember`) parse context, which is never the optional `< shortName >`, is recorded as
+  `NamePosition` (one-based line, `Column + 1`), so `alias <N> N for Q;` is located at the second `N`. When the header
+  has no such slot, the first header token (up to the first `{` or `;`) whose text is the name, or the name in single
+  quotes, is used. A name with no matching token (a synthesized name) leaves `NamePosition` unset.
+  `WorkspaceLoader` reports a duplicate root-level declaration here, because the declaration's own start is the keyword
+  (`package`); an alias is located the same way (its name token, not the `alias` keyword), as it has no qualified name.
+  — for each reference text the node declares (`ReferenceTexts`: supertype, import, verified-requirement, feature typing
+  and redefinition, metadata type, view `expose` members and view definition, connector endpoints, transition
+  source/target, `satisfy` requirement/subject, and `dependency` from/to names), the position of the first matching
+  token run is stored in `ReferencePositions`. Each reference text is built by concatenating grammar tokens
+  (`GetText()`), so it is located by `FindReference`, which matches a run of consecutive terminal tokens whose texts
+  concatenate to the reference (`A::B` is the tokens `A`, `::`, `B`). The declaration *header* — the context's tokens up
+  to the first `{` or `;` — is searched first, since that is where specialization, typing, redefinition, import, and
+  connector references are written; the whole context is searched only when the header does not contain the text
+  (references written in a body, such as `expose` and `verify`). A run that is a whole reference (not adjacent to a `::`
+  or `.` qualifier token) is preferred over one embedded in a longer qualified name. The declaration's own identifier
+  tokens (its name and `<short name>`) are not references: a reference spelled like them (`part def A :> A;`,
+  `attribute x redefines x;`) is located at the reference token, and the identifier is used only when nothing else
+  matches (an implied name taken from the reference). A text with no match is left unlocated and diagnostics about it
+  fall back to the declaration position. This is done centrally, after each node is built, so the many per-construct
+  visitors need no change.
 
 Positions are an in-memory property of nodes built from source; they are not serialized (see
 `SysmlNode`).

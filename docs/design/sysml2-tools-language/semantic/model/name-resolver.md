@@ -131,7 +131,12 @@ instance serves one workspace.
   recorded only as `occurrence`, and `individual` is not refined to `Occurrences::Life`). Each
   listed target is checked to exist in the embedded standard library by a test.
 - The global namespace is every top-level declaration of every loaded root namespace, user and
-  standard library alike (KerML 8.2.3.5.2).
+  standard library alike (KerML 8.2.3.5.2). A root-level alias is a membership of it too:
+  `RegisterRootAliases` records each file's root aliases (with that file's root imports), and a
+  global name that no declaration has but a root alias names, by declared name and then by short
+  name, resolves to the alias's target, resolved from the root of the alias's file. An alias being
+  followed contributes nothing again, so an alias cycle, or an alias whose target does not
+  resolve, leaves the name unresolved.
 - *Feature chains* (`a.b.c`, KerML 8.2.3.5.1): a reference containing a `.` outside single quotes
   is split into **parts**. The first part is an ordinary (possibly qualified or `$::`-prefixed)
   name, resolved by full resolution from the local namespace; every later part is resolved as
@@ -156,8 +161,9 @@ instance serves one workspace.
 - *File-root imports* (resolving mode only): the imports written at the root of a source file are
   not part of any namespace's `Children` in the declarations, so `RegisterRootImports` records
   them against the qualified name of **every declaration the file contributes** (not merely its
-  top-level names: a package may be split across files, each with its own root imports, so a
-  top-level name cannot identify the file). Full resolution consults them after the owning
+  top-level names, so the imports of two files never mix: `WorkspaceLoader` ignores a later user
+  declaration of an already-used root-level name, so this keying now serves a user declaration
+  named like a standard-library one). Full resolution consults them after the owning
   namespaces and before the global namespace: the referencing file's imports when the caller
   supplies them (the semantic pass always does), otherwise those registered for the local
   namespace's declaration. A type's own general types (and a feature's redefined feature) are

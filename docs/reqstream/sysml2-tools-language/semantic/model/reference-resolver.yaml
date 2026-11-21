@@ -78,8 +78,8 @@ sections:
           - WorkspaceLoader_LoadAsync_ImportInOuterPackage_AppliesToNestedPackage
           - WorkspaceLoader_LoadAsync_FileRootImport_AppliesToItsOwnFileOnly
           - WorkspaceLoader_LoadAsync_TopLevelSupertypeViaRootImport_ResolvesMembers
-          - WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_EachUsesItsOwnRootImports
-          - WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_GeneralTypesUseOwnRootImports
+          - WorkspaceLoader_LoadAsync_TwoFilesWithRootImports_EachUsesItsOwnRootImports
+          - WorkspaceLoader_LoadAsync_TwoFilesWithRootImports_GeneralTypesUseOwnRootImports
           - WorkspaceLoader_LoadAsync_PrivateImport_IsNotReExported
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-OwningNamespaceFirst
@@ -457,18 +457,23 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-OmgCorpusStrictBaseline
         title: >-
           Loading the bundled OMG example corpus in strict unresolved-reference mode shall report
-          exactly the documented unresolved references (at most the recorded baseline): the
-          user-defined keyword (semantic metadata) members and the name collision between two
-          corpus files, which resolves completely when the colliding file is not loaded.
+          exactly the documented unresolved references (at most the recorded baseline), which are
+          the user-defined keyword (semantic metadata) members, and shall report the root-level
+          names the corpus files declare more than once as duplicate-declaration warnings rather
+          than unresolved references.
         justification: |
           The corpus is the evidence that the AST covers the constructs real models use; the
           baseline is lowered whenever a gap is closed, so a regression is caught, and each
           remaining reference is explained so that strict reporting can later become the default.
-          The count is deterministic because the loader processes files in canonical path order.
+          The corpus files are independent examples that were never meant to be one workspace, so
+          four of them reuse the name of an earlier file's root-level declaration; each is reported
+          as a duplicate and ignored, which keeps the count deterministic because the loader
+          processes files in canonical path order.
         tests:
           - SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline
           - SemanticOmgModels_StrictUnresolved_IndependentOfFileOrder
-          - SemanticOmgModels_CameraPackage_ResolvesInIsolation
+          - SemanticOmgModels_CameraPackage_CollidingWithPartDef_ReportsDuplicateNotUnresolved
+          - SemanticOmgModels_DuplicateRootNames_AreExactlyTheKnownCorpusPairs
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ToolRenderSelectorPortability
         title: >-

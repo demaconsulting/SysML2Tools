@@ -129,10 +129,11 @@ external services or additional configuration are required beyond a standard .NE
 - Every redefinition target of a feature (`:>> a :>> b`) gets its own `Redefinition` edge, an
   unresolved second target is reported once at its own token, and the members of an anonymous usage
   that has a body resolve in that usage's own scope (through the usage it subsets).
-- Loading the OMG corpus in strict mode reports exactly the eight explained unresolved references
-  (three from the `Camera` name collision between two corpus files, which resolve completely when
-  the colliding file is not loaded; five from user-defined keywords whose members come from
-  semantic metadata).
+- Loading the OMG corpus in strict mode reports exactly the five explained unresolved references
+  (all from user-defined keywords whose members come from semantic metadata), and the four
+  root-level names that corpus files declare twice are reported as duplicate-declaration warnings
+  (never errors), including the `Camera` collision between a `part def` and a `package`, whose
+  package is ignored so that none of its references is reported.
 
 ##### Test Scenarios
 
@@ -153,7 +154,7 @@ external services or additional configuration are required beyond a standard .NE
 | Stdlib compile stays Warning | `GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings` |
 | Stdlib compile: no errors, warnings at most 13 | `GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling` |
 | Valid custom and test-case models load clean | `CustomAndTestCaseModels_AllModels_LoadWithZeroDiagnostics` |
-| OMG corpus within baseline (8 errors) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
+| OMG corpus within baseline (5 errors) | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
 | Selector Warning at token | `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` |
 | Standard selectors — no diagnostic | `WorkspaceLoader_LoadAsync_StandardRenderSelectors_ProduceNoDiagnostics` |
 | Selector + strict | `WorkspaceLoader_LoadAsync_ToolRenderSelectorWithStrictUnresolved_StillOnlyPortabilityWarning` |
@@ -220,8 +221,8 @@ external services or additional configuration are required beyond a standard .NE
 | Outer import seen by nested package | `WorkspaceLoader_LoadAsync_ImportInOuterPackage_AppliesToNestedPackage` |
 | File-root import scoped to its file | `WorkspaceLoader_LoadAsync_FileRootImport_AppliesToItsOwnFileOnly` |
 | Top-level supertype via root import | `WorkspaceLoader_LoadAsync_TopLevelSupertypeViaRootImport_ResolvesMembers` |
-| Split package, own imports | `WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_EachUsesItsOwnRootImports` |
-| Split package, general types | `WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_GeneralTypesUseOwnRootImports` |
+| Own root imports per file | `WorkspaceLoader_LoadAsync_TwoFilesWithRootImports_EachUsesItsOwnRootImports` |
+| General types from own imports | `WorkspaceLoader_LoadAsync_TwoFilesWithRootImports_GeneralTypesUseOwnRootImports` |
 | Private import not re-exported | `WorkspaceLoader_LoadAsync_PrivateImport_IsNotReExported` |
 | OMG `RedefinitionExample` | `WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings` |
 | OMG PartsTree fixture | `WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings` |
@@ -263,5 +264,6 @@ external services or additional configuration are required beyond a standard .NE
 | Unresolved second target | `AstBuilder_MultipleRedefinitions_UnresolvedSecondTarget_ReportsOneDiagnostic` |
 | Anonymous owner scope | `AstBuilder_AnonymousSubsettingOwner_ResolvesRedefinedMember` |
 | OMG corpus strict baseline and explained errors | `SemanticOmgModels_StrictUnresolved_DoNotExceedBaseline` |
-| `Camera` package resolves in isolation | `SemanticOmgModels_CameraPackage_ResolvesInIsolation` |
+| `Camera` duplicate | `SemanticOmgModels_CameraPackage_CollidingWithPartDef_ReportsDuplicateNotUnresolved` |
+| Corpus duplicates | `SemanticOmgModels_DuplicateRootNames_AreExactlyTheKnownCorpusPairs` |
 | Corpus diagnostics independent of file order | `SemanticOmgModels_StrictUnresolved_IndependentOfFileOrder` |

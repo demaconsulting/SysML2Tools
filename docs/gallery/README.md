@@ -496,7 +496,8 @@ SVG: [`svg/ChargerGeneralView.svg`](svg/ChargerGeneralView.svg)
 ## 16. General View — Nested Packages and Feature Typing
 
 The `Vehicle` package of section 11 without the cross-package specialization, which keeps the
-diagram small: `Powertrain` and `Body` are folders inside the `Vehicle` folder, each showing its
+diagram small (its root package is named `TypedVehicle`, because a package name may be declared
+only once per workspace): `Powertrain` and `Body` are folders inside the `TypedVehicle` folder, each showing its
 name in its tab because it holds content. `Car`'s `engine` and `chassis` part usages are drawn
 below `Car`, joined to it by filled-diamond composition edges, and each is joined to the
 definition that types it inside a nested folder by a feature-typing edge.
@@ -504,7 +505,7 @@ definition that types it inside a nested folder by a feature-typing edge.
 Model: [`models/16-nested-packages-typing-general.sysml`](models/16-nested-packages-typing-general.sysml) ·
 SVG: [`svg/VehicleTypingGeneralView.svg`](svg/VehicleTypingGeneralView.svg)
 
-![Vehicle Typing General View: Powertrain and Body folders nested inside the Vehicle folder, with the engine and chassis part usages typed by definitions inside them](png/VehicleTypingGeneralView.png)
+![Vehicle Typing General View: Powertrain and Body folders nested inside the TypedVehicle folder, with the engine and chassis part usages typed by definitions inside them](png/VehicleTypingGeneralView.png)
 
 ---
 
