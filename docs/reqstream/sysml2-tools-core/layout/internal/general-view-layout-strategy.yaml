@@ -793,6 +793,22 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_Connect_SameOwningType_ProducesNoEdge
           - GeneralViewLayoutStrategy_BuildLayout_ConnectDominantShape_RealWorkspaceLoader_ProducesDistinctBoxes
 
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-EngineWarningPassThrough
+        title: >-
+          GeneralViewLayoutStrategy shall keep every warning the layout engine reports on its placed
+          tree (for example the hint that a scope too large for the full routing effort was routed
+          with a reduced effort), listed after the strategy's own warnings, and shall add none when
+          the engine reports none.
+        justification: |
+          The engine's warnings are the only signal that a very large diagram was drawn with fewer
+          quality searches, so a connector may take a box-crossing elbow. Replacing them with the
+          strategy's own warnings hid that signal from the user; the strategy and the engine
+          warn about different things, so both are reported, and a clean layout stays silent.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_OversizeScope_PassesEngineReducedEffortWarningThrough
+          - GeneralViewLayoutStrategy_BuildLayout_SmallScope_HasNoEngineWarning
+          - GeneralViewLayoutStrategy_BuildLayout_OversizeScopeWithOwnWarning_ReportsBothWarnings
+
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-QualifiedForm
         title: >-
           GeneralViewLayoutStrategy shall connect a usage box that declares a qualified

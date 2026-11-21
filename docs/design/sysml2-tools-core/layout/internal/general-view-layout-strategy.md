@@ -184,8 +184,12 @@ were declared reversed (see *Direction and edge orientation*); and `ClearEndDeco
 of the oriented connectors whose end decoration would reach into their last bend (see below). Finally the
 returned tree's `Warnings` concatenates
 `ForUnevaluatedFilter` (view conditions that failed), `ForUnevaluatedExposeBracketFilter` (bracket
-filters that failed), and `ForDroppedRelationshipEdges` via the `LayoutTree with { Warnings = … }`
-record-copy idiom.
+filters that failed), `ForDroppedRelationshipEdges`, and finally the warnings the layout engine itself
+put on the placed tree (for example the "work limit" hint that a scope too large for the full routing
+effort was routed with a reduced effort), via the `LayoutTree with { Warnings = … }` record-copy idiom;
+the engine's warnings are kept after the strategy's own, never replaced by them. They are those of the
+tree that is finally returned: the tucked layout when `TryTuckUnconnected` accepts, the engine's first
+layout otherwise. The other strategies lay out flat graphs, for which the engine reports no warnings.
 
 ###### `CollectDefinitions(workspace, scope, annotationVisible, policy)` and `CreateBox`
 

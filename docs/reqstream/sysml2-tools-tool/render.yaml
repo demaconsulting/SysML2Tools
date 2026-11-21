@@ -37,6 +37,7 @@ sections:
           - SysML2Tools-Tool-Render-LoadDiagnosticFormat
           - SysML2Tools-Tool-Render-UnresolvedReferenceSeverity
           - SysML2Tools-Tool-Render-PngScaledToFit
+          - SysML2Tools-Tool-Render-EngineWarnings
         tests:
           - RenderSubsystem_NoFiles_ReportsError
           - RenderSubsystem_GlobPattern_ResolvesMultipleFiles
@@ -262,6 +263,20 @@ sections:
           the user how to get a full-size diagram. Warnings never fail the run.
         tests:
           - RenderSubsystem_FormatPng_WideDiagram_ScalesToFitAndWarns
+
+      - id: SysML2Tools-Tool-Render-EngineWarnings
+        title: >-
+          When the layout engine reports a warning for a view (for example that a scope too large for
+          the full routing effort was drawn with a reduced effort), the render command shall print it
+          as a `warning:` line after that view's output file like any other layout warning, write the
+          output, and succeed with exit code 0.
+        justification: |
+          The engine's own warnings were replaced by the view strategy's and never reached the
+          command line, so the user could not tell that a very large diagram was drawn with fewer
+          routing quality searches. Printing them with the other layout warnings tells the user why
+          a connector may take a box-crossing elbow. Warnings never fail the run.
+        tests:
+          - RenderSubsystem_OversizeScope_ReportsEngineReducedEffortWarningAndExitsZero
 
       - id: SysML2Tools-Tool-Render-UnresolvedReferenceDiagnostic
         title: >-

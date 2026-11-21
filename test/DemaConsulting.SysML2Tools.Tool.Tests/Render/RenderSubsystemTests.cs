@@ -1471,6 +1471,42 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
+    ///     A model whose package holds so many connectors between boxes nested in different folders that
+    ///     the layout engine draws them with a reduced routing effort reports the engine's hint on the
+    ///     command line like any other layout warning, writes the output, and exits 0.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_OversizeScope_ReportsEngineReducedEffortWarningAndExitsZero()
+    {
+        // Arrange: six folders of ten definitions, every definition specializing one in the next folder
+        var model = new System.Text.StringBuilder("package Root {\n");
+        for (var p = 0; p < 6; p++)
+        {
+            model.Append($"    package P{p} {{\n");
+            for (var d = 0; d < 10; d++)
+            {
+                model.Append($"        part def D{d} :> Root::P{(p + 1) % 6}::D{d};\n");
+            }
+
+            model.Append("    }\n");
+        }
+
+        model.Append("}\n");
+
+        // Act
+        var (output, error, exitCode, svgCount) = await RunRenderModelAsync(model.ToString(), "--auto");
+
+        // Assert: the engine's hint is printed as a layout warning, and the diagram is still written
+        var warning = Assert.Single(
+            output.Split('\n').Select(line => line.TrimEnd('\r')),
+            line => line.Contains("work limit", StringComparison.Ordinal));
+        Assert.StartsWith("  warning: ", warning, StringComparison.Ordinal);
+        Assert.DoesNotContain("error", error);
+        Assert.True(svgCount > 0);
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>
     ///     With <c>--strict-unresolved</c> the same model reports the unresolved reference as an
     ///     error, still writes the output, and exits 1.
     /// </summary>
