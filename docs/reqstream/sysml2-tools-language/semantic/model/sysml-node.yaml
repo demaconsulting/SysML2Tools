@@ -96,7 +96,6 @@ sections:
           must name the file and line of the offending view so users can find and fix it.
         tests:
           - WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation
-          - SysmlViewNode_SourceLocationProperties_AreDeclaredOnViewNode
           - Serialize_ViewNodeSourceLocation_RoundTrips
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-SourcePositions

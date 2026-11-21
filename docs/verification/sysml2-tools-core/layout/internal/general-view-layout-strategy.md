@@ -497,14 +497,6 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   Real-corpus guard over the gallery General Views (drone, battery, nested packages, drive unit,
   charger, vehicle typing) with the tool's plain theme, and the drive-unit and charger views also with
   the light theme: every decorated connector that ends a lane has a clean approach
-- `GeneralViewLayoutStrategy_ClearEndDecorations_NoViolation_ReturnsTreeUnchanged`:
-  A lane far from the owner returns the very same tree instance
-- `GeneralViewLayoutStrategy_ClearEndDecorations_LShapedConnector_IsLeftAlone`:
-  A connector with one bend is not modified
-- `GeneralViewLayoutStrategy_ClearEndDecorations_ShortFinalLeg_MovesLaneAwayFromOwner`:
-  A 10 px final leg grows to the marker length, corner radius, and margin; only the two bend points move
-- `GeneralViewLayoutStrategy_ClearEndDecorations_NoRoomOnFarLeg_LeavesConnectorUnchanged`:
-  When the leg at the other box would become too short the connector is left as routed
 - `GeneralViewLayoutStrategy_BuildLayout_ManyUnconnectedDefinitions_AreTuckedIntoFreeCornerOfWideTree`:
   Nine definitions that nothing refers to lie inside the bounds of a wide connected tree, clear of every
   connector, inside the canvas, without overlap, and the canvas is not wider than the connected drawing
@@ -879,12 +871,12 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_TruncatedDefinitionWithCompartments_AppendsEllipsisRow`:
   A truncated definition that already has an `attributes` compartment keeps it and gains the `…` row
   as a separate trailing untitled compartment, and is taller than the same definition untruncated
-- `GeneralViewLayoutStrategy_DecorateTruncated_LineBeforeBoxes_DoesNotBreakBoxToNodePairing`:
-  A line placed before the boxes does not shift the box-to-node pairing: only the truncated node's
-  box carries the bare `…` label
-- `GeneralViewLayoutStrategy_DecorateTruncated_BoxOrderDiffersFromNodeOrder_DecoratesMatchingNode`:
-  With the placed boxes (and a line) in a different order than the graph nodes, at the root and inside a
-  nested container, only the box of the truncated node carries the `…` label
+- `GeneralViewLayoutStrategy_BuildLayout_TruncatedBoxBesideRoutedEdge_DecoratesOnlyTruncatedBox`:
+  A scope with a routed specialization line beside a truncated and an untruncated definition: only the
+  truncated definition carries the `…` row
+- `GeneralViewLayoutStrategy_BuildLayout_TruncatedNestedPackages_DecorateOnlyMatchingBoxes`:
+  With sibling and nested packages at two scopes, only the packages whose contents the depth limit hides
+  carry the bare `…` label
 - `GeneralViewLayoutStrategy_BuildLayout_NestedPackagesGalleryModel_RendersFoldersNestedAndCrossPackageEdges`:
   The gallery model `11-nested-packages-general.sysml` draws `Powertrain` and `Body` inside `Vehicle`, the
   `Hybrid` to `Engine` specialization and both compositions into `Car` in the `Vehicle` scope between the

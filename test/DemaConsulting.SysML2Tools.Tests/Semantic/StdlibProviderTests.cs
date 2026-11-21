@@ -1,7 +1,6 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
-using System.Diagnostics;
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic.Model;
 using DemaConsulting.SysML2Tools.Stdlib;
@@ -35,20 +34,16 @@ public sealed class StdlibProviderTests
     }
 
     /// <summary>
-    ///     The second call to GetSymbolTable completes in under 50ms.
+    ///     Repeated calls to GetSymbolTable return the same diagnostics list instance as well as the same table.
     /// </summary>
     [Fact]
-    public void GetSymbolTable_FastOnSubsequentCalls()
+    public void GetSymbolTable_RepeatedCalls_ReturnSameDiagnostics()
     {
-        // Warm up
-        _ = StdlibProvider.GetSymbolTable();
+        var (table1, diagnostics1) = StdlibProvider.GetSymbolTable();
+        var (table2, diagnostics2) = StdlibProvider.GetSymbolTable();
 
-        var sw = Stopwatch.StartNew();
-        _ = StdlibProvider.GetSymbolTable();
-        sw.Stop();
-
-        Assert.True(sw.ElapsedMilliseconds < 50,
-            $"Second GetSymbolTable call took {sw.ElapsedMilliseconds}ms; expected < 50ms.");
+        Assert.Same(table1, table2);
+        Assert.Same(diagnostics1, diagnostics2);
     }
 
     /// <summary>

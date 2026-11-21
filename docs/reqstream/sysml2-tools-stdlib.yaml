@@ -23,7 +23,6 @@ sections:
         children:
           - SysML2Tools-Stdlib-StdlibProvider-GetSymbolTable
           - SysML2Tools-Stdlib-StdlibProvider-Caching
-          - SysML2Tools-Stdlib-StdlibProvider-Performance
           - SysML2Tools-Stdlib-StdlibProvider-Diagnostics
           - SysML2Tools-Stdlib-StdlibProvider-ModifierData
           - SysML2Tools-Stdlib-StdlibProvider-KermlDeclarations

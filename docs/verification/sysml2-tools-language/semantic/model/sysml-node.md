@@ -84,7 +84,6 @@ external services or additional configuration are required beyond a standard .NE
 | Occurrences with positions | `WorkspaceLoader_LoadAsync_TransitionExpressions_CaptureReferenceOccurrences` |
 | `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | View `SourceFilePath`/`SourceLine`/`SourceColumn` | `WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation` |
-| View properties declared on `SysmlViewNode` | `SysmlViewNode_SourceLocationProperties_AreDeclaredOnViewNode` |
 | View source location serialized | `Serialize_ViewNodeSourceLocation_RoundTrips` |
 | Source positions are not serialized | `Serialize_SourcePositions_AreNotPersisted` |
 | `Visibility`, `ShortName`, `SysmlAliasNode` | `WorkspaceLoader_LoadAsync_VisibilityShortNameAndAlias_Captured` |

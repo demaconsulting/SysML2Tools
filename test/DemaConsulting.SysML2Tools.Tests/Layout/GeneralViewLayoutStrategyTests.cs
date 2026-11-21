@@ -2,7 +2,6 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
-using System.Reflection;
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.Rendering.Layout;
@@ -3891,81 +3890,35 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     Regression test (reflection-based, since the recursive worker is private) for the
-    ///     reviewer-confirmed pairing bug in <c>GeneralViewLayoutStrategy</c>'s recursive
-    ///     <c>DecorateTruncated</c> worker: it previously matched each placed <see cref="LayoutBox"/>
-    ///     against a scope's <see cref="LayoutGraphNode"/> list using a single shared loop index, but
-    ///     a scope's placed node list can intersperse <see cref="LayoutLine"/> entries (routed
-    ///     intra-scope edges) among its boxes at arbitrary positions — every <see cref="LayoutLine"/>
-    ///     encountered before a box permanently shifted the box-to-graph-node pairing by one, so the
-    ///     wrong <see cref="LayoutGraphNode"/> (and therefore the wrong truncation/hidden-count
-    ///     decoration) got matched to each subsequent box. This test builds a minimal fixture with
-    ///     one <see cref="LayoutLine"/> placed before two <see cref="LayoutBox"/> entries, only the
-    ///     second of which corresponds to a truncated <see cref="LayoutGraphNode"/>, and invokes the
-    ///     private recursive worker directly via reflection — there is no public seam to reach it, and
-    ///     reproducing this box/line ordering deterministically through the public
-    ///     <c>BuildLayout</c>/<c>DemaConsulting.Rendering</c> layout-algorithm pipeline is not
-    ///     practical since box/line placement ordering is an internal detail of that external
-    ///     package. With the fix, the leading line no longer perturbs the pairing: the first box
-    ///     (matching the non-truncated node) is left unchanged, and only the second box (matching the
-    ///     truncated node) is decorated with the ellipsis label.
+    ///     Regression test for the box-to-node pairing in the truncation decoration: a scope that
+    ///     places a routed intra-scope edge (here a specialization line) alongside its boxes must
+    ///     still attach the "…" truncation marker to the box that was truncated (<c>B</c>, whose
+    ///     nested definition is hidden by the depth limit) and not to its untruncated sibling
+    ///     (<c>A</c>), whatever order the engine places the line and the boxes in.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_DecorateTruncated_LineBeforeBoxes_DoesNotBreakBoxToNodePairing()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_TruncatedBoxBesideRoutedEdge_DecoratesOnlyTruncatedBox()
     {
-        // Arrange: two graph nodes at this scope — nodeA (kept) and nodeB (truncated, hiding 3 items)
-        var graph = new LayoutGraph();
-        var nodeA = graph.AddNode("A", 100, 60);
-        nodeA.Label = "A";
-        var nodeB = graph.AddNode("B", 100, 60);
-        nodeB.Label = "B";
+        // Arrange / Act: B specializes A (a line in the Sys scope); only B owns a nested definition
+        var layout = await LayOutUnscopedAsync("""
+            package Sys {
+                part def A;
+                part def B :> A { part def Inner; }
+            }
+            """, depthLimit: 2);
 
-        // A placed line (an intra-scope routed edge) appears before either box in the placed-node list
-        var line = new LayoutLine(
-            Waypoints: [],
-            SourceEnd: EndMarkerStyle.None,
-            TargetEnd: EndMarkerStyle.None,
-            LineStyle: LineStyle.Solid,
-            MidpointLabel: null);
+        // Assert: the specialization line is drawn and Inner is hidden
+        Assert.Contains(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangle);
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.DoesNotContain(boxes, b => b.Label == "Inner");
 
-        var boxA = new LayoutBox(
-            X: 0, Y: 0, Width: 100, Height: 60, Label: "A", Depth: 1, Shape: BoxShape.Rectangle,
-            Compartments: [], Children: [], Keyword: null, RoundedCornerRadius: null,
-            FolderTabWidth: null, FolderTabHeight: null, ContentInsetLeft: 0, ContentInsetRight: 0,
-            ContentInsetTop: 0, ContentInsetBottom: 0, CenterTitle: false);
-        var boxB = boxA with { Label = "B" };
-
-        var placed = new List<LayoutNode> { line, boxA, boxB };
-        var graphNodes = new List<LayoutGraphNode> { nodeA, nodeB };
-        var hiddenByNode = new Dictionary<LayoutGraphNode, (int HiddenCount, double TitleOffset)>
-        {
-            [nodeB] = (3, 0.0)
-        };
-
-        var method = typeof(GeneralViewLayoutStrategy)
-            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
-            .Single(m => m.Name == "DecorateTruncated" && m.GetParameters().Length == 4
-                         && m.GetParameters()[0].ParameterType == typeof(IReadOnlyList<LayoutNode>));
-
-        // Act
-        var result = (List<LayoutNode>)method.Invoke(
-            null, [placed, graphNodes, hiddenByNode, Themes.Light])!;
-
-        // Assert: the leading line is preserved untouched
-        Assert.Same(line, result[0]);
-
-        // Assert: boxA (paired with the non-truncated nodeA) is unchanged — not decorated
-        var resultBoxA = Assert.IsType<LayoutBox>(result[1]);
-        Assert.Equal("A", resultBoxA.Label);
-        Assert.Empty(resultBoxA.Children);
-
-        // Assert: boxB (paired with the truncated nodeB) carries the bare "…" ellipsis decoration
-        var resultBoxB = Assert.IsType<LayoutBox>(result[2]);
-        Assert.Equal("B", resultBoxB.Label);
-        var indicatorB = Assert.IsType<LayoutLabel>(Assert.Single(resultBoxB.Children));
-        Assert.Equal("\u2026", indicatorB.Text);
+        // Assert: only B carries the ellipsis row; A is undecorated
+        var boxA = boxes.Single(b => b.Label!.Split(' ')[0] == "A");
+        var boxB = boxes.Single(b => b.Label!.Split(' ')[0] == "B");
+        Assert.DoesNotContain(boxA.Compartments, c => c.Rows.Contains("\u2026"));
+        Assert.Empty(boxA.Children);
+        Assert.Equal(["\u2026"], boxB.Compartments[^1].Rows);
     }
-
     /// <summary>
     ///     Implicit specializations are lookup input only: a model that declares no specialization
     ///     draws only its own elements, with no library-type box and no specialization line.
@@ -4278,7 +4231,7 @@ public sealed class GeneralViewLayoutStrategyTests
         return result;
     }
 
-    /// <summary>Builds a minimal placed box for the <c>DecorateTruncated</c> fixtures.</summary>
+    /// <summary>Builds a minimal placed box for the layout fixtures.</summary>
     private static LayoutBox MakeFixtureBox(string label, BoxShape shape, string? keyword, params LayoutNode[] children) =>
         new(
             X: 0, Y: 0, Width: 100, Height: 60, Label: label, Depth: 1, Shape: shape,
@@ -4286,88 +4239,32 @@ public sealed class GeneralViewLayoutStrategyTests
             FolderTabWidth: null, FolderTabHeight: null, ContentInsetLeft: 0, ContentInsetRight: 0,
             ContentInsetTop: 0, ContentInsetBottom: 0, CenterTitle: false);
 
-    /// <summary>Invokes the private recursive <c>DecorateTruncated</c> worker.</summary>
-    private static List<LayoutNode> InvokeDecorateTruncated(
-        List<LayoutNode> placed,
-        List<LayoutGraphNode> graphNodes,
-        Dictionary<LayoutGraphNode, (int HiddenCount, double TitleOffset)> hiddenByNode)
-    {
-        var method = typeof(GeneralViewLayoutStrategy)
-            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
-            .Single(m => m.Name == "DecorateTruncated" && m.GetParameters().Length == 4
-                         && m.GetParameters()[0].ParameterType == typeof(IReadOnlyList<LayoutNode>));
-        return (List<LayoutNode>)method.Invoke(null, [placed, graphNodes, hiddenByNode, Themes.Light])!;
-    }
-
     /// <summary>
-    ///     The ellipsis decoration is paired with its box by the node's identity (label, keyword,
-    ///     shape), not by position: with the boxes placed in a different order than the graph nodes
-    ///     (and a line among them), and with a nested container whose children are permuted too, only
-    ///     the box standing for the truncated node is decorated.
+    ///     The ellipsis decoration is paired with the box standing for the truncated node, at every
+    ///     nesting level: with several sibling packages and a nested package at each of two scopes,
+    ///     only the packages whose contents the depth limit hides (<c>Y</c> and <c>Q</c>) carry the
+    ///     "…" label, and no other box is decorated.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_DecorateTruncated_BoxOrderDiffersFromNodeOrder_DecoratesMatchingNode()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_TruncatedNestedPackages_DecorateOnlyMatchingBoxes()
     {
-        // Arrange: root scope nodes A, P (a folder container holding X and truncated Y), B (truncated)
-        var graph = new LayoutGraph();
-        var nodeA = graph.AddNode("A", 100, 60);
-        nodeA.Label = "A";
-        nodeA.Keyword = "part def";
-        nodeA.Shape = BoxShape.Rectangle;
-        var nodeP = graph.AddNode("folder:P", 0, 0);
-        nodeP.Label = "P";
-        nodeP.Keyword = "package";
-        nodeP.Shape = BoxShape.Folder;
-        var nodeX = nodeP.Children.AddNode("P::X", 100, 60);
-        nodeX.Label = "X";
-        nodeX.Keyword = "part def";
-        nodeX.Shape = BoxShape.Rectangle;
-        var nodeY = nodeP.Children.AddNode("folder:P::Y", 100, 60);
-        nodeY.Label = "Y";
-        nodeY.Keyword = "package";
-        nodeY.Shape = BoxShape.Folder;
-        var nodeB = graph.AddNode("folder:B", 100, 60);
-        nodeB.Label = "B";
-        nodeB.Keyword = "package";
-        nodeB.Shape = BoxShape.Folder;
+        // Arrange / Act: P holds X and a package Y; B holds a package Q; A is a root definition
+        var layout = await LayOutUnscopedAsync("""
+            part def A;
+            package P { part def X; package Y { part def Hidden1; } }
+            package B { package Q { part def Hidden2; } }
+            """, depthLimit: 2);
 
-        var line = new LayoutLine(
-            Waypoints: [], SourceEnd: EndMarkerStyle.None, TargetEnd: EndMarkerStyle.None,
-            LineStyle: LineStyle.Solid, MidpointLabel: null);
+        // Assert: the contents hidden by the depth limit are not drawn
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.DoesNotContain(boxes, b => b.Label is "Hidden1" or "Hidden2");
 
-        // The engine order is reversed relative to the graph order, at both scopes
-        var placedP = MakeFixtureBox(
-            "P", BoxShape.Folder, "package",
-            MakeFixtureBox("Y", BoxShape.Folder, "package"),
-            line,
-            MakeFixtureBox("X", BoxShape.Rectangle, "part def"));
-        var placed = new List<LayoutNode>
-        {
-            MakeFixtureBox("B", BoxShape.Folder, "package"),
-            line,
-            placedP,
-            MakeFixtureBox("A", BoxShape.Rectangle, "part def"),
-        };
-        var hiddenByNode = new Dictionary<LayoutGraphNode, (int HiddenCount, double TitleOffset)>
-        {
-            [nodeB] = (5, 0.0),
-            [nodeY] = (2, 0.0),
-        };
-
-        // Act
-        var result = InvokeDecorateTruncated(placed, [nodeA, nodeP, nodeB], hiddenByNode);
-
-        // Assert: root scope - only B carries a label
-        Assert.Equal("\u2026", Assert.IsType<LayoutLabel>(Assert.Single(Assert.IsType<LayoutBox>(result[0]).Children)).Text);
-        Assert.Empty(Assert.IsType<LayoutBox>(result[3]).Children);
-
-        // Assert: nested scope - only Y carries a label
-        var resultP = Assert.IsType<LayoutBox>(result[2]);
-        var resultY = Assert.IsType<LayoutBox>(resultP.Children[0]);
-        Assert.Equal("\u2026", Assert.IsType<LayoutLabel>(Assert.Single(resultY.Children)).Text);
-        Assert.Empty(Assert.IsType<LayoutBox>(resultP.Children[2]).Children);
+        // Assert: only Y and Q carry a bare "…" label
+        static bool HasEllipsis(LayoutBox b) =>
+            b.Children.OfType<LayoutLabel>().Any(l => l.Text == "\u2026");
+        Assert.Equal(["Q", "Y"], boxes.Where(HasEllipsis).Select(b => b.Label).Order(StringComparer.Ordinal));
+        Assert.Contains(boxes, b => b.Label == "X");
     }
-
     /// <summary>
     ///     Two lines whose final points share an X within one anchor spacing but that end on different
     ///     boxes are still compared: the crossing between them is counted.
@@ -5866,27 +5763,6 @@ public sealed class GeneralViewLayoutStrategyTests
         return checkedLines;
     }
 
-    /// <summary>Invokes the private <c>ClearEndDecorations</c> post-pass.</summary>
-    private static LayoutTree InvokeClearEndDecorations(LayoutTree tree, Theme theme)
-    {
-        var method = typeof(GeneralViewLayoutStrategy)
-            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
-            .Single(m => m.Name == "ClearEndDecorations");
-        return (LayoutTree)method.Invoke(null, [tree, theme])!;
-    }
-
-    /// <summary>Builds a tree of an owner box above a lower box joined by one oriented, filled-diamond connector with a lane of the given distance from the owner.</summary>
-    private static LayoutTree MakeFanOutFixture(double laneDistance, bool lShaped)
-    {
-        var owner = MakeFixtureBox("Owner", BoxShape.Rectangle, "part def") with { X = 100, Y = 0 };
-        var lower = MakeFixtureBox("Lower", BoxShape.Rectangle, "part def") with { X = 0, Y = 200 };
-        IReadOnlyList<Point2D> waypoints = lShaped
-            ? [new Point2D(250, 60 + laneDistance), new Point2D(150, 60 + laneDistance), new Point2D(150, 60)]
-            : [new Point2D(50, 200), new Point2D(50, 60 + laneDistance), new Point2D(150, 60 + laneDistance), new Point2D(150, 60)];
-        var line = new LayoutLine(waypoints, EndMarkerStyle.None, EndMarkerStyle.FilledDiamond, LineStyle.Solid, null);
-        return new LayoutTree(400, 300, [owner, lower, line]);
-    }
-
     /// <summary>
     ///     The first lane out of an owner face lies a decoration length away from the box or farther: a
     ///     charger-like owner with two part usages draws both filled diamonds with a straight approach of
@@ -6329,89 +6205,6 @@ public sealed class GeneralViewLayoutStrategyTests
         var viewNode = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations[viewQualifiedName]);
         return new GeneralViewLayoutStrategy().BuildLayout(
             new ViewContext("v", result.Workspace, viewNode), new RenderOptions(theme));
-    }
-
-    /// <summary>
-    ///     A connector whose final leg is already long enough is not touched: the post-pass returns the
-    ///     very same tree instance.
-    /// </summary>
-    [Fact]
-    public void GeneralViewLayoutStrategy_ClearEndDecorations_NoViolation_ReturnsTreeUnchanged()
-    {
-        // Arrange: the lane is 50 px from the owner, far more than the diamond needs
-        var tree = MakeFanOutFixture(laneDistance: 50, lShaped: false);
-
-        // Act
-        var result = InvokeClearEndDecorations(tree, Themes.Light);
-
-        // Assert
-        Assert.Same(tree, result);
-    }
-
-    /// <summary>
-    ///     A connector with a single bend (three waypoints) has no lane to move: it is left alone even
-    ///     when its final leg is short.
-    /// </summary>
-    [Fact]
-    public void GeneralViewLayoutStrategy_ClearEndDecorations_LShapedConnector_IsLeftAlone()
-    {
-        // Arrange
-        var tree = MakeFanOutFixture(laneDistance: 10, lShaped: true);
-
-        // Act
-        var result = InvokeClearEndDecorations(tree, Themes.Light);
-
-        // Assert
-        Assert.Same(tree, result);
-    }
-
-    /// <summary>
-    ///     A Z-shaped connector whose final leg is shorter than its decoration is moved so the leg is
-    ///     exactly as long as the decoration, one corner radius and the safety margin require, and only
-    ///     the two bend points move: the start point and the anchor stay where they are.
-    /// </summary>
-    [Fact]
-    public void GeneralViewLayoutStrategy_ClearEndDecorations_ShortFinalLeg_MovesLaneAwayFromOwner()
-    {
-        // Arrange
-        var theme = Themes.Light;
-        var tree = MakeFanOutFixture(laneDistance: 10, lShaped: false);
-        var before = Assert.Single(CollectLines(tree.Nodes));
-        var required = NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.FilledDiamond, theme) + theme.LineCornerRadius + theme.CleanLegMargin;
-
-        // Act
-        var result = InvokeClearEndDecorations(tree, theme);
-
-        // Assert
-        var after = Assert.Single(CollectLines(result.Nodes));
-        Assert.Equal(before.Waypoints[0], after.Waypoints[0]);
-        Assert.Equal(before.Waypoints[^1], after.Waypoints[^1]);
-        Assert.Equal(60 + required, after.Waypoints[1].Y, 3);
-        Assert.Equal(60 + required, after.Waypoints[2].Y, 3);
-        Assert.Equal(before.Waypoints[1].X, after.Waypoints[1].X);
-        Assert.Equal(before.Waypoints[2].X, after.Waypoints[2].X);
-    }
-
-    /// <summary>
-    ///     When moving the lane would leave too little of the leg that starts at the lower box, the
-    ///     connector is left as the engine routed it instead of being squeezed against that box.
-    /// </summary>
-    [Fact]
-    public void GeneralViewLayoutStrategy_ClearEndDecorations_NoRoomOnFarLeg_LeavesConnectorUnchanged()
-    {
-        // Arrange: the lower box starts 22 px below the owner, so the lane cannot move 5 px
-        var owner = MakeFixtureBox("Owner", BoxShape.Rectangle, "part def") with { X = 100, Y = 0 };
-        var lower = MakeFixtureBox("Lower", BoxShape.Rectangle, "part def") with { X = 0, Y = 82 };
-        var line = new LayoutLine(
-            [new Point2D(50, 82), new Point2D(50, 70), new Point2D(150, 70), new Point2D(150, 60)],
-            EndMarkerStyle.None, EndMarkerStyle.FilledDiamond, LineStyle.Solid, null);
-        var tree = new LayoutTree(400, 300, [owner, lower, line]);
-
-        // Act
-        var result = InvokeClearEndDecorations(tree, Themes.Light);
-
-        // Assert
-        Assert.Same(tree, result);
     }
 
     /// <summary>

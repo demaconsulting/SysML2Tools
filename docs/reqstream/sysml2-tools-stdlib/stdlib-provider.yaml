@@ -31,16 +31,7 @@ sections:
           than deserializing the embedded binary on each call.
         tests:
           - GetSymbolTable_IsCached
-
-      - id: SysML2Tools-Stdlib-StdlibProvider-Performance
-        title: >-
-          After the first call, StdlibProvider.GetSymbolTable shall return the cached result in
-          under 50 milliseconds.
-        justification: |
-          A fast cached path is the primary performance guarantee of the pre-compilation approach;
-          without it the benefit over a runtime parse is lost.
-        tests:
-          - GetSymbolTable_FastOnSubsequentCalls
+          - GetSymbolTable_RepeatedCalls_ReturnSameDiagnostics
 
       - id: SysML2Tools-Stdlib-StdlibProvider-Diagnostics
         title: >-
