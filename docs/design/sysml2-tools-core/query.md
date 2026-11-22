@@ -67,14 +67,19 @@ flowchart TD
 - *Type*: Static class.
 - *Role*: Provider.
 - *Contract*: `Execute(SysmlWorkspace workspace, QueryOptions options, SysmlNode? element)`
-  dispatches to one of 12 public verb methods. Stateless and thread-safe for concurrent
-  read-only use.
+  dispatches to one of 12 public verb methods and, when `QueryOptions.Element` differs from the
+  element's owning qualified name, records it as `QueryResult.LookupName`.
+  `TryResolveElement(SysmlWorkspace workspace, string name, out SysmlNode? element)` finds the
+  element a name denotes: the owning qualified name first, then SysML v2 name resolution (see
+  Design). Stateless and thread-safe for concurrent read-only use.
 
 **`QueryResult` / `QueryResultEntry` / `QueryEntryDirection`**: Uniform result envelope.
 
 - *Type*: Sealed records plus enum.
 - *Role*: Data container.
-- *Contract*: `Verb`, optional `Element`, free-form `Summary` lines, and deterministic
+- *Contract*: `Verb`, optional `Element` (always the element's owning qualified name), optional
+  `LookupName` (the name the caller used, set only when it differs from `Element`), free-form
+  `Summary` lines, and deterministic
   `Entries`; `Direction` is populated only for `dependencies`, and the `Depth`/`Relation`/
   `ViaQualifiedName` traversal metadata only by the traversing verbs. Every optional member is
   omitted from JSON when null, so adding members never changes an existing verb's payload
@@ -109,7 +114,18 @@ flowchart TD
    tokens separately as the caller-owned `Files` list.
 2. `QueryEngine.Execute` is the public dispatcher. It validates the element-required rule for
    library callers, then routes `QueryOptions.Verb` to the matching verb method so the Tool
-   project and any other caller reuse the exact same switch.
+   project and any other caller reuse the exact same switch. After dispatch it sets
+   `QueryResult.LookupName` to `QueryOptions.Element` when that differs from the result's
+   `Element` (the owning qualified name), so output shows both names.
+   `QueryEngine.TryResolveElement` finds the target element for the CLI and library callers:
+   an exact `workspace.Declarations` match on the owning qualified name is tried first, for
+   speed and backward compatibility; otherwise the name is resolved as a qualified name in the
+   global scope by the `NameResolver` that resolves model references
+   (`FilterExpressionEvaluator.CreateNameResolver`), so no second resolution path exists. That
+   resolver follows a facade package's `public import` (the visible memberships of a namespace
+   include its publicly imported memberships, KerML 1.0 §8.2.3.5.3), including chains of
+   facades, and aliases, and never follows a private import. An ambiguous or unresolved name
+   yields no element, exactly as an unknown name always has.
 3. `Uses` reads outgoing semantic edges from `workspace.Index.GetOutgoingEdges`, filters
    stdlib targets unless `IncludeStdlib` is set, and emits one `QueryResultEntry` per outgoing
    relationship.
@@ -295,7 +311,8 @@ flowchart TD
 ### Design Constraints
 
 - The subsystem depends only on the loaded semantic model (`SysmlWorkspace`, `SemanticIndex`,
-  `SysmlNode`, and resolved `SysmlEdge` data). It does not resolve globs, load files, create a
+  `SysmlNode`, and resolved `SysmlEdge` data) and, for element lookup, the Language library's
+  `NameResolver`. It does not resolve globs, load files, create a
   workspace, or perform console I/O.
 - `QueryOptions` intentionally has no `Files` property. Core callers provide a workspace
   directly, while `QueryArgumentParser` returns trailing positional tokens separately for
@@ -366,6 +383,8 @@ flowchart TD
 | SysML2Tools-Core-Query-EntryMetadataJsonOmission | `JsonIgnore(WhenWritingNull)`; `QueryResultRenderer.RenderJson` |
 | SysML2Tools-Core-Query-EntryRelationSerialization | `JsonStringEnumConverter`; `QueryResultSerializerContext` |
 | SysML2Tools-Core-Query-Describe | `QueryEngine.Describe` |
+| SysML2Tools-Core-Query-ElementLookup | `QueryEngine.TryResolveElement`; `QueryEngine.Execute` |
+| SysML2Tools-Core-Query-LookupName | `QueryResult.LookupName`; `QueryResultRenderer.RenderMarkdown`/`RenderJson` |
 | SysML2Tools-Core-Query-Hierarchy | `QueryEngine.Hierarchy` |
 | SysML2Tools-Core-Query-Requirements | `QueryEngine.Requirements` |
 | SysML2Tools-Core-Query-Interface | `QueryEngine.Interface` |

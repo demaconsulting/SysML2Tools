@@ -156,7 +156,12 @@ public static class FilterExpressionEvaluator
     public static NameResolver CreateNameResolver(SysmlWorkspace workspace)
     {
         ArgumentNullException.ThrowIfNull(workspace);
-        return new NameResolver(workspace.Declarations, CreateImportFilter(workspace.Declarations, workspace.StdlibNames));
+        var resolver = new NameResolver(workspace.Declarations, CreateImportFilter(workspace.Declarations, workspace.StdlibNames));
+
+        // Register what the files wrote at their roots, as model resolution did, so global alias
+        // names and file-root imports resolve here too
+        resolver.RegisterFileRoots(workspace.FileRootScopes);
+        return resolver;
     }
 
     /// <summary>

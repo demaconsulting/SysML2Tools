@@ -378,6 +378,46 @@ sections:
           - Describe_FormatJson_IncludesMetadataInSummaryArray
           - Describe_ChildIncludesNonElementMetadataAnnotation_ChildrenCountMatchesEntryRows
 
+      - id: SysML2Tools-Core-Query-ElementLookup
+        title: >-
+          The Query subsystem shall find the element an element-argument verb names by its owning
+          qualified name first and otherwise by SysML v2 name resolution of the argument as a
+          qualified name in the global scope, so that a name reached through a facade package's
+          `public import` (including a chain of facades), through an alias, or through an alias
+          written at the file root finds the element, a name behind a private import does not,
+          and an unresolved name, or a name that denotes several distinct elements, is not found
+          (an ambiguous name reports its candidates).
+        justification: |
+          The visible memberships of a namespace include its publicly imported memberships (KerML
+          1.0 section 8.2.3.5.3), so `Facade::X` is a valid name for X, and the facade-package
+          convention tells readers to query `{System}::{Item}`. Reusing the NameResolver that
+          resolves model references keeps one resolution path. Trying the owning qualified name
+          first keeps existing lookups fast and unchanged.
+        tests:
+          - QueryEngine_TryResolveElement_FacadePublicImport_ReportsOwningNameAndLookupName
+          - QueryEngine_TryResolveElement_NestedFacadeChain_ResolvesToOwningName
+          - QueryEngine_TryResolveElement_Alias_ResolvesToAliasedElement
+          - QueryEngine_TryResolveElement_RootAlias_ResolvesToAliasedElement
+          - QueryEngine_TryResolveElement_NameFromTwoPublicImports_IsAmbiguous
+          - QueryEngine_TryResolveElement_PrivateImport_DoesNotResolve
+          - QueryEngine_TryResolveElement_UnknownName_IsNotFound
+
+      - id: SysML2Tools-Core-Query-LookupName
+        title: >-
+          A query result for an element found under a name other than its owning qualified name
+          shall report the owning qualified name as `Element` and the name used as `LookupName`,
+          shown as a `Looked up as` bullet in Markdown and a `LookupName` property in JSON, and
+          shall omit `LookupName` entirely when the element was found by its owning qualified
+          name.
+        justification: |
+          A reader needs the element's real identity (its owning qualified name) while still
+          seeing which name the query used. Omitting the value for owning-name lookups keeps the
+          Markdown and JSON output of every pre-existing query unchanged.
+        tests:
+          - QueryEngine_Execute_OwningQualifiedName_HasNoLookupName
+          - QueryResultRenderer_RenderMarkdown_FacadeLookup_ShowsOwningNameAndLookupName
+          - QueryResultRenderer_RenderJson_FacadeLookup_IncludesLookupName
+
       - id: SysML2Tools-Core-Query-Hierarchy
         title: >-
           The Query subsystem shall report a target element's supertype and subtype hierarchy,

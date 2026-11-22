@@ -134,10 +134,14 @@ internal static class QueryCommand
         // Look up the target element for verbs that require one
         SysmlNode? element = null;
         if (QueryVerbParsing.RequiresElement(options.Verb) &&
-            !workspace.Declarations.TryGetValue(options.Element!, out element))
+            !QueryEngine.TryResolveElement(workspace, options.Element!, out element, out var ambiguous))
         {
-            context.WriteError(
-                $"query {verbToken}: element '{options.Element}' not found in the workspace.");
+            // A name that denotes several distinct elements is reported with its candidates;
+            // anything else is the usual not-found error
+            context.WriteError(ambiguous.Count > 1
+                ? $"query {verbToken}: element '{options.Element}' is ambiguous in the workspace; it could be " +
+                  $"{string.Join(", ", ambiguous.Select(candidate => $"'{candidate}'"))}."
+                : $"query {verbToken}: element '{options.Element}' not found in the workspace.");
             return;
         }
 

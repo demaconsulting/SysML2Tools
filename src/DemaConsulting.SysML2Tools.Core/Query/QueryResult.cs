@@ -31,6 +31,18 @@ public sealed record QueryResult
     public string? Element { get; init; }
 
     /// <summary>
+    ///     Gets the name the caller used to look <see cref="Element"/> up, when that differs from
+    ///     <see cref="Element"/> (the element's owning qualified name) — for example a name that
+    ///     resolves through a facade package's <c>public import</c> or through an alias. It is
+    ///     <see langword="null"/> when the element was found under its owning qualified name, and
+    ///     for the workspace-wide <c>list</c>/<c>find</c> verbs. Omitted from JSON output
+    ///     entirely when <see langword="null"/>, so results for owning-name lookups keep their
+    ///     existing JSON shape.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LookupName { get; init; }
+
+    /// <summary>
     ///     Gets free-form narrative summary lines (e.g. counts, kind/supertype/annotation text
     ///     for <c>describe</c>). Rendered as a bullet list preceding the entries table.
     /// </summary>

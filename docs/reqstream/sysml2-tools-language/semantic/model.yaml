@@ -118,6 +118,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-OwningNamespaceFirst
           - SysML2Tools-Language-Semantic-Model-NameResolver-FullResolution
           - SysML2Tools-Language-Semantic-Model-NameResolver-LocalResolution
+          - SysML2Tools-Language-Semantic-Model-NameResolver-Candidates
           - SysML2Tools-Language-Semantic-Model-NameResolver-VisibleResolution
           - SysML2Tools-Language-Semantic-Model-NameResolver-RedefinedFeature
           - SysML2Tools-Language-Semantic-Model-NameResolver-ImplicitSpecialization

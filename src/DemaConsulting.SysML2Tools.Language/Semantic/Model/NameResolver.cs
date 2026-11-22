@@ -41,7 +41,7 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 ///     any package) apply to the declarations of that file, as KerML scopes them.
 ///     </para>
 /// </remarks>
-public sealed class NameResolver
+public sealed partial class NameResolver
 {
     /// <summary>
     ///     The outcome of resolving a (possibly dotted) feature-chain reference.
@@ -305,6 +305,21 @@ public sealed class NameResolver
         foreach (var alias in aliases)
         {
             _rootAliases.Add((alias, rootImports));
+        }
+    }
+
+    /// <summary>
+    ///     Registers what each source file writes at its root — its aliases as memberships of the
+    ///     global namespace and its imports against the file's declarations — exactly as model
+    ///     resolution does, so every resolver over the same workspace is set up identically.
+    /// </summary>
+    /// <param name="scopes">The per-file root scopes.</param>
+    internal void RegisterFileRoots(IEnumerable<FileRootScope> scopes)
+    {
+        foreach (var scope in scopes)
+        {
+            RegisterRootAliases(scope.Aliases, scope.Imports);
+            RegisterRootImports(scope.DeclarationNames, scope.Imports);
         }
     }
 
@@ -1090,35 +1105,14 @@ public sealed class NameResolver
     /// <summary>Owned, then imported, then inherited memberships, as <see cref="Lookup"/> describes.</summary>
     private string? LookupUncached(string name, string namespaceName, Scope scope)
     {
-        // An element whose qualified name is "<namespace>::<name>" is owned by that namespace by
-        // construction, even when the namespace node itself is absent or does not list it.
-        if (_declarations.TryGetValue(namespaceName + "::" + name, out var direct) &&
-            direct is not (SysmlImportNode or SysmlAliasNode) && Admits(direct.Visibility, scope))
+        if (LookupOwned(name, namespaceName, scope) is { } owned)
         {
-            return namespaceName + "::" + name;
+            return owned;
         }
 
         if (!_declarations.TryGetValue(namespaceName, out var ns))
         {
             return null;
-        }
-
-        // Owned memberships (including aliases).
-        foreach (var child in ns.Children)
-        {
-            if (child is SysmlImportNode || !Admits(child.Visibility, scope) ||
-                (!NamesEqual(child.Name, name) && !NamesEqual(child.ShortName, name)))
-            {
-                continue;
-            }
-
-            var target = child is SysmlAliasNode alias
-                ? Resolve(alias.TargetName, namespaceName)
-                : child.QualifiedName;
-            if (target is not null)
-            {
-                return target;
-            }
         }
 
         // Imported memberships.
@@ -1136,12 +1130,7 @@ public sealed class NameResolver
         // features the type's own features redefine (KerML Type::removeRedefinedFeatures). The
         // targets of a redefinition are resolved without that exclusion: a library association
         // routinely redefines a name its general type's own feature already redefined.
-        var inheritedScope = scope switch
-        {
-            Scope.Visible => Scope.Visible,
-            Scope.RedefinitionTarget => Scope.RedefinitionTarget,
-            _ => Scope.Inheritable,
-        };
+        var inheritedScope = InheritedScopeOf(scope);
         foreach (var general in LookupGeneralTypes(namespaceName))
         {
             if (Lookup(name, general, inheritedScope) is { } inherited &&
@@ -1154,6 +1143,80 @@ public sealed class NameResolver
         return null;
     }
 
+    /// <summary>
+    ///     One membership a namespace owns that matches a looked-up name: a declared element
+    ///     (<see cref="QualifiedName"/>, which may be null for an unnamed-in-the-table node) or an
+    ///     alias (<see cref="Alias"/>, whose target the caller resolves).
+    /// </summary>
+    private readonly record struct OwnedMembership(string? QualifiedName, SysmlAliasNode? Alias);
+
+    /// <summary>
+    ///     Enumerates, in lookup order, the memberships <paramref name="namespaceName"/> owns
+    ///     (including aliases) that match <paramref name="name"/> and that <paramref name="scope"/>
+    ///     admits. Lazy, so <see cref="LookupOwned"/> stops at the first usable one while candidate
+    ///     enumeration (<see cref="OwnedCandidates"/>) takes them all.
+    /// </summary>
+    private IEnumerable<OwnedMembership> EnumerateOwned(string name, string namespaceName, Scope scope)
+    {
+        // An element whose qualified name is "<namespace>::<name>" is owned by that namespace by
+        // construction, even when the namespace node itself is absent or does not list it.
+        if (_declarations.TryGetValue(namespaceName + "::" + name, out var direct) &&
+            direct is not (SysmlImportNode or SysmlAliasNode) && Admits(direct.Visibility, scope))
+        {
+            yield return new OwnedMembership(namespaceName + "::" + name, null);
+        }
+
+        if (!_declarations.TryGetValue(namespaceName, out var ns))
+        {
+            yield break;
+        }
+
+        // Owned memberships (including aliases).
+        foreach (var child in ns.Children)
+        {
+            if (child is SysmlImportNode || !Admits(child.Visibility, scope) ||
+                (!NamesEqual(child.Name, name) && !NamesEqual(child.ShortName, name)))
+            {
+                continue;
+            }
+
+            yield return child is SysmlAliasNode alias
+                ? new OwnedMembership(null, alias)
+                : new OwnedMembership(child.QualifiedName, null);
+        }
+    }
+
+    /// <summary>
+    ///     Finds <paramref name="name"/> among the memberships <paramref name="namespaceName"/> owns
+    ///     (including aliases) that <paramref name="scope"/> admits, returning the member element's
+    ///     qualified name, or null when it owns no such membership.
+    /// </summary>
+    private string? LookupOwned(string name, string namespaceName, Scope scope)
+    {
+        foreach (var membership in EnumerateOwned(name, namespaceName, scope))
+        {
+            var target = membership.Alias is { } alias
+                ? Resolve(alias.TargetName, namespaceName)
+                : membership.QualifiedName;
+            if (target is not null)
+            {
+                return target;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Maps the scope a lookup runs in to the scope its general types are searched in (the
+    ///     memberships a specialization inherits).
+    /// </summary>
+    private static Scope InheritedScopeOf(Scope scope) => scope switch
+    {
+        Scope.Visible => Scope.Visible,
+        Scope.RedefinitionTarget => Scope.RedefinitionTarget,
+        _ => Scope.Inheritable,
+    };
     /// <summary>
     ///     Returns whether a feature owned by <paramref name="ns"/> redefines the inherited member
     ///     <paramref name="member"/>, which therefore is not among <paramref name="ns"/>'s inherited

@@ -181,6 +181,36 @@ instance serves one workspace.
   resolved as above, and each later part by `Lookup(segment, current, Visible)` (the cache and
   the in-progress guard apply to every chain step). An internal overload additionally accepts the
   file-root imports for a reference whose local namespace is the file root itself.
+- `ResolveCandidates(reference)` (in `NameResolver.Candidates.cs`, the same partial class):
+  resolves a qualified name in the global namespace like `Resolve` but returns every distinct
+  element it can denote (none, one, or several) instead of the first. It mirrors the model's
+  resolution step for step and keeps every alternative, so no first-match shortcut remains:
+  - *First segment* (`FullCandidates`): the namespace, each owning namespace outward, the file's
+    root imports, then the global namespace (`GlobalCandidates`: a top-level declaration written
+    with or without quotes, every root alias by name, every top-level declaration by short name,
+    and every root alias by short name; an alias already being followed contributes nothing);
+    `$::` starts at the global namespace. The first layer with any candidate wins, as in the model.
+  - *Later segments*: every candidate of the visible memberships (`VisibleCandidates`) of each
+    element the previous segment may denote.
+  - *Memberships* (`VisibleCandidates`): the owned ones (`EnumerateOwned`, the same lazy
+    enumeration `LookupOwned` takes the first of; an alias contributes every candidate of its
+    target), else the ones the admitted imports bring in (`ImportedCandidates`), else the ones
+    inherited from every general type (minus redefined features). Owned before imported before
+    inherited is the model's precedence; ambiguity is reported within a layer.
+  - *Imports* (`ImportedCandidates`): the import's own target is resolved with candidates too;
+    a membership import contributes the named membership, a plain namespace import every
+    candidate of the target's visible memberships, and a recursive import every match at every
+    depth (`RecursiveCandidates`, not just the least-nested one); a filtered import's conditions
+    are applied to each candidate.
+  A lookup already in progress (`_candidatesInProgress`) contributes nothing, so circular imports,
+  aliases, and specializations terminate. It exists so a caller (the Query element lookup) can
+  reject an ambiguous name; `Resolve` and model resolution keep taking the first match. A dotted
+  feature chain falls back to `Resolve`.
+- `RegisterFileRoots(scopes)` (internal): registers each file's `FileRootScope` (root aliases and
+  root imports with the declarations they apply to) through `RegisterRootAliases` and
+  `RegisterRootImports`. `ReferenceResolver` and `FilterExpressionEvaluator.CreateNameResolver` both
+  use it (the loader keeps the scopes on `SysmlWorkspace`), so a resolver over a loaded workspace
+  is set up exactly like the one that resolved the model.
 - `ResolveFeatureChain(reference, localNamespace, fileRootImports)` (internal): `Resolve` that
   also returns the instance path of a chain (`FeatureChainResolution(Element, InstancePath)`).
   `ReferenceResolver` records relationship ends (connect, bind, transition, allocate, satisfy,
@@ -280,7 +310,9 @@ does not depend on which reference is resolved first. Null arguments throw
   an internal resolving-mode instance (import filter from
   `FilterExpressionEvaluator.CreateImportFilter`, file-root imports registered per file).
 - `FilterExpressionEvaluator.CreateNameResolver` (Language Filtering) constructs a public-mode one
-  with a filtered-import predicate.
+  with a filtered-import predicate and the workspace's file-root scopes registered.
+- `QueryEngine.TryResolveElement` (Core Query) uses `ResolveCandidates` to look up an element
+  argument and to reject an ambiguous name.
 - `GeneralViewLayoutStrategy`, `InterconnectionViewLayoutStrategy`, and `GridViewLayoutStrategy`
   (Core Layout) use it, as the last resolution step, to resolve the raw type, supertype,
   redefinition, and subsetting references the semantic pass left unresolved or could not be paired

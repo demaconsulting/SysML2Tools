@@ -160,6 +160,7 @@ public static class WorkspaceLoader
             Declarations = symbolTable.Symbols,
             StdlibNames = stdlibNames,
             Index = index,
+            FileRootScopes = resolver.FileRootScopes,
         };
 
         return new SysmlLoadResult(workspace, allDiagnostics);

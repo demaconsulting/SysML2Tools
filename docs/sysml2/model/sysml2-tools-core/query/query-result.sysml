@@ -15,6 +15,7 @@ package SysML2ToolsCore_QueryResult {
 
         attribute verb : String;
         attribute element : String [0..1];
+        attribute lookupName : String [0..1];
         attribute summary : String [0..*];
         attribute entries : QueryResultEntry [0..*];
     }
