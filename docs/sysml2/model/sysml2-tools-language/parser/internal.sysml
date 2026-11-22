@@ -1,5 +1,5 @@
 package SysML2ToolsLanguage_ParserInternalSubsystem {
-    private import SysML2ToolsLanguage_SysmlDiagnosticListener::*;
+    public import SysML2ToolsLanguage_SysmlDiagnosticListener::*;
     private import SoftwareItemMetadata::*;
 
     part def ParserInternalSubsystem {

@@ -1,8 +1,8 @@
 package SysML2ToolsLanguage_SemanticSubsystem {
-    private import SysML2ToolsLanguage_AstDeserializer::*;
-    private import SysML2ToolsLanguage_AstSerializer::*;
-    private import SysML2ToolsLanguage_ModelSubsystem::*;
-    private import SysML2ToolsLanguage_WorkspaceLoader::*;
+    public import SysML2ToolsLanguage_AstDeserializer::*;
+    public import SysML2ToolsLanguage_AstSerializer::*;
+    public import SysML2ToolsLanguage_ModelSubsystem::*;
+    public import SysML2ToolsLanguage_WorkspaceLoader::*;
     private import SoftwareItemMetadata::*;
 
     part def SemanticSubsystem {

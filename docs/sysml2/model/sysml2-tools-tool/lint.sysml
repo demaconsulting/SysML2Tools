@@ -1,5 +1,5 @@
 package SysML2ToolsTool_LintSubsystem {
-    private import SysML2ToolsTool_LintCommand::*;
+    public import SysML2ToolsTool_LintCommand::*;
     private import SoftwareItemMetadata::*;
 
     part def LintSubsystem {

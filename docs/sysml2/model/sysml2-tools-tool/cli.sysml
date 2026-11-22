@@ -1,5 +1,5 @@
 package SysML2ToolsTool_CliSubsystem {
-    private import SysML2ToolsTool_Context::*;
+    public import SysML2ToolsTool_Context::*;
     private import SoftwareItemMetadata::*;
 
     part def CliSubsystem {

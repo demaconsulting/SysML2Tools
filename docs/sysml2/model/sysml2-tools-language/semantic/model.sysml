@@ -1,16 +1,16 @@
 package SysML2ToolsLanguage_ModelSubsystem {
-    private import SysML2ToolsLanguage_AstBuilder::*;
-    private import SysML2ToolsLanguage_AstSerializerContext::*;
-    private import SysML2ToolsLanguage_NameResolver::*;
-    private import SysML2ToolsLanguage_ReferenceResolver::*;
-    private import SysML2ToolsLanguage_SemanticIndex::*;
-    private import SysML2ToolsLanguage_SerializedStdlib::*;
-    private import SysML2ToolsLanguage_SupertypeWalker::*;
-    private import SysML2ToolsLanguage_SymbolTable::*;
-    private import SysML2ToolsLanguage_SysmlAnnotation::*;
-    private import SysML2ToolsLanguage_SysmlEdge::*;
-    private import SysML2ToolsLanguage_SysmlMetadataNode::*;
-    private import SysML2ToolsLanguage_SysmlNode::*;
+    public import SysML2ToolsLanguage_AstBuilder::*;
+    public import SysML2ToolsLanguage_AstSerializerContext::*;
+    public import SysML2ToolsLanguage_NameResolver::*;
+    public import SysML2ToolsLanguage_ReferenceResolver::*;
+    public import SysML2ToolsLanguage_SemanticIndex::*;
+    public import SysML2ToolsLanguage_SerializedStdlib::*;
+    public import SysML2ToolsLanguage_SupertypeWalker::*;
+    public import SysML2ToolsLanguage_SymbolTable::*;
+    public import SysML2ToolsLanguage_SysmlAnnotation::*;
+    public import SysML2ToolsLanguage_SysmlEdge::*;
+    public import SysML2ToolsLanguage_SysmlMetadataNode::*;
+    public import SysML2ToolsLanguage_SysmlNode::*;
     private import SoftwareItemMetadata::*;
 
     part def ModelSubsystem {

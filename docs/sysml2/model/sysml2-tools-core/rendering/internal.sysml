@@ -1,6 +1,6 @@
 package SysML2ToolsCore_RenderingInternalSubsystem {
-    private import SysML2ToolsCore_DiagramTypeRouter::*;
-    private import SysML2ToolsCore_DynamicViewSynthesizer::*;
+    public import SysML2ToolsCore_DiagramTypeRouter::*;
+    public import SysML2ToolsCore_DynamicViewSynthesizer::*;
     private import SoftwareItemMetadata::*;
 
     part def RenderingInternalSubsystem {
