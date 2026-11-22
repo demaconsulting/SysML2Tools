@@ -4,15 +4,13 @@
 
 ##### Overview
 
-`ReferenceResolver` performs four analyses over the loaded files:
+`ReferenceResolver` performs three analyses over the loaded files:
 
-1. **Import graph cycle detection** — builds a directed graph of import relationships between
-   files and uses depth-first search to detect cycles.
-2. **Metadata-type resolution (pass 0)** — resolves each `SysmlMetadataNode.TypeReference` into a
+1. **Metadata-type resolution (pass 0)** — resolves each `SysmlMetadataNode.TypeReference` into a
    `MetadataType` edge first, with an import-filter-less `NameResolver`, so that a filtered import
    (`import P::*[@X];`) evaluated in pass 1 can read the resolved metadata type of any candidate,
    wherever the candidate is declared (see "Filtered Imports" below).
-3. **Reference resolution (pass 1)** — checks each `SupertypeName`, `SysmlFeatureNode.FeatureTyping`,
+2. **Reference resolution (pass 1)** — checks each `SupertypeName`, `SysmlFeatureNode.FeatureTyping`,
    `SysmlFeatureNode.RedefinedFeatureName`, `ImportedName`, `VerifiedRequirementNames` entry,
    `SysmlSatisfyNode` subject/requirement, `SysmlConnectionNode`
    (`ConnectionKeyword == "allocation"`) endpoint, `SysmlDependencyNode` from/to name lists, and
@@ -23,27 +21,25 @@
    `ReferenceOccurrences` (see "Expression References" below), reporting without recording an edge;
    a view's `render` target that names a SysML2Tools extension selector gets a portability Warning
    instead (see "Tool Render Selectors (Portability Warning)" below).
-4. **Feature-chain edge resolution (pass 2)** — after pass 1, resolves the ends of
+3. **Feature-chain edge resolution (pass 2)** — after pass 1, resolves the ends of
    `SysmlConnectionNode` (`ConnectionKeyword == "connection"`, `"message"`, or `"binding"`) and
    `SysmlTransitionNode` `Source`/`Target` into `Connect`/`Binding`/`Transition`-kind edges.
    Dotted feature chains themselves (`engine.fuelPort`) are resolved by `NameResolver` for every
    reference kind (pass 0, pass 1 and pass 2 alike); pass 2 is a separate traversal only to keep
    edge order.
 
-##### Import Graph
+##### Circular Imports
 
-`BuildImportGraph` iterates all file roots, collecting `SysmlImportNode.ImportedNamespace`
-values into a `HashSet<string>` per file. The result is a `Dictionary<string, HashSet<string>>`
-from file path to imported names.
-
-`DetectCircularImports` runs a DFS over the import graph keys. A cycle is detected when a
-node in the current DFS stack is encountered again. This diagnostic is always a Warning,
-whatever the unresolved-reference severity. The Warning message names the namespace
-that imports and the imported namespace that completes the cycle. `BuildImportGraph` also records,
-for each `(importing namespace, imported namespace)` pair, the file and source position of the
-first import statement that writes it (the `ReferencePositions` entry of the import node, else
-its declaration position), so the Warning is located at that import statement and names the file
-that contains it.
+Imports and specializations may be circular (KerML 1.0 8.2.3.5.1: "Circularity is allowed for
+Imports and Specializations"; the `excluded` parameter of `Namespace::visibleMemberships`,
+8.3.2.4.2 and 8.3.2.4.5, exists to handle it). `ReferenceResolver` therefore performs no import-cycle
+detection and reports no diagnostic for a cycle of imports, however many packages it spans
+(including two packages that `public import` each other, and the Parts and Items cycles of the
+standard library itself). `NameResolver` is what makes resolution over a cycle correct and finite:
+a lookup already in progress contributes nothing instead of recursing (the specification's
+`excluded` set), and a miss that was cut short that way is not remembered as final for the
+namespaces it passed through (see the `NameResolver` design, "Error Handling"), so a name reachable
+only through a cycle resolves whichever reference is resolved first.
 
 ##### Unresolved-Reference Positions
 
@@ -491,8 +487,8 @@ severity is decided by *which resolver invocation produced the diagnostic*, not 
   pre-resolved seed symbol table that is never re-resolved at load time, so a user load produces no
   standard-library-origin diagnostics and the model, serialization, and `SysmlDiagnostic` carry no
   origin marker.
-- **Unaffected diagnostics.** The circular-import Warning of this unit and the cyclic-specialization
-  Warning of `SupertypeWalker` do not use the severity parameter and are always Warnings.
+- **Unaffected diagnostics.** The cyclic-specialization Warning of `SupertypeWalker` does not use the
+  severity parameter and is always a Warning.
   The portability Warning below is likewise always a Warning.
 
 **Unresolved-reference severity policy.** The default is Warning, not Error, because the OMG
@@ -579,7 +575,7 @@ are followed, not supertype-only, because `1c-PartsTreeRedefinition.sysml`'s nes
 
 Issues are reported as `SysmlDiagnostic` entries added to the shared `_diagnostics` list:
 unresolved references at the configured `unresolvedSeverity` (Warning by default for user files),
-and circular imports and the tool-selector portability notice always as `Warning`. No exceptions
+and the tool-selector portability notice always as `Warning`. Circular imports are not diagnosed. No exceptions
 are thrown; the resolver completes even when cycles or unresolved names are present.
 
 ##### Dependencies
@@ -607,7 +603,7 @@ are thrown; the resolver completes even when cycles or unresolved names are pres
 - `SysmlEdge`, `SemanticIndex` — resolved references are recorded as `SysmlEdge` instances and
   aggregated into the returned `SemanticIndex`.
 - `SysmlDiagnostic`, `DiagnosticSeverity` — used to construct and emit diagnostics at the configured
-  severity (and the always-Warning import-cycle and portability diagnostics).
+  severity (and the always-Warning portability diagnostic).
 
 ##### Callers
 

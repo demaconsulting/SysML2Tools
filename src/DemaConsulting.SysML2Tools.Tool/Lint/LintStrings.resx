@@ -68,7 +68,7 @@
     <value>references, and reports diagnostics. Syntax errors are errors (the command then exits</value>
   </data>
   <data name="Lint_Description3" xml:space="preserve">
-    <value>with a non-zero code); unresolved references, circular imports and tool-specific render</value>
+    <value>with a non-zero code); unresolved references and tool-specific render</value>
   </data>
   <data name="Lint_Description4" xml:space="preserve">
     <value>selectors are warnings. The global options (see 'sysml2tools --help') also apply.</value>

@@ -187,8 +187,8 @@ statement is not honored when resolving imports.
 
 - **Errors** — syntax errors. The tool exits with code 1 when there is at least one. With
   `--strict-unresolved`, every `Unresolved reference` described above is an error too.
-- **Warnings** — the model parses but is incomplete, not portable, or inconsistent: circular imports,
-  cyclic specialization, a root-level name declared more than once (see
+- **Warnings** — the model parses but is incomplete, not portable, or inconsistent: cyclic
+  specialization, a root-level name declared more than once (see
   [Duplicate Declarations](#duplicate-declarations)), SysML2Tools-specific `render` selectors (see
   [Choosing the Diagram Type](#choosing-the-diagram-type)), and, by default, every
   `Unresolved reference` described above. Warnings do not change the exit code.
@@ -197,7 +197,8 @@ statement is not honored when resolving imports.
 | --- | --- | --- |
 | Syntax error; a file that cannot be read | error | 1 |
 | Unresolved reference in a model file (any kind) | warning; error if strict | 0; 1 if strict |
-| Circular import; cyclic specialization | warning | 0 |
+| Cyclic specialization | warning | 0 |
+| Circular import (legal in SysML v2) | not reported | 0 |
 | Root-level name declared more than once (the later declaration is ignored) | warning, also if strict | 0 |
 | SysML2Tools-specific `render` selector (portability) | warning | 0 |
 | Any diagnostic from the embedded standard library | never reported by `lint` | — |

@@ -86,8 +86,8 @@ optionally seeded with a pre-populated symbol table.
    and import reference by KerML 8.2.3.5 name resolution (`NameResolver`: member visibility,
    filtered imports, import scoping), and emits a diagnostic for each unresolved
    reference — a Warning by default, an Error when `strictUnresolved` is set (a view `render` target
-   naming a SysML2Tools extension selector gets a portability Warning instead). It also builds an
-   import graph and performs cycle detection (Warning), and returns a
+   naming a SysML2Tools extension selector gets a portability Warning instead). Circular
+   imports are legal and produce no diagnostic. It returns a
    `SemanticIndex` over all resolved edges.
 4. `SupertypeWalker.WalkAll` traverses specialization chains for all symbols and emits Warning
    diagnostics for cyclic specialization.

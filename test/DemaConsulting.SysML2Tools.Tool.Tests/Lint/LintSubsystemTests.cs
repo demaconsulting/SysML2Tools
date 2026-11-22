@@ -249,19 +249,20 @@ public class LintSubsystemTests
     }
 
     /// <summary>
-    ///     <c>--strict-unresolved</c> promotes only unresolved references: a circular import stays a
-    ///     warning, so a model with only that diagnostic still exits 0.
+    ///     Packages that import each other are legal: lint reports no diagnostic, even with
+    ///     <c>--strict-unresolved</c>, and exits 0.
     /// </summary>
     [Fact]
-    public async Task LintSubsystem_StrictUnresolved_CircularImport_RemainsWarning()
+    public async Task LintSubsystem_StrictUnresolved_CircularImport_NoDiagnostics()
     {
         // Arrange / Act
         var (output, error, exitCode) = await RunLintAsync(
             "package A { import B::*; }\npackage B { import A::*; }\n", "--strict-unresolved");
 
         // Assert
-        Assert.Contains("warning: Circular import detected", output);
-        Assert.DoesNotContain("error", error);
+        Assert.DoesNotContain("Circular", output + error);
+        Assert.DoesNotMatch(@"\(\d+,\d+\): (error|warning)", output + error);
+        Assert.Contains("no errors found", output);
         Assert.Equal(0, exitCode);
     }
 

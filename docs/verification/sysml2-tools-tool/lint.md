@@ -31,9 +31,8 @@ temporary directory and clean them up after each test.
 - An unresolved reference in a user file is a Warning-severity diagnostic by default: it is
   written via `context.WriteLine` and `lint` exits 0 when nothing else is wrong; with
   `--strict-unresolved` the same diagnostic is an Error, written via `context.WriteError`, and
-  `lint` exits 1. Strict mode promotes only unresolved references: other warnings such as a
-  circular import stay warnings, and a reference into the standard library produces no
-  diagnostic.
+  `lint` exits 1. Strict mode promotes only unresolved references: a circular import is legal and
+  produces no diagnostic, and a reference into the standard library produces no diagnostic.
 - A SysML2Tools extension `render` selector the model does not declare (`asGridDiagram`,
   `asGeneralDiagram`, …) produces one portability Warning at the token, never an Error and
   independent of `--strict-unresolved`; the standard selectors (`Views::asTreeDiagram`,
@@ -87,10 +86,11 @@ Verifies that `lint --strict-unresolved` writes the same diagnostic as `error:` 
 position to the error stream, writes `lint: 1 error(s) found.`, writes no warning to the
 output, and exits 1. Satisfies `SysML2Tools-Tool-Lint-StrictUnresolved`.
 
-#### LintSubsystem_StrictUnresolved_CircularImport_RemainsWarning (LintSubsystemTests.cs)
+#### LintSubsystem_StrictUnresolved_CircularImport_NoDiagnostics (LintSubsystemTests.cs)
 
-Verifies that under `--strict-unresolved` a circular import is still reported as a `warning:`
-and the exit code stays 0, so only unresolved references are promoted. Satisfies
+Verifies that under `--strict-unresolved` two packages that import each other produce no
+diagnostic (no `warning:`, no `error:`), `lint` reports "no errors found", and the exit code is
+0. Satisfies
 `SysML2Tools-Tool-Lint-StrictUnresolved`.
 
 #### LintSubsystem_StrictUnresolved_StandardLibraryReference_NoDiagnostics (LintSubsystemTests.cs)

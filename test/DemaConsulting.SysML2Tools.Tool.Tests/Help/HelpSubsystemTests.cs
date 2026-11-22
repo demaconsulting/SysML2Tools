@@ -312,7 +312,7 @@ public class HelpSubsystemTests
         var (output, _) = await RunAsync("help", "lint");
 
         Assert.Contains("Usage: sysml2tools lint [--strict-unresolved] <files...>", output);
-        Assert.Contains("unresolved references, circular imports and tool-specific render", output);
+        Assert.Contains("unresolved references and tool-specific render", output);
         Assert.Contains("are warnings", output);
         Assert.Contains("non-zero", output);
         Assert.Contains("Report unresolved references as errors instead of warnings", output);

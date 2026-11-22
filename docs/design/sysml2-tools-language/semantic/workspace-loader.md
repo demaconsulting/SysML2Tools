@@ -81,7 +81,7 @@ are caught and converted to a single Error diagnostic.
   not cause `HasErrors` to be set on the returned `SysmlLoadResult`; with `strictUnresolved: true`
   they are `Error` severity and do. The standard library is a pre-resolved seed that is never
   re-resolved here, so it contributes no unresolved-reference diagnostics.
-- Circular-import (`ReferenceResolver`), cyclic-specialization (`SupertypeWalker`),
+- Cyclic-specialization (`SupertypeWalker`),
   tool-render-selector portability, and duplicate-root-declaration diagnostics are always
   `Warning` severity and never set `HasErrors`, independent of `strictUnresolved`. The duplicate
   warning is not an unresolved reference, so strict mode does not promote it; references from other
@@ -117,8 +117,8 @@ opt-out (for example, a flag that downgrades unresolved references to warnings).
   each declaration's name token that the duplicate-declaration warning points at.
 - **SymbolTable** (`RegisterAll`, `Symbols`) — stores and exposes all named declarations.
 - **ReferenceResolver** (`ResolveAll`) — resolves supertype, typing, and import references (and the
-  other reference kinds) by KerML name resolution, and checks
-  import cycles; returns a `SemanticIndex` over all resolved edges.
+  other reference kinds) by KerML name resolution (circular imports are legal and are not
+  reported); returns a `SemanticIndex` over all resolved edges.
 - **SupertypeWalker** (`WalkAll`) — detects cyclic specialization chains.
 
 #### Callers

@@ -36,8 +36,8 @@ and exports are unaffected by them.
 - *Contract*: Traverses the AST depth-first and inserts each non-null `QualifiedName` into
   the symbol dictionary. Duplicate names are silently ignored.
 
-**`ReferenceResolver.ResolveAll(IEnumerable<(string, SysmlNode?)>)`**: Runs import-cycle detection
-and supertype/typing/metadata-type/import reference resolution over all loaded file roots.
+**`ReferenceResolver.ResolveAll(IEnumerable<(string, SysmlNode?)>)`**: Runs
+supertype/typing/metadata-type/import reference resolution over all loaded file roots.
 
 - *Type*: In-process .NET internal method.
 - *Role*: Provider.
@@ -46,8 +46,8 @@ and supertype/typing/metadata-type/import reference resolution over all loaded f
   emits diagnostics for
   unresolved supertype, typing, metadata-type, and import references (and the other reference kinds)
   — Warning severity by default, Error when the resolver is constructed with an Error severity for
-  strict user-file reporting (the standard library always uses Warning) — and Warnings for circular import
-  chains; attaches resolved `SysmlEdge` entries to each node's `ResolvedEdges`; returns a
+  strict user-file reporting (the standard library always uses Warning). Circular imports are
+  legal and produce no diagnostic; attaches resolved `SysmlEdge` entries to each node's `ResolvedEdges`; returns a
   `SemanticIndex` over all resolved edges.
 
 **`NameResolver.Resolve(string, string?)`**: Resolves qualified-name text per KerML 8.2.3.5.

@@ -35,7 +35,8 @@ SDK installation.
   (`import P::*[@X];`) admits only the elements its filter accepts, and an import applies only
   to the namespace that declares it (and the namespaces nested in it) — a rejected reference
   produces an `Unresolved reference` diagnostic (`Warning` by default) and no edge.
-- Circular imports between two files produce at least one `Warning`-severity diagnostic.
+- Circular imports between two files, and among three packages, produce no diagnostic, and names resolve
+  through them in both directions.
 - Resolved supertype, feature-typing, redefinition, and import references are recorded as
   `SysmlEdge` entries queryable via `SysmlWorkspace.Index.GetOutgoingEdges`/`GetIncomingEdges`
   in both directions. A bare-name `redefines`/`:>>` target inherited from an ancestor resolves
@@ -69,13 +70,13 @@ Primary acceptance evidence is provided by:
 - `WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered` — loads stdlib seed, asserts
   `HasErrors` is false and `Declarations` is non-empty.
 - `WorkspaceLoader_LoadAsync_ParseError_ReturnsError` — malformed SysML produces Error diagnostic.
-- `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` — two files with
-  circular imports; asserts cycle detection terminates and emits Warning.
+- `WorkspaceLoader_LoadAsync_CircularImport_ProducesNoDiagnosticsAndTerminates` — two files with
+  circular imports; asserts the load terminates with no diagnostic.
 - `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` /
   `WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors` /
-  `WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings` — an unresolved
-  reference is a Warning by default and an Error with `strictUnresolved: true`, while
-  circular-import and cyclic-specialization diagnostics stay Warnings.
+  `WorkspaceLoader_LoadAsync_CyclicSpecialization_RemainsWarning` — an unresolved
+  reference is a Warning by default and an Error with `strictUnresolved: true`, while a
+  cyclic-specialization diagnostic stays a Warning and a circular import reports nothing.
 - `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` — an undeclared
   `asGeneralDiagram` render selector produces exactly one portability Warning at the token.
 - `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` — resolved specialization

@@ -111,13 +111,22 @@ sections:
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-CircularImport
         title: >-
-          ReferenceResolver.ResolveAll shall detect circular import chains in the import
-          graph and produce a Warning diagnostic for each detected cycle.
+          ReferenceResolver.ResolveAll shall treat circular imports as legal, reporting no
+          diagnostic for them, and shall resolve every name reachable through a cycle of imports,
+          whatever order the references are resolved in, and report a name that is nowhere
+          reachable as unresolved exactly once, in finite time.
         justification: |
-          Circular imports must be detected to avoid infinite loops in reference resolution.
-          The cycle detection uses depth-first search with a traversal stack.
+          Circularity is allowed for imports (KerML 1.0 section 8.2.3.5.1), so a cycle is not a
+          defect to report. Resolution must still terminate and stay correct on a cycle: a lookup
+          already in progress contributes nothing (the specification's `excluded` set), and a
+          miss that was cut short by that rule is not remembered as final for the namespaces it
+          passed through, so the answer does not depend on which reference is resolved first.
         tests:
-          - WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop
+          - WorkspaceLoader_LoadAsync_CircularImport_ProducesNoDiagnosticsAndTerminates
+          - WorkspaceLoader_LoadAsync_MutualPublicImport_ResolvesBothWays
+          - WorkspaceLoader_LoadAsync_ThreePackageImportCycle_ResolvesNamesAroundTheCycle
+          - WorkspaceLoader_LoadAsync_CircularImport_ResolvesThroughCycleRegardlessOfOrder
+          - WorkspaceLoader_LoadAsync_CircularImport_UnresolvedNameReportedOnce
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeResolution
         title: >-
@@ -394,8 +403,7 @@ sections:
           supertype, subsetting, typing, redefinition, import, expose, view-definition, connector
           endpoint, transition source/target, satisfy, verify, allocation, dependency, and
           metadata-type references — falling back to the position of the owning declaration when
-          the reference text was not located, and shall locate each circular-import Warning at the
-          import statement that closes the cycle, naming the file that contains it.
+          the reference text was not located.
         justification: |
           A diagnostic positioned at (0,0) cannot drive CI annotations, editor navigation, or
           AI-assisted model-fix loops, which rely on the reported location. The reference's own
@@ -408,15 +416,13 @@ sections:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition
           - WorkspaceLoader_LoadAsync_UnresolvedReferences_ReportDistinctPositions
           - WorkspaceLoader_LoadAsync_UnresolvedReferencesInTwoFiles_ReportEachFilePath
-          - WorkspaceLoader_LoadAsync_CircularImport_ReportsFileAndPosition
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-UnresolvedSeverity
         title: >-
           ReferenceResolver shall report every unresolved reference at the severity its caller
           selects: Warning by default, and Error when the caller selects Error for user files
-          (strict unresolved references), leaving the circular-import and cyclic-specialization
-          diagnostics at Warning in both cases and the standard library's own unresolved
-          references at Warning.
+          (strict unresolved references), leaving the cyclic-specialization diagnostic at Warning
+          in both cases and the standard library's own unresolved references at Warning.
         justification: |
           An unresolved reference means the model does not validate against the SysML v2
           standard, so callers that gate on model validity need to be able to receive it as an
@@ -424,13 +430,13 @@ sections:
           is defined in a single place so that it can be changed later. The standard library has
           a known set of unresolved references that no user can fix, so compiling it reports them
           as Warnings and the library is shipped as a pre-resolved seed that is never resolved
-          again at load time, so user models do not inherit those diagnostics. A circular import
-          or cyclic specialization is a structural warning rather than a missing reference, so its
+          again at load time, so user models do not inherit those diagnostics. A cyclic
+          specialization is a structural warning rather than a missing reference, so its
           severity does not change.
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
           - WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors
-          - WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings
+          - WorkspaceLoader_LoadAsync_CyclicSpecialization_RemainsWarning
           - WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics
           - WorkspaceLoader_DefaultUnresolvedSeverity_IsWarning
           - ReferenceResolver_ResolveAll_WarningSeverity_UnresolvedReferenceIsWarning

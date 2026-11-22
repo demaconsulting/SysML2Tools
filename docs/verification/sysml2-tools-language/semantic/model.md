@@ -29,7 +29,8 @@ external services, network access, or additional configuration are required beyo
   per file (a Warning by default, an Error when the caller selects strict unresolved references),
   reports a SysML2Tools extension `render` selector that is not declared as one portability
   Warning, resolves metadata annotation type references into `MetadataType` edges, and completes
-  without infinite loops when circular imports are present.
+  without infinite loops or diagnostics when circular imports are present, still resolving names
+  reachable only through the cycle.
 - `SupertypeWalker` emits Warning diagnostics for cyclic specialization chains and terminates
   in finite time for any reachable graph.
 
@@ -52,7 +53,7 @@ Traceability to `WorkspaceLoaderTests` test methods:
 | `ReferenceResolver` — selector | `WorkspaceLoader_LoadAsync_ToolRenderSelector_ProducesPortabilityWarningAtToken` |
 | `ReferenceResolver` — metadata type resolution | `AstBuilder_MetadataAnnotation_ResolvesTypeReference` |
 | `ReferenceResolver` — metadata warning | `AstBuilder_MetadataAnnotation_UnresolvedType_ProducesWarning` |
-| `ReferenceResolver` — circular import | `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` |
+| `ReferenceResolver` — cycles | `WorkspaceLoader_LoadAsync_CircularImport_ProducesNoDiagnosticsAndTerminates` |
 | `SupertypeWalker` — chain walking | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
 | `SupertypeWalker` — cyclic detection | `WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning` |
 | `NameResolver` — implicit specialization | `NameResolver_ImplicitSpecialization_PerKind_AddsLibraryGeneralType` |

@@ -32,8 +32,8 @@ external services, network access, or additional configuration are required beyo
   (`Warning`).
 - Standard-library references in a user file resolve without diagnostics, because the seed is
   pre-resolved and never resolved again at load time.
-- A circular import produces a `Warning`-severity diagnostic and completes in finite time; a
-  circular import or cyclic specialization stays a Warning with `strictUnresolved` either way.
+- A circular import produces no diagnostic and completes in finite time; a cyclic
+  specialization stays a Warning with `strictUnresolved` either way.
 - Files are processed in canonical path order: when two files declare the same root-level name,
   the declaration in the canonically first file is used whatever order the files are supplied
   in, the later one is ignored as a whole (its members are not merged and nothing inside it is
@@ -68,13 +68,13 @@ external services, network access, or additional configuration are required beyo
 | `WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered` | 6 | Stdlib contributes declarations without errors |
 | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` | 7 | Resolved supertype produces no unresolved diagnostic |
 | `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` | 8 | Unresolved supertype produces Warning |
-| `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` | 9 | Circular import; Warning emitted |
+| `WorkspaceLoader_LoadAsync_CircularImport_ProducesNoDiagnosticsAndTerminates` | 9 | Circular import; silent |
 | `WorkspaceLoader_LoadAsync_UserPackageNamedLikeStdlibPackage_MembersAreNotStdlibOrigin` | — | Not stdlib |
 | `WorkspaceLoader_LoadAsync_UnresolvedExpressionReference_ProducesWarningAtToken` | — | Warning at token |
 | `WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedExpressionReference_ProducesErrorAtToken` | — | Strict Error |
 | `WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors` | — | Errors when strict |
 | `WorkspaceLoader_DefaultUnresolvedSeverity_IsWarning` | — | Default severity constant is Warning |
-| `WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings` | — | Stay Warnings |
+| `WorkspaceLoader_LoadAsync_CyclicSpecialization_RemainsWarning` | — | Cycle warns, import silent |
 | `WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics` | — | Seeded stdlib adds no diagnostics |
 
 Binary compatibility of the public API is verified by two further tests, and the canonical file
