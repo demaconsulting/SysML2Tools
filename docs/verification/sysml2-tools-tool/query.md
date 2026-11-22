@@ -31,7 +31,9 @@ renderer behavior, and Core-side file-export helper behavior are verified separa
 - `find` without `--kind`/`--name` produces an `ArgumentException`.
 - `--element` accepts a name reached through a facade package's `public import` (reported under
   the owning qualified name together with the lookup name, in Markdown and JSON) for `describe`
-  and `used-by`; a name behind a private import reports the unchanged "not found" error.
+  and `used-by`; a root-level alias name resolves; a name two public imports bring in as different
+  elements is reported as ambiguous with both candidates; a name behind a private import reports the
+  unchanged "not found" error.
 - `--format markdown` and `--format json` both parse and render without error; an
   unrecognized `--format` value produces an `ArgumentException`.
 - `--depth` and `--heading` affect Markdown output only and leave `--format json` output
@@ -149,7 +151,9 @@ reaches the Core Query API correctly. The detailed behavior of each verb itself 
 and verified in `docs/verification/sysml2-tools-core/query.md`. Facade-name scenarios
 (`Describe_FacadePublicImportName_ReportsOwningNameAndLookupName`,
 `Describe_FacadePublicImportName_JsonFormat_IncludesLookupName`,
-`UsedBy_FacadePublicImportName_ReportsReferencesToOwningElement`, and
+`UsedBy_FacadePublicImportName_ReportsReferencesToOwningElement`,
+`Describe_RootAliasName_ReportsOwningNameAndLookupName`,
+`Describe_AmbiguousFacadeName_ReportsAmbiguityWithCandidates`, and
 `Describe_PrivateImportName_ReportsNotFound`) prove that `--element` resolves through the CLI.
 
 #### QueryErrorPathTests.cs

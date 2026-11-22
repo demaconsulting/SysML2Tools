@@ -181,6 +181,22 @@ instance serves one workspace.
   resolved as above, and each later part by `Lookup(segment, current, Visible)` (the cache and
   the in-progress guard apply to every chain step). An internal overload additionally accepts the
   file-root imports for a reference whose local namespace is the file root itself.
+- `ResolveCandidates(reference)`: resolves a qualified name in the global namespace like `Resolve`
+  but returns every distinct element it can denote (none, one, or several) instead of the first.
+  The first segment resolves globally; each later segment is resolved by `VisibleCandidates` in
+  every element the previous segment may denote. `VisibleCandidates` returns the owned membership
+  alone when there is one (extracted from `LookupUncached` as `LookupOwned`, so both share it),
+  otherwise the distinct elements the namespace's admitted imports bring in (a plain namespace
+  import is followed with `VisibleCandidates` itself, so a facade of facades is covered; other
+  imports use `LookupImported`), and only when neither exists the inherited membership `Lookup`
+  finds. A circular import contributes nothing. It exists so a caller (the Query element lookup)
+  can reject an ambiguous name; `Resolve` and model resolution keep taking the first match, and
+  dotted chains and `$::` names fall back to `Resolve`.
+- `RegisterFileRoots(scopes)` (internal): registers each file's `FileRootScope` (root aliases and
+  root imports with the declarations they apply to) through `RegisterRootAliases` and
+  `RegisterRootImports`. `ReferenceResolver` and `FilterExpressionEvaluator.CreateNameResolver` both
+  use it (the loader keeps the scopes on `SysmlWorkspace`), so a resolver over a loaded workspace
+  is set up exactly like the one that resolved the model.
 - `ResolveFeatureChain(reference, localNamespace, fileRootImports)` (internal): `Resolve` that
   also returns the instance path of a chain (`FeatureChainResolution(Element, InstancePath)`).
   `ReferenceResolver` records relationship ends (connect, bind, transition, allocate, satisfy,
@@ -280,7 +296,9 @@ does not depend on which reference is resolved first. Null arguments throw
   an internal resolving-mode instance (import filter from
   `FilterExpressionEvaluator.CreateImportFilter`, file-root imports registered per file).
 - `FilterExpressionEvaluator.CreateNameResolver` (Language Filtering) constructs a public-mode one
-  with a filtered-import predicate.
+  with a filtered-import predicate and the workspace's file-root scopes registered.
+- `QueryEngine.TryResolveElement` (Core Query) uses `ResolveCandidates` to look up an element
+  argument and to reject an ambiguous name.
 - `GeneralViewLayoutStrategy`, `InterconnectionViewLayoutStrategy`, and `GridViewLayoutStrategy`
   (Core Layout) use it, as the last resolution step, to resolve the raw type, supertype,
   redefinition, and subsetting references the semantic pass left unresolved or could not be paired

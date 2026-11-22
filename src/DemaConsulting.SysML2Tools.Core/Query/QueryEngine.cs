@@ -143,28 +143,55 @@ public static class QueryEngine
     ///     owning qualified name or any other name that resolves under SysML v2 name resolution:
     ///     a name reached through a facade package's <c>public import</c> (the visible
     ///     memberships of a namespace include its publicly imported memberships, KerML 1.0
-    ///     §8.2.3.5.3) or through an alias.
+    ///     §8.2.3.5.3), through an alias, or through a root-level alias.
     /// </summary>
     /// <remarks>
     ///     An exact owning-qualified-name match is tried first, for speed and backward
     ///     compatibility; otherwise the name is resolved as a qualified name in the global scope
     ///     by the same <see cref="NameResolver"/> that resolves model references, so no second
-    ///     resolution path exists. An ambiguous or unresolved name yields
-    ///     <see langword="false"/>, exactly as an unknown name always has. Not thread-safe with
-    ///     respect to concurrent mutation of <paramref name="workspace"/>.
+    ///     resolution path exists. A name that denotes more than one distinct element (for
+    ///     example a facade that publicly imports two namespaces which both expose the name) is
+    ///     ambiguous and yields <see langword="false"/> rather than an arbitrary candidate, as does
+    ///     an unresolved name. Not thread-safe with respect to concurrent mutation of
+    ///     <paramref name="workspace"/>.
     /// </remarks>
     /// <param name="workspace">The loaded workspace.</param>
     /// <param name="name">The name the caller supplied; must not be <see langword="null"/>.</param>
     /// <param name="element">The element the name resolves to, or <see langword="null"/>.</param>
-    /// <returns><see langword="true"/> when the name resolves to a declared element.</returns>
+    /// <returns><see langword="true"/> when the name resolves to exactly one declared element.</returns>
     /// <exception cref="ArgumentNullException">
     ///     Thrown when <paramref name="workspace"/> or <paramref name="name"/> is
     ///     <see langword="null"/>.
     /// </exception>
-    public static bool TryResolveElement(SysmlWorkspace workspace, string name, out SysmlNode? element)
+    public static bool TryResolveElement(SysmlWorkspace workspace, string name, out SysmlNode? element) =>
+        TryResolveElement(workspace, name, out element, out _);
+
+    /// <summary>
+    ///     Finds the element an element-argument query names, as
+    ///     <see cref="TryResolveElement(SysmlWorkspace, string, out SysmlNode?)"/> does, and
+    ///     additionally reports the competing elements when the name is ambiguous.
+    /// </summary>
+    /// <param name="workspace">The loaded workspace.</param>
+    /// <param name="name">The name the caller supplied; must not be <see langword="null"/>.</param>
+    /// <param name="element">The element the name resolves to, or <see langword="null"/>.</param>
+    /// <param name="ambiguousCandidates">
+    ///     The qualified names of the distinct elements the name denotes when it is ambiguous (at
+    ///     least two); empty otherwise.
+    /// </param>
+    /// <returns><see langword="true"/> when the name resolves to exactly one declared element.</returns>
+    /// <exception cref="ArgumentNullException">
+    ///     Thrown when <paramref name="workspace"/> or <paramref name="name"/> is
+    ///     <see langword="null"/>.
+    /// </exception>
+    public static bool TryResolveElement(
+        SysmlWorkspace workspace,
+        string name,
+        out SysmlNode? element,
+        out IReadOnlyList<string> ambiguousCandidates)
     {
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(name);
+        ambiguousCandidates = [];
 
         // Fast path and backward compatibility: the owning qualified name
         if (workspace.Declarations.TryGetValue(name, out element))
@@ -172,13 +199,17 @@ public static class QueryEngine
             return true;
         }
 
-        // Otherwise resolve the name in the global scope exactly as a model reference would be
-        var resolver = FilterExpressionEvaluator.CreateNameResolver(workspace);
-        var resolved = resolver.Resolve(name, null);
-        element = null;
-        return resolved is not null && workspace.Declarations.TryGetValue(resolved, out element);
-    }
+        // Otherwise resolve the name in the global scope exactly as a model reference would be,
+        // refusing a name that denotes several distinct elements
+        var candidates = FilterExpressionEvaluator.CreateNameResolver(workspace).ResolveCandidates(name);
+        if (candidates.Count > 1)
+        {
+            ambiguousCandidates = candidates;
+        }
 
+        element = null;
+        return candidates.Count == 1 && workspace.Declarations.TryGetValue(candidates[0], out element);
+    }
     /// <summary>
     ///     Lists the elements a given element uses (its resolved outgoing supertype, typing, and
     ///     import edges).

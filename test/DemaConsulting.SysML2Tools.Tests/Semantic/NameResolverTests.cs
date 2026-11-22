@@ -129,6 +129,35 @@ public sealed class NameResolverTests
     }
 
     /// <summary>
+    ///     A name two imports of one facade bring in as different elements is reported with every
+    ///     candidate, while the same element reached twice, a unique name, and an unknown name are
+    ///     reported as one candidate, one candidate, and none.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolveCandidates_NameFromTwoImports_ReportsEveryDistinctElement()
+    {
+        // Arrange: Facade publicly imports two packages that both declare X, and Same imports
+        // the same package twice
+        var resolver = await LoadAsync("""
+            package A { part def X; part def OnlyA; }
+            package B { part def X; }
+            package Facade { public import A::*; public import B::*; }
+            package Same { public import A::*; public import A::OnlyA; }
+            """);
+
+        // Act
+        var ambiguous = resolver.ResolveCandidates("Facade::X");
+        var unique = resolver.ResolveCandidates("Facade::OnlyA");
+        var sameElement = resolver.ResolveCandidates("Same::OnlyA");
+        var unknown = resolver.ResolveCandidates("Facade::Missing");
+
+        // Assert
+        Assert.Equal(["A::X", "B::X"], ambiguous.OrderBy(name => name, StringComparer.Ordinal));
+        Assert.Equal(["A::OnlyA"], unique);
+        Assert.Equal(["A::OnlyA"], sameElement);
+        Assert.Empty(unknown);
+    }
+    /// <summary>
     ///     A redefined feature resolves against the general types of the redefining feature's owner.
     /// </summary>
     [Fact]

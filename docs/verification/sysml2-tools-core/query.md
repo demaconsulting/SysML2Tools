@@ -48,11 +48,11 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
   `QueryEngine` API.
 - Markdown and JSON rendering preserve the same deterministic, ordinal-by-qualified-name entry
   ordering.
-- An element is found by its owning qualified name, by a name reached through a facade package's
-  `public import` (including a chain of facades), and by an alias, but not through a private
-  import; an unknown name is not found. The result's `Element` is always the owning qualified
-  name, and `LookupName` (Markdown bullet `Looked up as`, JSON property `LookupName`) is present
-  only when the lookup name differs from it.
+- An element is found by its owning qualified name, by a name reached through a facade package's `public import`
+  (including a chain of facades), by an alias, and by an alias written at the file root, but not through a private
+  import; an unknown name, or a name two public imports bring in as different elements, is not found (the latter reports
+  both candidates). The result's `Element` is always the owning qualified name, and `LookupName` (Markdown bullet
+  `Looked up as`, JSON property `LookupName`) is present only when the lookup name differs from it.
 - The `dependencies` verb renders Markdown as prose bullets, shortens names only in Markdown,
   retains fully qualified JSON output, and omits the `Direction` property from non-`dependencies`
   JSON results.
@@ -362,6 +362,13 @@ system facade resolves to the unit's owning qualified name.
 
 **`QueryEngine_TryResolveElement_Alias_ResolvesToAliasedElement`**: An alias name resolves to the
 aliased element's owning qualified name.
+
+**`QueryEngine_TryResolveElement_RootAlias_ResolvesToAliasedElement`**: An alias written at file
+scope (outside any package) resolves to the aliased element's owning qualified name.
+
+**`QueryEngine_TryResolveElement_NameFromTwoPublicImports_IsAmbiguous`**: A facade that publicly
+imports two packages that both declare `Unit` makes `Facade::Unit` not found, and the overload with
+the candidate list reports both `OtherPkg::Unit` and `UnitPkg::Unit`.
 
 **`QueryEngine_TryResolveElement_PrivateImport_DoesNotResolve`**: A package that only privately
 imports the unit package does not make `Hidden::Unit` resolvable.

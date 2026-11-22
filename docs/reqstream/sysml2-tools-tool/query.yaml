@@ -147,7 +147,8 @@ sections:
           The query command shall accept as `--element` the owning qualified name of an element
           or any name that resolves to it under SysML v2 name resolution (through a facade
           package's `public import`, or an alias), reporting the owning qualified name and, when
-          it differs, the name used.
+          it differs, the name used, and shall report a name that denotes several distinct
+          elements as ambiguous, naming the candidates.
         justification: |
           Agents and users are told to query `{System}::{Item}` through a facade package; the
           command must accept the name the model itself resolves rather than only the owning
@@ -160,6 +161,8 @@ sections:
           - Describe_FacadePublicImportName_JsonFormat_IncludesLookupName
           - UsedBy_FacadePublicImportName_ReportsReferencesToOwningElement
           - Describe_PrivateImportName_ReportsNotFound
+          - Describe_AmbiguousFacadeName_ReportsAmbiguityWithCandidates
+          - Describe_RootAliasName_ReportsOwningNameAndLookupName
 
       - id: SysML2Tools-Tool-Query-Find
         title: >-

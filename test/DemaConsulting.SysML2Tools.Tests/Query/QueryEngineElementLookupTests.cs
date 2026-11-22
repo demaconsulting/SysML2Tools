@@ -41,6 +41,17 @@ public class QueryEngineElementLookupTests
             part def Original;
             alias Short for Original;
         }
+
+        package OtherPkg {
+            part def Unit;
+        }
+
+        package Conflicting {
+            public import UnitPkg::*;
+            public import OtherPkg::*;
+        }
+
+        alias RootShort for UnitPkg::Unit;
         """;
 
     /// <summary>
@@ -154,6 +165,42 @@ public class QueryEngineElementLookupTests
         Assert.Equal("Aliased::Short", result.LookupName);
     }
 
+    /// <summary>
+    ///     An alias written at the root of the file (outside any package) is a membership of the
+    ///     global namespace and resolves to its target's owning qualified name.
+    /// </summary>
+    [Fact]
+    public async Task QueryEngine_TryResolveElement_RootAlias_ResolvesToAliasedElement()
+    {
+        // Arrange: a file-scope alias for a unit declared in a package
+        var workspace = await LoadAsync(FacadeFixture);
+
+        // Act: describe the element through the file-scope alias name
+        var result = Describe(workspace, "RootShort");
+
+        // Assert: the aliased element is reported under its owning name
+        Assert.Equal("UnitPkg::Unit", result.Element);
+        Assert.Equal("RootShort", result.LookupName);
+    }
+
+    /// <summary>
+    ///     A name two publicly imported namespaces both expose is ambiguous: it is not found, and
+    ///     every candidate is reported rather than whichever import comes first.
+    /// </summary>
+    [Fact]
+    public async Task QueryEngine_TryResolveElement_NameFromTwoPublicImports_IsAmbiguous()
+    {
+        // Arrange: a facade that publicly imports two packages that both declare Unit
+        var workspace = await LoadAsync(FacadeFixture);
+
+        // Act
+        var found = QueryEngine.TryResolveElement(workspace, "Conflicting::Unit", out var element, out var candidates);
+
+        // Assert: not found, with both competing elements reported
+        Assert.False(found);
+        Assert.Null(element);
+        Assert.Equal(["OtherPkg::Unit", "UnitPkg::Unit"], candidates.OrderBy(name => name, StringComparer.Ordinal));
+    }
     /// <summary>
     ///     A private import does not make the imported element's name resolvable through the
     ///     importing package, so the lookup fails exactly as for any unknown name.

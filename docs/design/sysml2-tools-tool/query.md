@@ -83,8 +83,9 @@ flowchart TD
 4. For verbs that require a target element, `QueryCommand` resolves `QueryOptions.Element`
    through Core's `QueryEngine.TryResolveElement`, which accepts the element's owning qualified
    name or any name that resolves under SysML v2 name resolution (through a facade package's
-   `public import`, or an alias). Missing, ambiguous, or unresolved elements are reported as the
-   same CLI error as before; Core never receives a `null` element from this path.
+   `public import`, or an alias). A missing or unresolved element is reported as the same CLI error
+   as before; a name that denotes several distinct elements is reported as ambiguous, naming the
+   candidates. Core never receives a `null` element from this path.
 5. The command delegates verb execution to `QueryEngine.Execute`, so the CLI and every library
    caller share the same public Core dispatcher and verb implementations.
 6. `QueryCommand` renders results through `QueryResultRenderer.RenderMarkdown` or

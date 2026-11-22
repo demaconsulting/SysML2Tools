@@ -1112,11 +1112,13 @@ SysML v2 name resolution — the same resolution model references use:
   `SysML2ToolsCore::DiagramRenderer` names the same element. Chains of facades (system,
   subsystem, unit) resolve too. A `private` import does not make a name visible, so a name
   behind one is reported as not found.
-- A name given by an alias.
+- A name given by an alias, including an alias written at the root of a file.
 
 The owning qualified name is looked up first; otherwise the argument is resolved as a qualified
-name from the global scope. An unknown or ambiguous name reports `element '<name>' not found in
-the workspace`, as before.
+name from the global scope. An unknown name reports `element '<name>' not found in the
+workspace`, as before. A name that denotes several distinct elements (for example a facade that
+publicly imports two packages that both declare it) reports `element '<name>' is ambiguous in the
+workspace; it could be '<A>', '<B>'.` — use one of the listed owning qualified names.
 
 The result always shows the element's owning qualified name. When the element was found under a
 different name, the result also shows that lookup name: Markdown adds a `Looked up as: <name>`

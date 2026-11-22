@@ -66,6 +66,19 @@ internal sealed class ReferenceResolver
     private NameResolver _resolver;
 
     /// <summary>
+    ///     What each loaded file writes at its root, captured by <see cref="ResolveAll"/>.
+    /// </summary>
+    private IReadOnlyList<FileRootScope> _fileRootScopes = [];
+
+    /// <summary>
+    ///     Gets what each loaded file writes at its root (aliases, imports, and the declarations the
+    ///     imports apply to), as <see cref="ResolveAll"/> registered it with the resolver. Empty
+    ///     until <see cref="ResolveAll"/> has run. A <see cref="NameResolver"/> over the loaded
+    ///     workspace registers the same scopes so it resolves exactly as model resolution did.
+    /// </summary>
+    internal IReadOnlyList<FileRootScope> FileRootScopes => _fileRootScopes;
+
+    /// <summary>
     ///     Initializes a new instance of <see cref="ReferenceResolver"/> with the given symbol
     ///     table and diagnostics list.
     /// </summary>
@@ -147,13 +160,15 @@ internal sealed class ReferenceResolver
             .Select(r => new LoadedFile(r.FilePath, r.Root!, r.Root!.Children.OfType<SysmlImportNode>().ToList()))
             .ToList();
 
+        _fileRootScopes = files.Select(CreateFileRootScope).ToList();
+
         // Per-file "already warned about this name" deduplication sets, keyed by file path and
         // shared by every pass so a name that cannot be resolved is warned about once per file.
         var resolvedInFileByPath = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         var edges = new List<SysmlEdge>();
 
         // Pass 0: metadata annotation types, resolved with an unfiltered resolver (see remarks).
-        _resolver = CreateResolver(files, importFilter: null);
+        _resolver = CreateResolver(importFilter: null);
         foreach (var file in files)
         {
             ResolveMetadataNodes(
@@ -165,7 +180,7 @@ internal sealed class ReferenceResolver
         if (files.Any(file => ContainsFilteredImport(file.Root)))
         {
             _resolver = CreateResolver(
-                files, FilterExpressionEvaluator.CreateImportFilter(_symbolTable.Symbols, _stdlibNames));
+                FilterExpressionEvaluator.CreateImportFilter(_symbolTable.Symbols, _stdlibNames));
         }
 
         foreach (var file in files)
@@ -188,31 +203,30 @@ internal sealed class ReferenceResolver
 
     /// <summary>
     ///     Creates a resolving-mode <see cref="NameResolver"/> over the symbol table and
-    ///     registers each file's root imports against that file's top-level declarations.
+    ///     registers every file's root scope with it (<see cref="NameResolver.RegisterFileRoots"/>).
     /// </summary>
-    private NameResolver CreateResolver(IEnumerable<LoadedFile> files, Func<SysmlImportNode, string, bool>? importFilter)
+    private NameResolver CreateResolver(Func<SysmlImportNode, string, bool>? importFilter)
     {
         var resolver = new NameResolver(_symbolTable.Symbols, importFilter, declaredReferencesOnly: true);
-        foreach (var file in files)
-        {
-            // A root-level alias is a membership of the global namespace, so every file's root
-            // aliases are visible to every file's references.
-            resolver.RegisterRootAliases(file.Root.Children.OfType<SysmlAliasNode>(), file.RootImports);
-        }
-
-        foreach (var file in files.Where(file => file.RootImports.Count > 0))
-        {
-            // Key by declaration (not top-level name), so each file sees only its own root
-            // imports. Only nodes that ARE the symbol-table entry for their
-            // qualified name belong to this file's registration.
-            var declarations = new List<string>();
-            CollectDeclarationNames(file.Root, declarations);
-            resolver.RegisterRootImports(declarations, file.RootImports);
-        }
-
+        resolver.RegisterFileRoots(_fileRootScopes);
         return resolver;
     }
 
+    /// <summary>
+    ///     Captures what <paramref name="file"/> writes at its root: its aliases and imports, and
+    ///     (only when it has root imports) the declarations those imports apply to. Only nodes that
+    ///     ARE the symbol-table entry for their qualified name belong to the file's declarations.
+    /// </summary>
+    private FileRootScope CreateFileRootScope(LoadedFile file)
+    {
+        var declarations = new List<string>();
+        if (file.RootImports.Count > 0)
+        {
+            CollectDeclarationNames(file.Root, declarations);
+        }
+
+        return new FileRootScope(file.Root.Children.OfType<SysmlAliasNode>().ToList(), file.RootImports, declarations);
+    }
     /// <summary>
     ///     Collects the qualified names of the symbol-table declarations in <paramref name="node"/>'s
     ///     subtree (the nodes the symbol table holds for their qualified names).

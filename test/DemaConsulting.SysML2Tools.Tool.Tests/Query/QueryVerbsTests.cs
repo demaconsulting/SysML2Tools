@@ -1282,4 +1282,58 @@ public class QueryVerbsTests
         Assert.Equal(1, exitCode);
         Assert.Contains("element 'Hidden::Unit' not found in the workspace", output);
     }
+
+    /// <summary>
+    ///     A name that two publicly imported namespaces both expose is reported as ambiguous,
+    ///     naming both candidates, instead of silently picking one.
+    /// </summary>
+    [Fact]
+    public async Task Describe_AmbiguousFacadeName_ReportsAmbiguityWithCandidates()
+    {
+        const string sysml = """
+            package PkgA {
+                part def Unit;
+            }
+
+            package PkgB {
+                part def Unit;
+            }
+
+            package Facade {
+                public import PkgA::*;
+                public import PkgB::*;
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Facade::Unit");
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("element 'Facade::Unit' is ambiguous", output);
+        Assert.Contains("'PkgA::Unit'", output);
+        Assert.Contains("'PkgB::Unit'", output);
+    }
+
+    /// <summary>
+    ///     An alias written at the root of a file resolves for an element argument, so a root-level
+    ///     alias name finds the aliased element.
+    /// </summary>
+    [Fact]
+    public async Task Describe_RootAliasName_ReportsOwningNameAndLookupName()
+    {
+        const string sysml = """
+            package P {
+                part def Unit;
+            }
+
+            alias Short for P::Unit;
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Short");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("# query describe: P::Unit", output);
+        Assert.Contains("Looked up as: Short", output);
+    }
 }

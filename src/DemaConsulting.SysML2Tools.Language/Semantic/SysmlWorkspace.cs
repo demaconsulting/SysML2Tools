@@ -98,4 +98,15 @@ public sealed class SysmlWorkspace
     ///     return value. Defaults to an empty index when the workspace has no resolved edges.
     /// </remarks>
     public SemanticIndex Index { get; init; } = new(Array.Empty<SysmlEdge>());
+
+    /// <summary>
+    ///     Gets what each user file wrote at its root (outside any package): root-level aliases and
+    ///     imports, which a <see cref="NameResolver"/> over this workspace needs to resolve global
+    ///     alias names and file-root imports exactly as <see cref="WorkspaceLoader"/> did.
+    /// </summary>
+    /// <remarks>
+    ///     Populated by <see cref="WorkspaceLoader"/>; empty for a hand-built workspace. Internal:
+    ///     consumers get the resolver through <c>FilterExpressionEvaluator.CreateNameResolver</c>.
+    /// </remarks>
+    internal IReadOnlyList<FileRootScope> FileRootScopes { get; init; } = [];
 }

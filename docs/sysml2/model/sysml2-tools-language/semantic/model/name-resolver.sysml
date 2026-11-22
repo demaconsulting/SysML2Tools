@@ -7,7 +7,7 @@ package SysML2ToolsLanguage_NameResolver {
         doc /* Public KerML 8.2.3.5 name resolver covering owned, imported, inherited, aliased, and short-named memberships, full and visible resolution, and dotted feature chains; used by ReferenceResolver and by layout strategies for references the semantic model did not resolve. */
 
         metadata info : SoftwareInfo {
-            sourceFiles = ("src/DemaConsulting.SysML2Tools.Language/Semantic/Model/NameResolver.cs");
+            sourceFiles = ("src/DemaConsulting.SysML2Tools.Language/Semantic/Model/NameResolver.cs", "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/FileRootScope.cs");
             testFiles = ("test/DemaConsulting.SysML2Tools.Tests/Semantic/NameResolverTests.cs");
             designFiles = ("docs/design/sysml2-tools-language/semantic/model/name-resolver.md");
             verificationFiles = ("docs/verification/sysml2-tools-language/semantic/model/name-resolver.md");

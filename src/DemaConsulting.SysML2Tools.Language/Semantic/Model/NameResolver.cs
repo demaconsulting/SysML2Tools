@@ -77,6 +77,7 @@ public sealed class NameResolver
     private readonly bool _declaredReferencesOnly;
     private readonly Dictionary<(string Name, string Namespace, Scope Scope), string?> _cache = new();
     private readonly Dictionary<(string Name, string Namespace, Scope Scope), int> _inProgress = new();
+    private readonly HashSet<(string Name, string Namespace, Scope Scope)> _candidatesInProgress = new();
     private readonly Dictionary<string, IReadOnlyList<string>> _declaredGeneralTypes = new(StringComparer.Ordinal);
     private readonly HashSet<string> _declaredGeneralTypesInProgress = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string?> _referenceSubsettingTargets = new(StringComparer.Ordinal);
@@ -309,6 +310,21 @@ public sealed class NameResolver
     }
 
     /// <summary>
+    ///     Registers what each source file writes at its root — its aliases as memberships of the
+    ///     global namespace and its imports against the file's declarations — exactly as model
+    ///     resolution does, so every resolver over the same workspace is set up identically.
+    /// </summary>
+    /// <param name="scopes">The per-file root scopes.</param>
+    internal void RegisterFileRoots(IEnumerable<FileRootScope> scopes)
+    {
+        foreach (var scope in scopes)
+        {
+            RegisterRootAliases(scope.Aliases, scope.Imports);
+            RegisterRootImports(scope.DeclarationNames, scope.Imports);
+        }
+    }
+
+    /// <summary>
     ///     Resolves <paramref name="reference"/> relative to <paramref name="localNamespace"/>
     ///     per KerML 8.2.3.5.1: a single segment by full resolution, a <c>$::</c>-prefixed name in
     ///     the global namespace, otherwise the qualification part by this same process and the
@@ -321,6 +337,54 @@ public sealed class NameResolver
     /// <returns>The resolved element's qualified name, or null when it does not resolve.</returns>
     public string? Resolve(string reference, string? localNamespace) =>
         Resolve(reference, localNamespace, null);
+
+    /// <summary>
+    ///     Resolves the qualified name <paramref name="reference"/> in the global namespace like
+    ///     <see cref="Resolve(string, string?)"/> does, but reports every distinct element it can
+    ///     denote rather than the first one found, so a caller can reject an ambiguous name. A name
+    ///     reached through two imports of one namespace that bring in different elements of the same
+    ///     name is ambiguous; the same element reached twice is not. Model resolution is unchanged
+    ///     and keeps taking the first match.
+    /// </summary>
+    /// <param name="reference">
+    ///     The (possibly qualified) name to resolve. A dotted feature chain or a <c>$::</c>-prefixed
+    ///     name is not analyzed for ambiguity and yields what <see cref="Resolve(string, string?)"/> finds.
+    /// </param>
+    /// <returns>
+    ///     The distinct resolved elements' qualified names: none when the name does not resolve, one
+    ///     when it is unambiguous, several when it is ambiguous.
+    /// </returns>
+    public IReadOnlyList<string> ResolveCandidates(string reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        var segments = SplitSegments(reference);
+        if (segments.Count == 0 || segments[0] == "$" || reference.IndexOf('.') >= 0)
+        {
+            return Resolve(reference, null) is { } single ? [single] : [];
+        }
+
+        // The first segment is a global name; every later one is resolved by visible resolution in
+        // each element the previous segment may denote.
+        if (ResolveGlobal(segments[0]) is not { } first)
+        {
+            return [];
+        }
+
+        var current = new List<string> { first };
+        for (var i = 1; i < segments.Count; i++)
+        {
+            var segment = segments[i];
+            var next = current.SelectMany(ns => VisibleCandidates(segment, ns, Scope.Visible)).Distinct().ToList();
+            if (next.Count == 0)
+            {
+                return [];
+            }
+
+            current = next;
+        }
+
+        return current;
+    }
 
     /// <summary>
     ///     Resolves <paramref name="reference"/> as <see cref="Resolve(string, string?)"/> does,
@@ -1090,35 +1154,14 @@ public sealed class NameResolver
     /// <summary>Owned, then imported, then inherited memberships, as <see cref="Lookup"/> describes.</summary>
     private string? LookupUncached(string name, string namespaceName, Scope scope)
     {
-        // An element whose qualified name is "<namespace>::<name>" is owned by that namespace by
-        // construction, even when the namespace node itself is absent or does not list it.
-        if (_declarations.TryGetValue(namespaceName + "::" + name, out var direct) &&
-            direct is not (SysmlImportNode or SysmlAliasNode) && Admits(direct.Visibility, scope))
+        if (LookupOwned(name, namespaceName, scope) is { } owned)
         {
-            return namespaceName + "::" + name;
+            return owned;
         }
 
         if (!_declarations.TryGetValue(namespaceName, out var ns))
         {
             return null;
-        }
-
-        // Owned memberships (including aliases).
-        foreach (var child in ns.Children)
-        {
-            if (child is SysmlImportNode || !Admits(child.Visibility, scope) ||
-                (!NamesEqual(child.Name, name) && !NamesEqual(child.ShortName, name)))
-            {
-                continue;
-            }
-
-            var target = child is SysmlAliasNode alias
-                ? Resolve(alias.TargetName, namespaceName)
-                : child.QualifiedName;
-            if (target is not null)
-            {
-                return target;
-            }
         }
 
         // Imported memberships.
@@ -1154,6 +1197,119 @@ public sealed class NameResolver
         return null;
     }
 
+    /// <summary>
+    ///     Finds <paramref name="name"/> among the memberships <paramref name="namespaceName"/> owns
+    ///     (including aliases) that <paramref name="scope"/> admits, returning the member element's
+    ///     qualified name, or null when it owns no such membership.
+    /// </summary>
+    private string? LookupOwned(string name, string namespaceName, Scope scope)
+    {
+        // An element whose qualified name is "<namespace>::<name>" is owned by that namespace by
+        // construction, even when the namespace node itself is absent or does not list it.
+        if (_declarations.TryGetValue(namespaceName + "::" + name, out var direct) &&
+            direct is not (SysmlImportNode or SysmlAliasNode) && Admits(direct.Visibility, scope))
+        {
+            return namespaceName + "::" + name;
+        }
+
+        if (!_declarations.TryGetValue(namespaceName, out var ns))
+        {
+            return null;
+        }
+
+        // Owned memberships (including aliases).
+        foreach (var child in ns.Children)
+        {
+            if (child is SysmlImportNode || !Admits(child.Visibility, scope) ||
+                (!NamesEqual(child.Name, name) && !NamesEqual(child.ShortName, name)))
+            {
+                continue;
+            }
+
+            var target = child is SysmlAliasNode alias
+                ? Resolve(alias.TargetName, namespaceName)
+                : child.QualifiedName;
+            if (target is not null)
+            {
+                return target;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Finds every distinct element <paramref name="name"/> denotes among the memberships of
+    ///     <paramref name="namespaceName"/> that <paramref name="scope"/> admits: an owned
+    ///     membership alone when there is one (owned memberships take precedence over imported
+    ///     ones), otherwise the distinct elements the namespace's admitted imports bring in, and
+    ///     only when neither exists the inherited membership <see cref="Lookup"/> finds. A
+    ///     namespace import that is neither recursive nor a membership import is followed with this
+    ///     same method, so a facade of facades reports every candidate. Used only to detect
+    ///     ambiguity; model resolution keeps using <see cref="Lookup"/>.
+    /// </summary>
+    private List<string> VisibleCandidates(string name, string namespaceName, Scope scope)
+    {
+        // Imports may be circular: a lookup already in progress contributes no candidates.
+        var key = (name, namespaceName, scope);
+        if (!_candidatesInProgress.Add(key))
+        {
+            return [];
+        }
+
+        try
+        {
+            if (LookupOwned(name, namespaceName, scope) is { } owned)
+            {
+                return [owned];
+            }
+
+            var candidates = new List<string>();
+            if (_declarations.TryGetValue(namespaceName, out var ns))
+            {
+                candidates.AddRange(ns.Children
+                    .OfType<SysmlImportNode>()
+                    .Where(import => Admits(import.Visibility, scope))
+                    .SelectMany(import => ImportedCandidates(name, namespaceName, import))
+                    .Distinct()
+                    .ToList());
+            }
+
+            if (candidates.Count == 0 && Lookup(name, namespaceName, scope) is { } inherited)
+            {
+                candidates.Add(inherited);
+            }
+
+            return candidates;
+        }
+        finally
+        {
+            _candidatesInProgress.Remove(key);
+        }
+    }
+
+    /// <summary>
+    ///     Finds every distinct element <paramref name="name"/> denotes among the memberships one
+    ///     import brings in: for a plain (non-recursive) namespace import every candidate the
+    ///     imported namespace's visible memberships offer, otherwise what <see cref="LookupImported"/>
+    ///     finds.
+    /// </summary>
+    private IEnumerable<string> ImportedCandidates(string name, string importingNamespace, SysmlImportNode import)
+    {
+        if (import.IsMembershipImport || import.IsRecursive)
+        {
+            return LookupImported(name, importingNamespace, import) is { } found ? [found] : [];
+        }
+
+        var target = Resolve(import.ImportedNamespace, importingNamespace);
+        if (target is null)
+        {
+            return [];
+        }
+
+        var memberScope = import.IsImportAll ? Scope.Local : Scope.Visible;
+        return VisibleCandidates(name, target, memberScope).Where(candidate => PassesImportFilter(import, candidate));
+    }
     /// <summary>
     ///     Returns whether a feature owned by <paramref name="ns"/> redefines the inherited member
     ///     <paramref name="member"/>, which therefore is not among <paramref name="ns"/>'s inherited
