@@ -58,7 +58,7 @@ created in `Path.GetTempPath()` and deleted after each test.
 | Test | Scenario |
 | --- | --- |
 | `NameResolver_Resolve_SameNameInSiblingPackages_ResolvesOwningPackageFirst` | Owning package wins |
-| `NameResolver_ResolveCandidates_NameFromTwoImports_ReportsEveryDistinctElement` | Two imports, two candidates; else one or none |
+| `NameResolver_ResolveCandidates_TwoImports_ReportsAll` | Ambiguity is reported |
 | `NameResolver_Resolve_InheritedMember_ResolvesThroughSupertype` | Inherited membership |
 | `NameResolver_Resolve_AliasAndShortName_ResolveToTheirElement` | Alias and short name |
 | `NameResolver_Resolve_PrivateMemberViaQualifiedName_DoesNotResolve` | Private via qualified name |

@@ -134,7 +134,7 @@ public sealed class NameResolverTests
     ///     reported as one candidate, one candidate, and none.
     /// </summary>
     [Fact]
-    public async Task NameResolver_ResolveCandidates_NameFromTwoImports_ReportsEveryDistinctElement()
+    public async Task NameResolver_ResolveCandidates_TwoImports_ReportsAll()
     {
         // Arrange: Facade publicly imports two packages that both declare X, and Same imports
         // the same package twice
