@@ -31,9 +31,9 @@ docs/sysml2/
 ├── common/
 │   └── software-items.sysml           # shared SoftwareItemMetadata::SoftwareInfo metadata def
 ├── model/
-│   ├── {system-name}.sysml            # package {SystemName}; system-level part def only (no subsystems/units inline)
+│   ├── {system-name}.sysml            # package {SystemName} (facade); system-level part def only (no subsystems/units inline)
 │   ├── {system-name}/
-│   │   ├── {subsystem-name}.sysml     # package {SystemName}_{SubsystemName}Subsystem; nests further for sub-subsystems
+│   │   ├── {subsystem-name}.sysml     # package {SystemName}_{SubsystemName}Subsystem (facade); nests further for sub-subsystems
 │   │   └── {subsystem-name}/
 │   │       └── {unit-name}.sysml      # package {SystemName}_{UnitName}; one file per unit
 │   ├── ots.sysml                      # package OtsDependencies: OTS parts (optional; if OTS items exist)
@@ -73,31 +73,90 @@ PowerShell and bash, since neither shell needs to (or reliably does) expand `**`
 
 ## Package Structure
 
-SysML v2 has no package merging: each file is its own root namespace, and two root packages
-with the same name are duplicate members of the global namespace (the OMG Pilot
-Implementation reports "Duplicate of other owned member name" for each, and references across
-the halves do not resolve). A model that only loads because a tool is lenient is not portable,
-so:
+SysML v2 has no package merging: each file is its own root namespace, and the top-level names
+of all loaded files share one flat global scope (KerML 1.0 §7.2.5.3, §10.2–10.3; SysML 2.0
+§7.5.5). Folders do not create namespaces. Two files that declare the same top-level name
+leave the resolution unspecified (KerML §8.2.3.5.4); the OMG Pilot Implementation reports
+"Duplicate of other owned member name", and references into the "other half" do not resolve.
+A model that only loads because a tool is lenient is not portable, so top-level package names
+must be unique **repository-wide** and a package is never declared (or "reopened") in more
+than one file.
 
-- Each `.sysml` file declares **exactly one uniquely named package**, and a package is never
-  declared (or "reopened") in more than one file.
-- Name each package from its place in the hierarchy, joined with an underscore:
-  `{SystemName}` for the system file, `{SystemName}_{SubsystemName}Subsystem` for a subsystem
-  (including a nested sub-subsystem, which is not prefixed with its parent subsystem), and
-  `{SystemName}_{UnitName}` for a unit. The system prefix keeps names unique across systems.
-  The shared files use `OtsDependencies` and `SharedPackages`, and the single views file uses
-  one repository-level package, `{RepoName}DesignViews` (not one per system).
-- Package names must be unique **repository-wide**. The short forms above are the default;
-  when one would collide (two `Storage` subsystems in different branches, or two units named
-  `Cache` in different subsystems), qualify it with the owning subsystem path, for example
+The model uses one top-level package per file, with **facade packages** for the system and
+each subsystem. A facade is a package whose `public import` re-exports the packages of the
+items it owns, so a consumer can write `{SystemName}::{AnyItem}` (or `import {SystemName}::*;`)
+without knowing which file declares the item. `public import` makes the imported members
+visible members of the importing package (KerML §8.2.3.5.3; SysML §7.5.3). A facade must be a
+package, because imports owned directly by a file's root namespace must be private (KerML
+§8.3.2.4.2, `validateImportTopLevelVisibility`).
+
+| Item | File | Package | Imports |
+| --- | --- | --- | --- |
+| System | `{system}.sysml` | `{SystemName}` | `public import` of direct items |
+| Subsystem | `{system}/{subsystem}.sysml` | `{SystemName}_{SubsystemName}Subsystem` | `public import` of owned items |
+| Unit | `.../{unit}.sysml` | `{SystemName}_{UnitName}` | `private import` of what it references |
+| OTS | `ots.sysml` | `OtsDependencies` | none |
+| Shared Packages | `shared.sysml` | `SharedPackages` | none |
+| Views | `views/design-views.sysml` | `{RepoName}DesignViews` | `private import` of what it exposes |
+
+In this table `{system}`, `{subsystem}`, and `{unit}` are the kebab-case names from Repository
+Structure above. Consumers use the `{SystemName}` package. `ots.sysml`, `shared.sysml`, and
+the views file are one small file each, and the views package is one per repository, not per
+system. A unit imports exactly what it references, no more. A system or subsystem file also
+uses `private import` for anything else it references (for example `OtsDependencies`). Every
+file that applies `SoftwareInfo` also has `private import SoftwareItemMetadata::*;`.
+
+Rules:
+
+- Name each package from its place in the hierarchy, joined with an underscore, as in the table
+  (a nested sub-subsystem is not prefixed with its parent subsystem). The system prefix keeps
+  names unique across systems.
+- The short forms in the table are the default. When one would collide (two `Storage`
+  subsystems in different branches, or two units named `Cache` in different subsystems),
+  qualify it with the owning subsystem path, for example
   `{SystemName}_{SubsystemName}_{UnitName}` (`Acme_Ingest_Cache` and `Acme_Query_Cache`).
-- Reference other files with an explicit `private import {PackageName}::*;` (a system or
-  subsystem file imports the package of each direct member so its `part` usages resolve; every
-  file that applies `SoftwareInfo` imports `SoftwareItemMetadata::*`).
-- Where an import would form a cycle (for example a unit that depends on a package that
-  already imports it), or for a one-off reference into another system, use the qualified name
-  instead, e.g. `dependency {UnitName} to {SystemName}_{OtherUnit}::{OtherUnit};`.
-  Import cycles raise a lint warning; qualified references do not.
+- `public import` goes **downward only**, following ownership (system to subsystem to unit).
+  The chain of re-exports is what makes `{SystemName}::{AnyItem}` resolve.
+- An **upward or sideways** reference (a unit using another unit, a subsystem, or the system)
+  uses a `private import` of the specific item's package, **never** of a facade. A facade
+  re-exports the item that imports it, so importing it back forms an import cycle. Cycles are
+  legal (KerML §8.2.3.5.1), but SysML2Tools reports `Circular import detected`, and the OMG
+  Pilot can no longer load the files one at a time because every file in the cycle needs
+  another one loaded first. A reference to a facade's own part def (the system or a subsystem)
+  from below therefore uses the qualified name, with no import.
+- Where two items genuinely depend on each other, import in one direction only and use the
+  qualified name in the other, e.g. `dependency {UnitName} to {SystemName}_{OtherUnit}::{OtherUnit};`.
+  The same applies to a one-off reference into another system. Qualified references do not
+  create import edges.
+- Never name a package after a standard library package. A package named `Views` shadows the
+  library's `Views`, and `GeneralView` then fails with `Unresolved reference`. This is why the
+  views package is `{RepoName}DesignViews`.
+- A small cohesive namespace (a handful of definitions that change together) may be a single
+  file with a single package, instead of one file per definition.
+
+Rationale: this is the pattern the SysML v2 libraries and published models use. The OMG
+standard libraries re-export their parts through facades (`ISQ` re-exports the 12 `ISQ*`
+packages and `SI` re-exports `ISQ`); Sensmetry's smart-home-hub (distinguishable, prefixed names
+such as `DETECT_*`, enforced by the Syside rule `global-namespace-distinguishability`), the
+Airbus Apollo-11 model, and DE4SDV all use one top-level package per file, unique and often
+prefixed names, `private import` for dependencies, and facades with `public import`.
+
+### Migrating split packages
+
+Older models declared the same package (for example `package {SystemName}`) in several files.
+To migrate:
+
+1. Rename each file's package to its item name from the table above, so every package is
+   declared once.
+2. Generate each file's `private import` lines from
+   `sysml2tools query dependencies --element {QualifiedName}`, run with a tool version that
+   still loads the old model (0.3.0-beta.3), so the dependencies reflect the original model.
+3. Make the system and subsystem files facades: turn the imports of their direct children
+   (owned subsystems, sub-subsystems, and units) into `public import`, and keep `private
+   import` only for references to items they do not own, so no package is imported twice.
+4. Existing `{SystemName}::X` references keep working through the facades; update only
+   references that named a package that no longer exists.
+5. Run `sysml2tools lint --strict-unresolved` with the pinned tool version.
 
 ## Model Content
 
@@ -211,8 +270,7 @@ Views control what gets rendered into diagrams for the design document. Use name
 ```sysml
 package {RepoName}DesignViews {
     private import StandardViewDefinitions::*;
-    private import {SystemName}::*;
-    private import {SystemName}_{SubsystemName}Subsystem::*;
+    private import {SystemName}::*;   // the system facade re-exports every subsystem and unit package
 
     view SoftwareStructureView : InterconnectionView {
         expose {SystemName}::{SystemName}System;  // system part def: system frame with its direct subsystem usages
@@ -228,7 +286,10 @@ package {RepoName}DesignViews {
 }
 ```
 
-Views import (or qualify) every package whose members they expose, like any other file.
+Views import (or qualify) every package whose members they expose, like any other file. With
+the facade pattern, a private import of the system facade reaches every item beneath it; a
+view of a system that is not owned by that facade imports that system's own facade as well.
+Never name the views package after a library package (see Package Structure).
 
 Type `SoftwareStructureView` by a standard view definition from the SysML v2 Views library
 (`GeneralView`, `InterconnectionView`, ...; requires `sysml2tools` 0.3.0-beta.4+). The view
@@ -364,9 +425,13 @@ sync.
   `sourceFiles`; the purpose statement appears only in the `doc` comment, never in `SoftwareInfo`
 - [ ] `docs/sysml2/views/design-views.sysml` uses `view Name { expose ...; }` usages, not
   `view def` definitions
-- [ ] Each `.sysml` file declares exactly one uniquely named package (never the same package
-  in two files), named per Package Structure, and references other files through
-  `private import` or qualified names (qualified where an import would form a cycle)
+- [ ] Each `.sysml` file declares exactly one top-level package, unique repository-wide
+  (never the same package in two files, never named after a standard library package), named
+  per Package Structure
+- [ ] The system and subsystem packages are facades with `public import` of the packages they
+  own (downward only); units use `private import` of exactly what they reference; upward and
+  sideways references import the specific item's package, never a facade, and lint reports no
+  `Circular import detected` warning
 - [ ] View names follow the `SoftwareStructureView` / `{SystemName}View` /
   `{SubsystemName}View` convention (plus optional `{SubsystemName}{Theme}View` dependency
   views and `OtsView`)
