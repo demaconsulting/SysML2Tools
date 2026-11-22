@@ -35,7 +35,7 @@ sections:
           WorkspaceLoader.LoadAsync shall accept a strictUnresolved argument, equivalent to false
           when the overload without it is called, that makes the unresolved-reference diagnostics
           of the user files Errors instead of Warnings, without changing their message or position,
-          without affecting circular-import or cyclic-specialization diagnostics, and without
+          without affecting cyclic-specialization diagnostics, and without
           producing diagnostics from the standard library seed; the default severity shall be a
           single internal constant so that it can be changed in one place.
         justification: |
@@ -46,7 +46,7 @@ sections:
           severity lets the default move to Error later without touching the callers.
         tests:
           - WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors
-          - WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings
+          - WorkspaceLoader_LoadAsync_CyclicSpecialization_RemainsWarning
           - WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics
           - WorkspaceLoader_DefaultUnresolvedSeverity_IsWarning
 

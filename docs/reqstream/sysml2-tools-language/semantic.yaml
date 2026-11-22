@@ -87,15 +87,20 @@ sections:
 
           - id: SysML2Tools-Language-Semantic-CircularImport
             title: >-
-              WorkspaceLoader.LoadAsync shall detect circular import chains and produce a Warning
-              diagnostic without looping infinitely.
+              WorkspaceLoader.LoadAsync shall accept circular imports without any diagnostic and
+              resolve names through them in finite time.
             justification: |
-              Circular imports in SysML models can arise from split namespace declarations across
-              files. The loader must detect and report these without hanging the calling process.
+              Circularity is allowed for imports (KerML 1.0 section 8.2.3.5.1) and the standard
+              library itself contains import cycles, so reporting a cycle would flag valid models.
+              Circular imports also arise naturally from packages that expose each other's
+              contents. The loader must resolve through them, and must not hang the calling
+              process, as the specification's `excluded` set for `visibleMemberships` guarantees.
             children:
               - SysML2Tools-Language-Semantic-Model-ReferenceResolution
             tests:
-              - WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop
+              - WorkspaceLoader_LoadAsync_CircularImport_ProducesNoDiagnosticsAndTerminates
+              - WorkspaceLoader_LoadAsync_MutualPublicImport_ResolvesBothWays
+              - WorkspaceLoader_LoadAsync_ThreePackageImportCycle_ResolvesNamesAroundTheCycle
 
           - id: SysML2Tools-Language-Semantic-Supertype
             title: >-

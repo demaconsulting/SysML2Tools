@@ -4,7 +4,7 @@
 
 `ReferenceResolver` is an internal class verified indirectly through `WorkspaceLoaderTests`.
 Tests construct files with deliberate unresolved supertype, feature-typing, and import
-references and circular import declarations, then call `WorkspaceLoader.LoadAsync` and assert
+references and circular import declarations (which must stay silent), then call `WorkspaceLoader.LoadAsync` and assert
 that the returned diagnostics contain the expected Warning entries (Error entries with
 `strictUnresolved`) and that
 `SysmlWorkspace.Index` contains the expected resolved `SysmlEdge` entries. The absence of an
@@ -24,10 +24,14 @@ external services or additional configuration are required beyond a standard .NE
   (`WorkspaceLoader.DefaultUserUnresolvedSeverity`). The standard library seed is never re-resolved
   at load time and adds no diagnostics, and the StdlibGen tool, which compiles the library,
   reports its unresolved references as Warnings.
-- A circular import or cyclic specialization remains a `Warning` with `strictUnresolved` either
-  way.
-- A circular import chain between two files produces a `Warning`-severity diagnostic and
-  `LoadAsync` returns (does not hang).
+- A cyclic specialization remains a `Warning` with `strictUnresolved` either way, and a circular
+  import produces no diagnostic at all.
+- Packages that `public import` each other (two packages, or a cycle of three) produce no
+  diagnostic, `LoadAsync` returns (does not hang), and a type declared in any package of the cycle
+  resolves from every other one, in both directions around the cycle.
+- A name reachable only through a cycle resolves for every package that imports a member of the
+  cycle whichever of those packages is resolved first (a lookup cut short by the cycle is not
+  remembered as a miss); a name that exists nowhere is reported once as unresolved.
 - A resolved supertype name (registered in `SymbolTable`) produces no Warning diagnostic and
   is recorded as a `Supertype`-kind `SysmlEdge`.
 - A resolved feature typing reference is recorded as a `Typing`-kind `SysmlEdge`; an
@@ -142,14 +146,13 @@ external services or additional configuration are required beyond a standard .NE
 | Position per unresolved reference kind | `WorkspaceLoader_LoadAsync_UnresolvedReference_ReportsSourcePosition` |
 | Distinct positions per reference | `WorkspaceLoader_LoadAsync_UnresolvedReferences_ReportDistinctPositions` |
 | Position names the referencing file | `WorkspaceLoader_LoadAsync_UnresolvedReferencesInTwoFiles_ReportEachFilePath` |
-| Circular import file and position | `WorkspaceLoader_LoadAsync_CircularImport_ReportsFileAndPosition` |
 | Unresolved supertype reference | `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` |
 | `strictUnresolved` — Errors | `WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedReferenceKinds_ProduceErrors` |
 | Expression Warning | `WorkspaceLoader_LoadAsync_UnresolvedExpressionReference_ProducesWarningAtToken` |
 | Strict expression | `WorkspaceLoader_LoadAsync_StrictUnresolved_UnresolvedExpressionReference_ProducesErrorAtToken` |
 | Default severity is Warning | `WorkspaceLoader_DefaultUnresolvedSeverity_IsWarning` |
 | Warning resolver severity | `ReferenceResolver_ResolveAll_WarningSeverity_UnresolvedReferenceIsWarning` |
-| Cycle diagnostics stay Warnings | `WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings` |
+| Cycle diagnostics | `WorkspaceLoader_LoadAsync_CyclicSpecialization_RemainsWarning` |
 | Stdlib references, no diagnostics | `WorkspaceLoader_LoadAsync_StdlibReferences_ProduceNoDiagnostics` |
 | Stdlib compile stays Warning | `GetSymbolTable_Diagnostics_UnresolvedReferences_RemainWarnings` |
 | Stdlib compile: no errors, warnings at most 13 | `GetSymbolTable_Diagnostics_WarningCount_DoesNotExceedCeiling` |
@@ -165,7 +168,11 @@ external services or additional configuration are required beyond a standard .NE
 | Same-named defs, own package | `WorkspaceLoader_LoadAsync_SameNamedDefsInSiblingPackages_ResolveToOwningPackage` |
 | Local name before global library name | `WorkspaceLoader_LoadAsync_LocalNameShadowsGlobalLibraryName_ResolvesLocal` |
 | Local short name and alias win | `WorkspaceLoader_LoadAsync_LocalShortNameAndAlias_WinOverGlobalNames` |
-| Circular import — terminates | `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` |
+| Circular import — silent | `WorkspaceLoader_LoadAsync_CircularImport_ProducesNoDiagnosticsAndTerminates` |
+| Mutual public import — names resolve both ways | `WorkspaceLoader_LoadAsync_MutualPublicImport_ResolvesBothWays` |
+| Three-package cycle | `WorkspaceLoader_LoadAsync_ThreePackageImportCycle_ResolvesNamesAroundTheCycle` |
+| Cycle, any resolution order | `WorkspaceLoader_LoadAsync_CircularImport_ResolvesThroughCycleRegardlessOfOrder` |
+| Unresolved name through a cycle — once | `WorkspaceLoader_LoadAsync_CircularImport_UnresolvedNameReportedOnce` |
 | Resolved reference — no Warning | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
 | Resolved supertype records edge | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |
 | Resolved feature typing records edge | `WorkspaceLoader_LoadAsync_ResolvedFeatureTyping_RecordsTypingEdge` |

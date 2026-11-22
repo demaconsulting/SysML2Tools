@@ -160,10 +160,10 @@ N/A — not a safety-classified software item.
    KerML 8.2.3.5 name resolution (through `NameResolver`) and emitting diagnostics for
    unresolved names (Warning by default, Error when `LoadAsync` is called with `strictUnresolved`;
    a view `render` target naming a SysML2Tools extension selector gets a portability Warning
-   instead) and Warning diagnostics for circular imports. Metadata annotation types are resolved first (so
-   filtered imports can test them), then every other reference, then dotted feature chains. The
-   import graph is built keyed on top-level namespace names (not file paths) to enable name-based
-   cycle detection.
+   instead). Circular imports are legal (KerML 8.2.3.5.1) and produce no diagnostic. Metadata
+   annotation types are resolved first (so
+   filtered imports can test them), then every other reference, then dotted feature chains.
+   `NameResolver` terminates on cyclic imports by tracking the lookups already in progress.
 5. `SupertypeWalker.WalkAll` traverses every specialization chain, detecting cyclic specialization
    and emitting Warning diagnostics for detected cycles.
 6. A `SysmlWorkspace` is constructed from the loaded file list and symbol table's `Symbols` property,

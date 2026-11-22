@@ -76,12 +76,15 @@ public sealed class NameResolver
     private readonly Func<SysmlImportNode, string, bool>? _importFilter;
     private readonly bool _declaredReferencesOnly;
     private readonly Dictionary<(string Name, string Namespace, Scope Scope), string?> _cache = new();
-    private readonly HashSet<(string Name, string Namespace, Scope Scope)> _inProgress = new();
+    private readonly Dictionary<(string Name, string Namespace, Scope Scope), int> _inProgress = new();
     private readonly Dictionary<string, IReadOnlyList<string>> _declaredGeneralTypes = new(StringComparer.Ordinal);
     private readonly HashSet<string> _declaredGeneralTypesInProgress = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string?> _referenceSubsettingTargets = new(StringComparer.Ordinal);
     private readonly HashSet<string> _referenceSubsettingInProgress = new(StringComparer.Ordinal);
     private int _generalTypeReentries;
+    private int _lowestCutDepth = int.MaxValue;
+    private readonly Dictionary<(string Name, string Namespace, Scope Scope), int> _provisionalMisses = new();
+    private readonly List<((string Name, string Namespace, Scope Scope) Key, int CutDepth)> _provisionalOrder = new();
     private readonly Dictionary<string, HashSet<string>> _redefinedMembers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _redefinedMembersInProgress = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<SysmlImportNode>> _rootImportsByDeclaration = new(StringComparer.Ordinal);
@@ -971,12 +974,26 @@ public sealed class NameResolver
         }
 
         // Imports and specializations may be circular (KerML 8.2.3.5.1): a lookup already in
-        // progress contributes nothing rather than recursing forever.
-        if (!_inProgress.Add(key))
+        // progress contributes nothing rather than recursing forever. This is the role of the
+        // spec's `excluded` set (Namespace::visibleMemberships). The depth of the outermost
+        // lookup cut short this way is tracked, so a miss that depended on the cut is not final.
+        if (_inProgress.TryGetValue(key, out var activeDepth))
         {
+            _lowestCutDepth = Math.Min(_lowestCutDepth, activeDepth);
             return null;
         }
 
+        if (_provisionalMisses.TryGetValue(key, out var provisionalCutDepth))
+        {
+            _lowestCutDepth = Math.Min(_lowestCutDepth, provisionalCutDepth);
+            return null;
+        }
+
+        var depth = _inProgress.Count;
+        _inProgress[key] = depth;
+        var cutDepthOutside = _lowestCutDepth;
+        var provisionalStart = _provisionalOrder.Count;
+        _lowestCutDepth = int.MaxValue;
         try
         {
             var reentriesBefore = _generalTypeReentries;
@@ -985,9 +1002,36 @@ public sealed class NameResolver
             // A miss computed while a type's general types were being re-entered (a feature
             // specializing a chain through itself, `ref x : T :> x.y`) saw that type without its
             // declared general types; it is not final, so it is not cached.
-            if (result is not null || _generalTypeReentries == reentriesBefore)
+            var reentered = _generalTypeReentries != reentriesBefore;
+            if (result is not null || !reentered)
             {
-                _cache[key] = result;
+                if (result is null && _lowestCutDepth < depth)
+                {
+                    // A miss cut short by a lookup still in progress further out (a cycle of
+                    // imports through this namespace) may be found through that lookup's other
+                    // memberships once it finishes. It stands only while that lookup is in
+                    // progress (a provisional miss) and is settled when the lookup finishes.
+                    _provisionalMisses[key] = _lowestCutDepth;
+                    _provisionalOrder.Add((key, _lowestCutDepth));
+                }
+                else
+                {
+                    _cache[key] = result;
+                }
+            }
+
+            // Cuts of this lookup alone are settled: the cyclic region it heads has been explored
+            // in full. Its provisional misses become final if it missed too, and are discarded
+            // (they may be found through this lookup's result) if it did not.
+            if (_lowestCutDepth >= depth)
+            {
+                SettleProvisionalMisses(provisionalStart, depth, result is null && !reentered);
+            }
+            else
+            {
+                // This lookup depends on one further out, and so do the provisional misses that
+                // were cut short by it: they now wait for that lookup instead.
+                RebaseProvisionalMisses(provisionalStart, depth, _lowestCutDepth);
             }
 
             return result;
@@ -995,9 +1039,54 @@ public sealed class NameResolver
         finally
         {
             _inProgress.Remove(key);
+            _lowestCutDepth = Math.Min(cutDepthOutside, _lowestCutDepth < depth ? _lowestCutDepth : int.MaxValue);
         }
     }
 
+    /// <summary>
+    ///     Re-targets the provisional misses recorded since <paramref name="start"/> that wait for
+    ///     the lookup at <paramref name="depth"/> (or deeper), which is finishing without having
+    ///     settled them, to the outer lookup at <paramref name="newCutDepth"/>.
+    /// </summary>
+    private void RebaseProvisionalMisses(int start, int depth, int newCutDepth)
+    {
+        for (var i = start; i < _provisionalOrder.Count; i++)
+        {
+            var (key, cutDepth) = _provisionalOrder[i];
+            if (cutDepth >= depth)
+            {
+                _provisionalOrder[i] = (key, newCutDepth);
+                _provisionalMisses[key] = newCutDepth;
+            }
+        }
+    }
+    /// <summary>
+    ///     Settles the provisional misses recorded since <paramref name="start"/> whose lookup cycle
+    ///     was headed by the lookup at <paramref name="depth"/>: each becomes a final cached miss
+    ///     when the head missed as well (<paramref name="headMissed"/>), and is dropped otherwise.
+    ///     Provisional misses that depend on a lookup further out stay pending.
+    /// </summary>
+    private void SettleProvisionalMisses(int start, int depth, bool headMissed)
+    {
+        var kept = start;
+        for (var i = start; i < _provisionalOrder.Count; i++)
+        {
+            var (key, cutDepth) = _provisionalOrder[i];
+            if (cutDepth < depth)
+            {
+                _provisionalOrder[kept++] = (key, cutDepth);
+                continue;
+            }
+
+            _provisionalMisses.Remove(key);
+            if (headMissed)
+            {
+                _cache[key] = null;
+            }
+        }
+
+        _provisionalOrder.RemoveRange(kept, _provisionalOrder.Count - kept);
+    }
     /// <summary>Owned, then imported, then inherited memberships, as <see cref="Lookup"/> describes.</summary>
     private string? LookupUncached(string name, string namespaceName, Scope scope)
     {

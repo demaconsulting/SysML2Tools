@@ -111,9 +111,10 @@ sysml2tools lint --strict-unresolved "src/**/*.sysml"
 Exit code is non-zero if any errors are present, making it suitable for CI/CD pipelines. Syntax
 errors always are errors. Unresolved references (a name that cannot be resolved) are warnings by default,
 so they do not change the exit code; with `--strict-unresolved` they are errors and the command
-exits with code 1. Circular imports and SysML2Tools-specific `render` selectors (`asGeneralDiagram`,
+exits with code 1. SysML2Tools-specific `render` selectors (`asGeneralDiagram`,
 `asStateTransitionDiagram`, `asActionFlowDiagram`, `asSequenceDiagram`, `asGridDiagram`) are always
-warnings. Diagnostics from the embedded standard library are never reported.
+warnings. Circular imports are legal (KerML 8.2.3.5.1) and are not reported. Diagnostics from the
+embedded standard library are never reported.
 
 ### Rendering
 

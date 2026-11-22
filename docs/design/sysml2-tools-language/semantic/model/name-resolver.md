@@ -256,7 +256,14 @@ against the previous stage on a noisy machine) the chain stage costs about +2.5%
 Unresolvable names return `null` (`Resolve`, `ResolveRedefinedFeature`, `ResolveFeatureChain`).
 Imports and specializations may be circular (KerML 8.2.3.5.1); a lookup already
 in progress for the same (name, namespace, scope) contributes nothing instead of recursing, so
-resolution always terminates. A feature that specializes a chain through itself
+resolution always terminates. This in-progress set plays the role of the `excluded` parameter of
+`Namespace::visibleMemberships` (8.3.2.4.2 and 8.3.2.4.5). Because such a lookup can miss only for
+want of the lookup it was cut short by, a cut-short miss is not final: the depth of the outermost
+lookup it was cut by is tracked, and the miss is kept only as a provisional miss that stands
+while that lookup is in progress. When that lookup finishes, its provisional misses become final
+if it missed too (the whole cyclic region was explored without finding the name) and are
+discarded if it found the name, so a name reachable only through a cycle resolves from every
+namespace of the cycle whichever reference is resolved first. A feature that specializes a chain through itself
 (`ref x : T :> x.y`) re-enters its own general types while they are being derived; the re-entry
 contributes nothing, and a lookup that missed while that happened is not cached, so the answer
 does not depend on which reference is resolved first. Null arguments throw

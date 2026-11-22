@@ -98,13 +98,9 @@ internal sealed class ReferenceResolver
     private sealed record LoadedFile(string FilePath, SysmlNode Root, IReadOnlyList<SysmlImportNode> RootImports);
 
     /// <summary>
-    ///     Where an import statement is written: its file and the position of the imported name.
-    /// </summary>
-    private sealed record ImportSite(string FilePath, int Line, int Column);
-
-    /// <summary>
-    ///     Runs import-graph cycle detection and supertype/typing/import reference resolution
-    ///     over all file roots, building a reverse-lookup index over the resolved edges.
+    ///     Runs supertype/typing/import reference resolution over all file roots, building a
+    ///     reverse-lookup index over the resolved edges. Circular imports are legal (KerML 8.2.3.5.1)
+    ///     and are not diagnosed.
     /// </summary>
     /// <param name="fileRoots">The parsed file roots to resolve references within.</param>
     /// <returns>
@@ -144,14 +140,9 @@ internal sealed class ReferenceResolver
     /// </remarks>
     public SemanticIndex ResolveAll(IEnumerable<(string FilePath, SysmlNode? Root)> fileRoots)
     {
-        // Build import graph first
-        var fileRootsList = fileRoots.ToList();
-        var importGraph = BuildImportGraph(fileRootsList, out var importSites);
-
-        // Detect circular imports
-        DetectCircularImports(importGraph, importSites);
-
-        var files = fileRootsList
+        // Imports may be circular (KerML 8.2.3.5.1), so no import-cycle diagnostic is produced;
+        // NameResolver terminates on cyclic imports by tracking the lookups already in progress.
+        var files = fileRoots
             .Where(r => r.Root is not null)
             .Select(r => new LoadedFile(r.FilePath, r.Root!, r.Root!.Children.OfType<SysmlImportNode>().ToList()))
             .ToList();
@@ -262,132 +253,6 @@ internal sealed class ReferenceResolver
         }
 
         return resolvedInFile;
-    }
-
-    /// <summary>
-    ///     Builds an import graph mapping each top-level namespace name to the set of namespace
-    ///     names it imports. The file-level root is a nameless container; we key on the
-    ///     names of its top-level package/definition children so the DFS can follow
-    ///     import edges by namespace name.
-    /// </summary>
-    private static Dictionary<string, HashSet<string>> BuildImportGraph(
-        IEnumerable<(string FilePath, SysmlNode? Root)> fileRoots,
-        out Dictionary<(string From, string To), ImportSite> importSites)
-    {
-        var graph = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        importSites = new Dictionary<(string From, string To), ImportSite>();
-        foreach (var (filePath, root) in fileRoots.Where(r => r.Root is not null))
-        {
-            // The root is a nameless file-level container; top-level namespaces are its children.
-            foreach (var topLevel in root!.Children
-                         .Where(c => c is SysmlPackageNode or SysmlDefinitionNode)
-                         .Where(c => c.QualifiedName is not null || c.Name is not null))
-            {
-                var key = topLevel.QualifiedName ?? topLevel.Name!;
-                var imports = new HashSet<string>(StringComparer.Ordinal);
-                var importNodes = new Dictionary<string, SysmlImportNode>(StringComparer.Ordinal);
-                CollectImports(topLevel, imports, importNodes);
-                imports.Remove(key); // avoid self-loops
-
-                // Remember where each import is written so a cycle can be reported at its import.
-                foreach (var (imported, importNode) in importNodes.Where(entry => imports.Contains(entry.Key)))
-                {
-                    var position = importNode.ReferencePositions.TryGetValue(imported, out var located)
-                        ? located
-                        : new SourcePosition(importNode.SourceLine, importNode.SourceColumn);
-                    importSites.TryAdd((key, imported), new ImportSite(filePath, position.Line, position.Column));
-                }
-
-                if (!graph.TryGetValue(key, out var existing))
-                {
-                    graph[key] = imports;
-                }
-                else
-                {
-                    foreach (var imp in imports)
-                    {
-                        existing.Add(imp);
-                    }
-                }
-            }
-        }
-
-        return graph;
-    }
-
-    /// <summary>
-    ///     Recursively collects all imported namespace names from an AST node and its descendants.
-    /// </summary>
-    private static void CollectImports(
-        SysmlNode node,
-        HashSet<string> imports,
-        Dictionary<string, SysmlImportNode> importNodes)
-    {
-        if (node is SysmlImportNode importNode)
-        {
-            imports.Add(importNode.ImportedNamespace);
-            importNodes.TryAdd(importNode.ImportedNamespace, importNode);
-        }
-
-        foreach (var child in node.Children)
-        {
-            CollectImports(child, imports, importNodes);
-        }
-    }
-
-    /// <summary>
-    ///     Performs a DFS over the import graph to detect and report circular import chains.
-    /// </summary>
-    private void DetectCircularImports(
-        Dictionary<string, HashSet<string>> importGraph,
-        Dictionary<(string From, string To), ImportSite> importSites)
-    {
-        var visited = new HashSet<string>(StringComparer.Ordinal);
-        var inStack = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var node in importGraph.Keys.Where(n => !visited.Contains(n)))
-        {
-            DetectCycles(node, importGraph, importSites, visited, inStack);
-        }
-    }
-
-    /// <summary>
-    ///     Recursive DFS helper that detects back-edges in the import graph and emits Warning
-    ///     diagnostics for any cycle found.
-    /// </summary>
-    private void DetectCycles(
-        string current,
-        Dictionary<string, HashSet<string>> graph,
-        Dictionary<(string From, string To), ImportSite> importSites,
-        HashSet<string> visited,
-        HashSet<string> inStack)
-    {
-        visited.Add(current);
-        inStack.Add(current);
-
-        if (graph.TryGetValue(current, out var neighbors))
-        {
-            foreach (var neighbor in neighbors)
-            {
-                if (!visited.Contains(neighbor))
-                {
-                    DetectCycles(neighbor, graph, importSites, visited, inStack);
-                }
-                else if (inStack.Contains(neighbor))
-                {
-                    // Located at the import statement that closes the cycle, in its own file.
-                    var site = importSites.GetValueOrDefault((current, neighbor), new ImportSite(current, 0, 0));
-                    _diagnostics.Add(new SysmlDiagnostic(
-                        site.FilePath,
-                        site.Line,
-                        site.Column,
-                        DiagnosticSeverity.Warning,
-                        $"Circular import detected: '{current}' imports '{neighbor}'"));
-                }
-            }
-        }
-
-        inStack.Remove(current);
     }
 
     /// <summary>

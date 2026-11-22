@@ -25,7 +25,7 @@ Temporary files are created in `Path.GetTempPath()` and cleaned up after each te
 - Unresolved references in user files (supertype, typing, redefinition, import, and every other
   kind) produce Warning diagnostics, or Error diagnostics when `strictUnresolved` is set; the
   standard library seed adds no diagnostics to a user load.
-- Circular imports produce Warning diagnostics without infinite loops.
+- Circular imports produce no diagnostic, resolve names through the cycle, and do not loop infinitely.
 - Resolved `redefines`/`:>>` references — including a bare-name reference to a member inherited
   from an ancestor declared anywhere in the ancestor chain, regardless of declaration order — are
   recorded as `Redefinition`-kind edges; unresolvable references produce Warning diagnostics.

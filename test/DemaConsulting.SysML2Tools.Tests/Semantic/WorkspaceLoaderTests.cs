@@ -231,12 +231,13 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
-    // Level 9: Circular import produces Warning and does not loop infinitely
+    // Level 9: Circular imports are legal (KerML 8.2.3.5.1): no diagnostic, finite resolution
     /// <summary>
-    ///     Packages that import each other should produce a Warning and complete in finite time.
+    ///     Packages in separate files that import each other load with no diagnostic at all and
+    ///     complete in finite time: circular imports are legal.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop()
+    public async Task WorkspaceLoader_LoadAsync_CircularImport_ProducesNoDiagnosticsAndTerminates()
     {
         // Arrange — two files that declare packages importing each other by name
         var tempFile1 = Path.GetTempFileName() + ".sysml";
@@ -246,23 +247,118 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile1, "package A { import B::*; }", TestContext.Current.CancellationToken);
             await File.WriteAllTextAsync(tempFile2, "package B { import A::*; }", TestContext.Current.CancellationToken);
 
-            // Act — cycle detection must terminate (not loop forever).
+            // Act — resolution must terminate (not loop forever).
             // Use xUnit's per-test cancellation token rather than a hard 30-second
             // limit; stdlib loading on a cold Linux CI runner can take longer than 30s.
             var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
             var result = await WorkspaceLoader.LoadAsync([tempFile1, tempFile2], stdlibTable)
                 .WaitAsync(TestContext.Current.CancellationToken);
 
-            // Assert — circular import warning present
+            // Assert — loaded, with nothing reported about the cycle
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Diagnostics,
-                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning);
+            Assert.Empty(result.Diagnostics);
         }
         finally
         {
             File.Delete(tempFile1);
             File.Delete(tempFile2);
         }
+    }
+
+    /// <summary>
+    ///     Two packages that <c>public import</c> each other lint clean (strict mode, no diagnostics)
+    ///     and each resolves a type declared in the other, in both directions.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_MutualPublicImport_ResolvesBothWays()
+    {
+        // Arrange / Act
+        var result = await LoadModelsWithOptionsAsync(true,
+        [
+            "package A { public import B::*; part def FromA; part useB : FromB; }\n" +
+            "package B { public import A::*; part def FromB; part useA : FromA; }\n",
+        ]);
+
+        // Assert
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal("B::FromB", TypingTarget(result.Workspace!.Declarations["A::useB"]));
+        Assert.Equal("A::FromA", TypingTarget(result.Workspace.Declarations["B::useA"]));
+    }
+
+    /// <summary>
+    ///     A three-package import cycle (A imports B imports C imports A) lints clean, and every
+    ///     package resolves the types of the packages its public imports reach through the cycle.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ThreePackageImportCycle_ResolvesNamesAroundTheCycle()
+    {
+        // Arrange / Act
+        var result = await LoadModelsWithOptionsAsync(true,
+        [
+            "package A { public import B::*; part def FromA; part viaB : FromB; part viaC : FromC; }\n" +
+            "package B { public import C::*; part def FromB; part viaC : FromC; part viaA : FromA; }\n" +
+            "package C { public import A::*; part def FromC; part viaA : FromA; part viaB : FromB; }\n",
+        ]);
+
+        // Assert
+        Assert.Empty(result.Diagnostics);
+        var declarations = result.Workspace!.Declarations;
+        Assert.Equal("B::FromB", TypingTarget(declarations["A::viaB"]));
+        Assert.Equal("C::FromC", TypingTarget(declarations["A::viaC"]));
+        Assert.Equal("C::FromC", TypingTarget(declarations["B::viaC"]));
+        Assert.Equal("A::FromA", TypingTarget(declarations["B::viaA"]));
+        Assert.Equal("A::FromA", TypingTarget(declarations["C::viaA"]));
+        Assert.Equal("B::FromB", TypingTarget(declarations["C::viaB"]));
+    }
+
+    /// <summary>
+    ///     A name declared in a package reached only through a cycle resolves from every package that
+    ///     imports a member of the cycle, whichever of those packages is resolved first: a lookup that
+    ///     was cut short by the cycle is not remembered as a miss for the packages it passed through.
+    /// </summary>
+    /// <param name="importerOfAFirst">Whether the package importing <c>A</c> is declared before the one importing <c>B</c>.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task WorkspaceLoader_LoadAsync_CircularImport_ResolvesThroughCycleRegardlessOfOrder(bool importerOfAFirst)
+    {
+        // Arrange — A and B import each other and A also imports C, which declares Target; a lookup
+        // that enters the cycle at A walks A -> B -> A before it reaches C, so B must not be
+        // remembered as lacking Target for the package that imports B
+        const string cycle =
+            "package A { public import B::*; public import C::*; }\n" +
+            "package B { public import A::*; }\n" +
+            "package C { part def Target; }\n";
+        const string importerOfA = "package ViaA { import A::*; part viaA : Target; }\n";
+        const string importerOfB = "package ViaB { import B::*; part viaB : Target; }\n";
+        var source = cycle + (importerOfAFirst ? importerOfA + importerOfB : importerOfB + importerOfA);
+
+        // Act
+        var result = await LoadModelsWithOptionsAsync(true, [source]);
+
+        // Assert
+        Assert.Empty(result.Diagnostics);
+        var declarations = result.Workspace!.Declarations;
+        Assert.Equal("C::Target", TypingTarget(declarations["ViaA::viaA"]));
+        Assert.Equal("C::Target", TypingTarget(declarations["ViaB::viaB"]));
+    }
+    /// <summary>
+    ///     A name that exists nowhere is still reported — once, as an unresolved reference — when the
+    ///     lookup has to walk a cycle of imports, and the load terminates.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_CircularImport_UnresolvedNameReportedOnce()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package A { public import B::*; public import C::*; part p : Ghost; }\n" +
+            "package B { public import C::*; public import A::*; }\n" +
+            "package C { public import A::*; public import B::*; }\n");
+
+        // Assert
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("Unresolved reference: 'Ghost'", diagnostic.Message);
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
     }
 
     // Level 10: Unreadable file produces Error diagnostic
@@ -5715,14 +5811,14 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     A circular import and a cyclic specialization stay Warnings whether or not strict
-    ///     unresolved-reference mode is on.
+    ///     A cyclic specialization stays a Warning whether or not strict unresolved-reference mode
+    ///     is on, while a circular import beside it produces no diagnostic at all.
     /// </summary>
     /// <param name="strict">Whether strict unresolved-reference mode is enabled.</param>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task WorkspaceLoader_LoadAsync_CircularImportAndCyclicSpecialization_RemainWarnings(bool strict)
+    public async Task WorkspaceLoader_LoadAsync_CyclicSpecialization_RemainsWarning(bool strict)
     {
         // Arrange / Act
         var result = await LoadModelsWithOptionsAsync(
@@ -5730,9 +5826,9 @@ public sealed class WorkspaceLoaderTests
             ["package A { import B::*; }\npackage B { import A::*; }\npackage C { part def X :> C::Y; part def Y :> C::X; }\n"]);
 
         // Assert
-        Assert.Contains(result.Diagnostics, d => d.Message.StartsWith("Circular import detected", StringComparison.Ordinal));
         Assert.Contains(result.Diagnostics, d => d.Message.StartsWith("Cyclic specialization detected", StringComparison.Ordinal));
         Assert.All(result.Diagnostics, d => Assert.Equal(DiagnosticSeverity.Warning, d.Severity));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("import", StringComparison.OrdinalIgnoreCase));
         Assert.False(result.HasErrors);
     }
 
@@ -8643,22 +8739,6 @@ public sealed class WorkspaceLoaderTests
         Assert.EndsWith(".sysml", diagnostic.FilePath, StringComparison.Ordinal);
         Assert.True(diagnostic.Line is 1 or 2, $"Unexpected line {diagnostic.Line}");
         Assert.Equal(18, diagnostic.Column);
-    }
-
-    /// <summary>
-    ///     A circular import diagnostic is located at the import statement that closes the cycle
-    ///     and names the file that contains it, instead of a namespace name and <c>(0,0)</c>.
-    /// </summary>
-    [Fact]
-    public async Task WorkspaceLoader_LoadAsync_CircularImport_ReportsFileAndPosition()
-    {
-        // Arrange / Act
-        var result = await LoadModelsAsync("package CircA {\n    import CircB::*;\n}\npackage CircB {\n    import CircA::*;\n}\n");
-
-        // Assert
-        var diagnostic = Assert.Single(result.Diagnostics, d => d.Message.StartsWith("Circular import", StringComparison.Ordinal));
-        Assert.EndsWith(".sysml", diagnostic.FilePath, StringComparison.Ordinal);
-        Assert.True(diagnostic.Line is 2 or 5, $"Unexpected line {diagnostic.Line}");
     }
 
     /// <summary>

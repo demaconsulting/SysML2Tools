@@ -93,8 +93,8 @@ sections:
         title: >-
           The LintCommand shall report each unresolved reference as a warning by default (exit
           code 0 when nothing else is wrong), shall accept a `--strict-unresolved` option that
-          reports them as errors (exit code 1), shall leave other warnings such as circular
-          imports unchanged in strict mode, and its help text shall describe both behaviors.
+          reports them as errors (exit code 1), shall report no diagnostic for circular imports in
+          either mode, and its help text shall describe both behaviors.
         justification: |
           An unresolved reference means the model does not fully validate against the SysML v2
           standard, but incomplete or work-in-progress models are common, so lint keeps them
@@ -104,7 +104,7 @@ sections:
           - LintSubsystem_Report_UnresolvedReference_ReportsReferencePosition
           - LintSubsystem_UnresolvedReference_ReportsWarningAndExitsZero
           - LintSubsystem_StrictUnresolved_UnresolvedReference_ReportsErrorAndExitsOne
-          - LintSubsystem_StrictUnresolved_CircularImport_RemainsWarning
+          - LintSubsystem_StrictUnresolved_CircularImport_NoDiagnostics
           - LintSubsystem_StrictUnresolved_StandardLibraryReference_NoDiagnostics
           - LintSubsystem_Gallery_StrictUnresolved_AllModels_NoDiagnosticsExitZero
           - LintSubsystem_Help_PrintsLintSpecificUsage

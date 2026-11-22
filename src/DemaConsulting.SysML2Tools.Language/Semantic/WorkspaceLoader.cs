@@ -81,8 +81,8 @@ public static class WorkspaceLoader
     /// <param name="strictUnresolved">
     ///     When <see langword="false"/> every unresolved reference in the user files is reported
     ///     as a Warning diagnostic; when <see langword="true"/> it is reported as an Error instead
-    ///     (strict mode). Circular-import and cyclic-specialization diagnostics are always
-    ///     Warnings. This parameter has no default so the overload never overlaps the
+    ///     (strict mode). Cyclic-specialization diagnostics are always
+    ///     Warnings; circular imports are legal and are not diagnosed. This parameter has no default so the overload never overlaps the
     ///     two-parameter overload.
     /// </param>
     /// <returns>
