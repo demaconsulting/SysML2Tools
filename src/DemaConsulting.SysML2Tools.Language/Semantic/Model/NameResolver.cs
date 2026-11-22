@@ -41,7 +41,7 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 ///     any package) apply to the declarations of that file, as KerML scopes them.
 ///     </para>
 /// </remarks>
-public sealed class NameResolver
+public sealed partial class NameResolver
 {
     /// <summary>
     ///     The outcome of resolving a (possibly dotted) feature-chain reference.
@@ -77,7 +77,6 @@ public sealed class NameResolver
     private readonly bool _declaredReferencesOnly;
     private readonly Dictionary<(string Name, string Namespace, Scope Scope), string?> _cache = new();
     private readonly Dictionary<(string Name, string Namespace, Scope Scope), int> _inProgress = new();
-    private readonly HashSet<(string Name, string Namespace, Scope Scope)> _candidatesInProgress = new();
     private readonly Dictionary<string, IReadOnlyList<string>> _declaredGeneralTypes = new(StringComparer.Ordinal);
     private readonly HashSet<string> _declaredGeneralTypesInProgress = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string?> _referenceSubsettingTargets = new(StringComparer.Ordinal);
@@ -337,54 +336,6 @@ public sealed class NameResolver
     /// <returns>The resolved element's qualified name, or null when it does not resolve.</returns>
     public string? Resolve(string reference, string? localNamespace) =>
         Resolve(reference, localNamespace, null);
-
-    /// <summary>
-    ///     Resolves the qualified name <paramref name="reference"/> in the global namespace like
-    ///     <see cref="Resolve(string, string?)"/> does, but reports every distinct element it can
-    ///     denote rather than the first one found, so a caller can reject an ambiguous name. A name
-    ///     reached through two imports of one namespace that bring in different elements of the same
-    ///     name is ambiguous; the same element reached twice is not. Model resolution is unchanged
-    ///     and keeps taking the first match.
-    /// </summary>
-    /// <param name="reference">
-    ///     The (possibly qualified) name to resolve. A dotted feature chain or a <c>$::</c>-prefixed
-    ///     name is not analyzed for ambiguity and yields what <see cref="Resolve(string, string?)"/> finds.
-    /// </param>
-    /// <returns>
-    ///     The distinct resolved elements' qualified names: none when the name does not resolve, one
-    ///     when it is unambiguous, several when it is ambiguous.
-    /// </returns>
-    public IReadOnlyList<string> ResolveCandidates(string reference)
-    {
-        ArgumentNullException.ThrowIfNull(reference);
-        var segments = SplitSegments(reference);
-        if (segments.Count == 0 || segments[0] == "$" || reference.IndexOf('.') >= 0)
-        {
-            return Resolve(reference, null) is { } single ? [single] : [];
-        }
-
-        // The first segment is a global name; every later one is resolved by visible resolution in
-        // each element the previous segment may denote.
-        if (ResolveGlobal(segments[0]) is not { } first)
-        {
-            return [];
-        }
-
-        var current = new List<string> { first };
-        for (var i = 1; i < segments.Count; i++)
-        {
-            var segment = segments[i];
-            var next = current.SelectMany(ns => VisibleCandidates(segment, ns, Scope.Visible)).Distinct().ToList();
-            if (next.Count == 0)
-            {
-                return [];
-            }
-
-            current = next;
-        }
-
-        return current;
-    }
 
     /// <summary>
     ///     Resolves <paramref name="reference"/> as <see cref="Resolve(string, string?)"/> does,
@@ -1179,12 +1130,7 @@ public sealed class NameResolver
         // features the type's own features redefine (KerML Type::removeRedefinedFeatures). The
         // targets of a redefinition are resolved without that exclusion: a library association
         // routinely redefines a name its general type's own feature already redefined.
-        var inheritedScope = scope switch
-        {
-            Scope.Visible => Scope.Visible,
-            Scope.RedefinitionTarget => Scope.RedefinitionTarget,
-            _ => Scope.Inheritable,
-        };
+        var inheritedScope = InheritedScopeOf(scope);
         foreach (var general in LookupGeneralTypes(namespaceName))
         {
             if (Lookup(name, general, inheritedScope) is { } inherited &&
@@ -1198,23 +1144,31 @@ public sealed class NameResolver
     }
 
     /// <summary>
-    ///     Finds <paramref name="name"/> among the memberships <paramref name="namespaceName"/> owns
-    ///     (including aliases) that <paramref name="scope"/> admits, returning the member element's
-    ///     qualified name, or null when it owns no such membership.
+    ///     One membership a namespace owns that matches a looked-up name: a declared element
+    ///     (<see cref="QualifiedName"/>, which may be null for an unnamed-in-the-table node) or an
+    ///     alias (<see cref="Alias"/>, whose target the caller resolves).
     /// </summary>
-    private string? LookupOwned(string name, string namespaceName, Scope scope)
+    private readonly record struct OwnedMembership(string? QualifiedName, SysmlAliasNode? Alias);
+
+    /// <summary>
+    ///     Enumerates, in lookup order, the memberships <paramref name="namespaceName"/> owns
+    ///     (including aliases) that match <paramref name="name"/> and that <paramref name="scope"/>
+    ///     admits. Lazy, so <see cref="LookupOwned"/> stops at the first usable one while candidate
+    ///     enumeration (<see cref="OwnedCandidates"/>) takes them all.
+    /// </summary>
+    private IEnumerable<OwnedMembership> EnumerateOwned(string name, string namespaceName, Scope scope)
     {
         // An element whose qualified name is "<namespace>::<name>" is owned by that namespace by
         // construction, even when the namespace node itself is absent or does not list it.
         if (_declarations.TryGetValue(namespaceName + "::" + name, out var direct) &&
             direct is not (SysmlImportNode or SysmlAliasNode) && Admits(direct.Visibility, scope))
         {
-            return namespaceName + "::" + name;
+            yield return new OwnedMembership(namespaceName + "::" + name, null);
         }
 
         if (!_declarations.TryGetValue(namespaceName, out var ns))
         {
-            return null;
+            yield break;
         }
 
         // Owned memberships (including aliases).
@@ -1226,9 +1180,24 @@ public sealed class NameResolver
                 continue;
             }
 
-            var target = child is SysmlAliasNode alias
+            yield return child is SysmlAliasNode alias
+                ? new OwnedMembership(null, alias)
+                : new OwnedMembership(child.QualifiedName, null);
+        }
+    }
+
+    /// <summary>
+    ///     Finds <paramref name="name"/> among the memberships <paramref name="namespaceName"/> owns
+    ///     (including aliases) that <paramref name="scope"/> admits, returning the member element's
+    ///     qualified name, or null when it owns no such membership.
+    /// </summary>
+    private string? LookupOwned(string name, string namespaceName, Scope scope)
+    {
+        foreach (var membership in EnumerateOwned(name, namespaceName, scope))
+        {
+            var target = membership.Alias is { } alias
                 ? Resolve(alias.TargetName, namespaceName)
-                : child.QualifiedName;
+                : membership.QualifiedName;
             if (target is not null)
             {
                 return target;
@@ -1239,77 +1208,15 @@ public sealed class NameResolver
     }
 
     /// <summary>
-    ///     Finds every distinct element <paramref name="name"/> denotes among the memberships of
-    ///     <paramref name="namespaceName"/> that <paramref name="scope"/> admits: an owned
-    ///     membership alone when there is one (owned memberships take precedence over imported
-    ///     ones), otherwise the distinct elements the namespace's admitted imports bring in, and
-    ///     only when neither exists the inherited membership <see cref="Lookup"/> finds. A
-    ///     namespace import that is neither recursive nor a membership import is followed with this
-    ///     same method, so a facade of facades reports every candidate. Used only to detect
-    ///     ambiguity; model resolution keeps using <see cref="Lookup"/>.
+    ///     Maps the scope a lookup runs in to the scope its general types are searched in (the
+    ///     memberships a specialization inherits).
     /// </summary>
-    private List<string> VisibleCandidates(string name, string namespaceName, Scope scope)
+    private static Scope InheritedScopeOf(Scope scope) => scope switch
     {
-        // Imports may be circular: a lookup already in progress contributes no candidates.
-        var key = (name, namespaceName, scope);
-        if (!_candidatesInProgress.Add(key))
-        {
-            return [];
-        }
-
-        try
-        {
-            if (LookupOwned(name, namespaceName, scope) is { } owned)
-            {
-                return [owned];
-            }
-
-            var candidates = new List<string>();
-            if (_declarations.TryGetValue(namespaceName, out var ns))
-            {
-                candidates.AddRange(ns.Children
-                    .OfType<SysmlImportNode>()
-                    .Where(import => Admits(import.Visibility, scope))
-                    .SelectMany(import => ImportedCandidates(name, namespaceName, import))
-                    .Distinct()
-                    .ToList());
-            }
-
-            if (candidates.Count == 0 && Lookup(name, namespaceName, scope) is { } inherited)
-            {
-                candidates.Add(inherited);
-            }
-
-            return candidates;
-        }
-        finally
-        {
-            _candidatesInProgress.Remove(key);
-        }
-    }
-
-    /// <summary>
-    ///     Finds every distinct element <paramref name="name"/> denotes among the memberships one
-    ///     import brings in: for a plain (non-recursive) namespace import every candidate the
-    ///     imported namespace's visible memberships offer, otherwise what <see cref="LookupImported"/>
-    ///     finds.
-    /// </summary>
-    private IEnumerable<string> ImportedCandidates(string name, string importingNamespace, SysmlImportNode import)
-    {
-        if (import.IsMembershipImport || import.IsRecursive)
-        {
-            return LookupImported(name, importingNamespace, import) is { } found ? [found] : [];
-        }
-
-        var target = Resolve(import.ImportedNamespace, importingNamespace);
-        if (target is null)
-        {
-            return [];
-        }
-
-        var memberScope = import.IsImportAll ? Scope.Local : Scope.Visible;
-        return VisibleCandidates(name, target, memberScope).Where(candidate => PassesImportFilter(import, candidate));
-    }
+        Scope.Visible => Scope.Visible,
+        Scope.RedefinitionTarget => Scope.RedefinitionTarget,
+        _ => Scope.Inheritable,
+    };
     /// <summary>
     ///     Returns whether a feature owned by <paramref name="ns"/> redefines the inherited member
     ///     <paramref name="member"/>, which therefore is not among <paramref name="ns"/>'s inherited

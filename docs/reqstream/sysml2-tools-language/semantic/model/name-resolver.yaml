@@ -31,7 +31,8 @@ sections:
           publicly imports two namespaces exposing the same name resolves by import order. A
           caller that must not guess (the Query element lookup) needs the ambiguity visible.
         tests:
-          - NameResolver_ResolveCandidates_TwoImports_ReportsAll
+          - NameResolver_ResolveCandidates_TwoCandidatesOnEveryPath_ReportsBoth
+          - NameResolver_ResolveCandidates_UnambiguousAndUnknownNames_ReportOneAndNone
 
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-LocalResolution
         title: >-

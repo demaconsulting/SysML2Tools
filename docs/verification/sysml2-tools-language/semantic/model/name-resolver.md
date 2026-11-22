@@ -37,6 +37,11 @@ created in `Path.GetTempPath()` and deleted after each test.
   imports apply to the registered declarations (and the referencing file's own supplied imports take
   precedence over a same-named declaration's from another file), and a redefinition never resolves to the
   redefining feature itself.
+- `ResolveCandidates` reports both elements of a two-candidate ambiguity on every path (owned names,
+  short names, and aliases; an ambiguous alias or import target; membership, namespace, recursive,
+  and filtered imports; inherited memberships; global short names, name and short name, root
+  aliases, and `$::`) while `Resolve` still yields one of them; an unambiguous name has one
+  candidate and an unknown name none.
 - A dotted feature chain resolves its first segment by full resolution and every later segment by
   visible resolution in the previous feature: through a subsetting or redefining usage, an alias
   (followed to its target), a conjugated port type, a quoted segment (a dot inside quotes does not
@@ -58,7 +63,8 @@ created in `Path.GetTempPath()` and deleted after each test.
 | Test | Scenario |
 | --- | --- |
 | `NameResolver_Resolve_SameNameInSiblingPackages_ResolvesOwningPackageFirst` | Owning package wins |
-| `NameResolver_ResolveCandidates_TwoImports_ReportsAll` | Ambiguity is reported |
+| `NameResolver_ResolveCandidates_TwoCandidatesOnEveryPath_ReportsBoth` | Table: two candidates per path |
+| `NameResolver_ResolveCandidates_UnambiguousAndUnknownNames_ReportOneAndNone` | One or none |
 | `NameResolver_Resolve_InheritedMember_ResolvesThroughSupertype` | Inherited membership |
 | `NameResolver_Resolve_AliasAndShortName_ResolveToTheirElement` | Alias and short name |
 | `NameResolver_Resolve_PrivateMemberViaQualifiedName_DoesNotResolve` | Private via qualified name |

@@ -3,6 +3,7 @@
 
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
+using DemaConsulting.SysML2Tools.Filtering;
 using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Semantic;
@@ -26,6 +27,27 @@ public sealed class NameResolverTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace);
             return new NameResolver(result.Workspace.Declarations, importFilter);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Loads <paramref name="sysml"/> (with the standard library) and returns the resolver the
+    ///     workspace offers: filtered imports evaluated and file-root aliases registered.
+    /// </summary>
+    private static async Task<NameResolver> LoadWorkspaceResolverAsync(string sysml)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            return FilterExpressionEvaluator.CreateNameResolver(result.Workspace);
         }
         finally
         {
@@ -129,15 +151,123 @@ public sealed class NameResolverTests
     }
 
     /// <summary>
-    ///     A name two imports of one facade bring in as different elements is reported with every
-    ///     candidate, while the same element reached twice, a unique name, and an unknown name are
-    ///     reported as one candidate, one candidate, and none.
+    ///     Two-candidate ambiguity on every resolution path of <see cref="NameResolver.ResolveCandidates"/>:
+    ///     each row is a model, a reference, and the two elements the reference denotes.
+    /// </summary>
+    public static TheoryData<string, string, string> AmbiguousPaths => new()
+    {
+        // Owned memberships: a name and a short name; two aliases of one name
+        { "package P { part def <zz> A; part def zz; }", "P::zz", "P::A|P::zz" },
+        { "package P { part def A; part def B; alias X for A; alias X for B; }", "P::X", "P::A|P::B" },
+
+        // An alias (and a membership import) whose own target is ambiguous
+        {
+            """
+            package A { part def X; } package B { part def X; }
+            package Hub { public import A::*; public import B::*; }
+            package P { alias Y for Hub::X; }
+            """,
+            "P::Y", "A::X|B::X"
+        },
+        {
+            """
+            package A { part def X; } package B { part def X; }
+            package Hub { public import A::*; public import B::*; }
+            package F { public import Hub::X; }
+            """,
+            "F::X", "A::X|B::X"
+        },
+
+        // Imported memberships: membership imports, namespace imports, recursive imports
+        {
+            "package A { part def X; } package B { part def X; } package Hub { public import A::X; public import B::X; }",
+            "Hub::X", "A::X|B::X"
+        },
+        {
+            "package A { part def X; } package B { part def X; } package Hub { public import A::*; public import B::*; }",
+            "Hub::X", "A::X|B::X"
+        },
+        {
+            "package Lib { package A { part def X; } package B { part def X; } } package Hub { public import Lib::**; }",
+            "Hub::X", "Lib::A::X|Lib::B::X"
+        },
+        {
+            "package Lib { part def X; package Inner { part def X; } } package Hub { public import Lib::**; }",
+            "Hub::X", "Lib::Inner::X|Lib::X"
+        },
+
+        // Filtered imports: each candidate must pass the filter (an element without @T is rejected)
+        {
+            """
+            metadata def T;
+            package A { part def X { @T; } } package B { part def X { @T; } } package Plain { part def X; }
+            package Hub { public import A::*[@T]; public import B::*[@T]; public import Plain::*[@T]; }
+            """,
+            "Hub::X", "A::X|B::X"
+        },
+        {
+            """
+            metadata def T;
+            package Lib { package A { part def X { @T; } } package B { part def X { @T; } } package Plain { part def X; } }
+            package Hub { public import Lib::**[@T]; }
+            """,
+            "Hub::X", "Lib::A::X|Lib::B::X"
+        },
+
+        // Inherited memberships of two general types
+        {
+            "package P { part def S1 { part def X; } part def S2 { part def X; } part def D :> S1, S2; }",
+            "P::D::X", "P::S1::X|P::S2::X"
+        },
+
+        // The global namespace: short names, a name and a short name, root aliases, the $:: form
+        { "part def <zz> A; part def <zz> B;", "zz", "A|B" },
+        { "part def <zz> A; part def zz;", "zz", "A|zz" },
+        { "part def <zz> A; part def <zz> B;", "$::zz", "A|B" },
+        {
+            "package P { part def X; } package Q { part def X; } alias <zz> One for P::X; alias <zz> Two for Q::X;",
+            "zz", "P::X|Q::X"
+        },
+        {
+            "package P { part def X; } package Q { part def X; } alias <zz> One for P; alias <zz> Two for Q;",
+            "zz::X", "P::X|Q::X"
+        },
+    };
+
+    /// <summary>
+    ///     Every resolution path reports both elements of a two-candidate ambiguity, while model
+    ///     resolution (<see cref="NameResolver.Resolve(string, string?)"/>) is unchanged and still
+    ///     yields one of them.
+    /// </summary>
+    /// <param name="sysml">The model.</param>
+    /// <param name="reference">The reference to resolve.</param>
+    /// <param name="expected">The two expected candidates, separated by <c>|</c>.</param>
+    [Theory]
+    [MemberData(nameof(AmbiguousPaths))]
+    public async Task NameResolver_ResolveCandidates_TwoCandidatesOnEveryPath_ReportsBoth(
+        string sysml, string reference, string expected)
+    {
+        // Arrange: a model in which the reference denotes two elements, resolved the way a query
+        // resolves it (import filters evaluated, file-root aliases registered)
+        var resolver = await LoadWorkspaceResolverAsync(sysml);
+        var expectedCandidates = expected.Split('|').OrderBy(name => name, StringComparer.Ordinal).ToList();
+
+        // Act
+        var candidates = resolver.ResolveCandidates(reference);
+
+        // Assert: both candidates; the model resolution takes one of them
+        Assert.Equal(expectedCandidates, candidates.OrderBy(name => name, StringComparer.Ordinal));
+        Assert.Contains(resolver.Resolve(reference, null), expectedCandidates);
+    }
+
+    /// <summary>
+    ///     An unambiguous name has one candidate, the same element reached by two imports has one,
+    ///     and an unknown name has none.
     /// </summary>
     [Fact]
-    public async Task NameResolver_ResolveCandidates_TwoImports_ReportsAll()
+    public async Task NameResolver_ResolveCandidates_UnambiguousAndUnknownNames_ReportOneAndNone()
     {
-        // Arrange: Facade publicly imports two packages that both declare X, and Same imports
-        // the same package twice
+        // Arrange: Same imports the same package twice
         var resolver = await LoadAsync("""
             package A { part def X; part def OnlyA; }
             package B { part def X; }
@@ -145,17 +275,10 @@ public sealed class NameResolverTests
             package Same { public import A::*; public import A::OnlyA; }
             """);
 
-        // Act
-        var ambiguous = resolver.ResolveCandidates("Facade::X");
-        var unique = resolver.ResolveCandidates("Facade::OnlyA");
-        var sameElement = resolver.ResolveCandidates("Same::OnlyA");
-        var unknown = resolver.ResolveCandidates("Facade::Missing");
-
-        // Assert
-        Assert.Equal(["A::X", "B::X"], ambiguous.OrderBy(name => name, StringComparer.Ordinal));
-        Assert.Equal(["A::OnlyA"], unique);
-        Assert.Equal(["A::OnlyA"], sameElement);
-        Assert.Empty(unknown);
+        // Act / Assert
+        Assert.Equal(["A::OnlyA"], resolver.ResolveCandidates("Facade::OnlyA"));
+        Assert.Equal(["A::OnlyA"], resolver.ResolveCandidates("Same::OnlyA"));
+        Assert.Empty(resolver.ResolveCandidates("Facade::Missing"));
     }
     /// <summary>
     ///     A redefined feature resolves against the general types of the redefining feature's owner.
