@@ -205,7 +205,8 @@ instance serves one workspace.
   A lookup already in progress (`_candidatesInProgress`) contributes nothing, so circular imports,
   aliases, and specializations terminate. It exists so a caller (the Query element lookup) can
   reject an ambiguous name; `Resolve` and model resolution keep taking the first match. A dotted
-  feature chain falls back to `Resolve`.- `RegisterFileRoots(scopes)` (internal): registers each file's `FileRootScope` (root aliases and
+  feature chain falls back to `Resolve`.
+- `RegisterFileRoots(scopes)` (internal): registers each file's `FileRootScope` (root aliases and
   root imports with the declarations they apply to) through `RegisterRootAliases` and
   `RegisterRootImports`. `ReferenceResolver` and `FilterExpressionEvaluator.CreateNameResolver` both
   use it (the loader keeps the scopes on `SysmlWorkspace`), so a resolver over a loaded workspace

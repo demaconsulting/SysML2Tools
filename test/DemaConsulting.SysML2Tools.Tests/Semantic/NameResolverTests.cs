@@ -1,9 +1,9 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
+using DemaConsulting.SysML2Tools.Filtering;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
-using DemaConsulting.SysML2Tools.Filtering;
 using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Semantic;
