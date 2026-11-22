@@ -57,7 +57,8 @@ line end) on graph edges and layout lines. It also
 aligns the ports that several edges share on one box face straight, so the connectors between such
 boxes no longer end with a small bend.
 
-Version 0.3.0-beta.6 of the family (the minimum version SysML2Tools builds against) makes the routing of
+Version 0.3.0-beta.7 of the family (the minimum version SysML2Tools builds against) has code unchanged
+from 0.3.0-beta.6, which makes the routing of
 connectors across nested containers scale to very large packages without changing the API SysML2Tools
 drives: it routes a scope too large for the full effort with a reduced, deterministic work budget (never a
 time limit), so the OMG Annex A SimpleVehicleModel renders in seconds instead of never finishing, and it
