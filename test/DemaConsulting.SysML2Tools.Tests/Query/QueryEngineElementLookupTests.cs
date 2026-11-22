@@ -72,6 +72,12 @@ public class QueryEngineElementLookupTests
         }
         """;
 
+    /// <summary>The number of facade levels in the generated diamond fixture.</summary>
+    private const int DiamondLevels = 20;
+
+    /// <summary>The number of facade packages per level in the generated diamond fixture.</summary>
+    private const int DiamondWidth = 2;
+
     /// <summary>
     ///     Loads the fixture exactly as a non-CLI library caller would.
     /// </summary>
@@ -163,6 +169,151 @@ public class QueryEngineElementLookupTests
         // Assert: the aliased element is reported under its owning name
         Assert.Equal("Aliased::Original", result.Element);
         Assert.Equal("Aliased::Short", result.LookupName);
+    }
+
+    /// <summary>
+    ///     Generates a deep, wide diamond of facades: <see cref="DiamondLevels"/> levels of
+    ///     <see cref="DiamondWidth"/> packages, every package re-exporting every package of the
+    ///     next level with <c>public import</c>, so the bottom level is reachable from the top by
+    ///     <c>DiamondWidth^(DiamondLevels - 1)</c> distinct paths; an enumeration that walks each
+    ///     path separately never finishes. The bottom level declares <c>Unique</c> in one package
+    ///     and <c>Shared</c> in two, and re-exports the top level, closing an import cycle through
+    ///     the whole diamond. A package that only privately imports the top level hides it all.
+    /// </summary>
+    /// <returns>The generated SysML source.</returns>
+    private static string BuildDiamondFixture()
+    {
+        var text = new System.Text.StringBuilder();
+        for (var level = 0; level < DiamondLevels; level++)
+        {
+            for (var index = 0; index < DiamondWidth; index++)
+            {
+                text.AppendLine($"package L{level}_{index} {{");
+                var bottom = level == DiamondLevels - 1;
+
+                // The bottom level declares the elements and closes the cycle back to the top;
+                // every other level re-exports each package of the level below it.
+                if (bottom)
+                {
+                    text.AppendLine("    part def Shared;");
+                    if (index == 0)
+                    {
+                        text.AppendLine("    part def Unique;");
+                    }
+                }
+
+                var targetLevel = bottom ? 0 : level + 1;
+                for (var target = 0; target < DiamondWidth; target++)
+                {
+                    text.AppendLine($"    public import L{targetLevel}_{target}::*;");
+                }
+
+                text.AppendLine("}");
+            }
+        }
+
+        text.AppendLine("package Hidden {");
+        text.AppendLine("    private import L0_0::*;");
+        text.AppendLine("}");
+        return text.ToString();
+    }
+
+    /// <summary>
+    ///     A name declared once at the bottom of a deep, wide diamond of public-import facades
+    ///     (with an import cycle back to the top) resolves to that single declaration, and the
+    ///     lookup completes rather than walking every path of the diamond.
+    /// </summary>
+    [Fact]
+    public async Task QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_ResolvesUniqueName()
+    {
+        // Arrange: a generated diamond of facades closed into an import cycle
+        var workspace = await LoadAsync(BuildDiamondFixture());
+
+        // Act: describe the unique bottom-level element through the top-level facade
+        var result = Describe(workspace, "L0_0::Unique");
+
+        // Assert: the one declaration is found under its owning name
+        Assert.Equal($"L{DiamondLevels - 1}_0::Unique", result.Element);
+        Assert.Equal("L0_0::Unique", result.LookupName);
+    }
+
+    /// <summary>
+    ///     A name declared by two bottom-level packages of the diamond is ambiguous through every
+    ///     path, so the lookup reports both candidates exactly once each.
+    /// </summary>
+    [Fact]
+    public async Task QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_ReportsAmbiguousName()
+    {
+        // Arrange: a generated diamond whose bottom level has two declarations of Shared
+        var workspace = await LoadAsync(BuildDiamondFixture());
+
+        // Act
+        var found = QueryEngine.TryResolveElement(workspace, "L0_0::Shared", out var element, out var candidates);
+
+        // Assert: not found, with exactly the two competing declarations reported
+        Assert.False(found);
+        Assert.Null(element);
+        Assert.Equal(
+            [$"L{DiamondLevels - 1}_0::Shared", $"L{DiamondLevels - 1}_1::Shared"],
+            candidates.OrderBy(name => name, StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    ///     A name declared nowhere, and a name only reachable through a private import of the
+    ///     diamond, are not found, and neither lookup walks every path of the diamond forever.
+    /// </summary>
+    [Fact]
+    public async Task QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_NotFoundAndPrivateImportDoNotResolve()
+    {
+        // Arrange: a generated diamond closed into a cycle, plus a package importing it privately
+        var workspace = await LoadAsync(BuildDiamondFixture());
+
+        // Act: look up a missing name and a name behind the private import
+        var missing = QueryEngine.TryResolveElement(workspace, "L0_0::NoSuchThing", out var missingElement, out var missingCandidates);
+        var hidden = QueryEngine.TryResolveElement(workspace, "Hidden::Unique", out var hiddenElement, out var hiddenCandidates);
+
+        // Assert: neither is found and neither reports any candidate
+        Assert.False(missing);
+        Assert.Null(missingElement);
+        Assert.Empty(missingCandidates);
+        Assert.False(hidden);
+        Assert.Null(hiddenElement);
+        Assert.Empty(hiddenCandidates);
+    }
+
+    /// <summary>
+    ///     A cycle of public imports exposes every member of the cycle: a name declared in one
+    ///     package is found through the others, from whichever package the lookup starts.
+    /// </summary>
+    [Fact]
+    public async Task QueryEngine_TryResolveElement_PublicImportCycle_FindsMemberFromEveryPackage()
+    {
+        // Arrange: three packages that publicly import each other in a ring
+        const string sysml = """
+            package A {
+                public import B::*;
+            }
+
+            package B {
+                public import C::*;
+            }
+
+            package C {
+                part def Unit;
+                public import A::*;
+            }
+            """;
+        var workspace = await LoadAsync(sysml);
+
+        // Act: describe the unit through each package of the ring
+        var viaA = Describe(workspace, "A::Unit");
+        var viaB = Describe(workspace, "B::Unit");
+        var viaC = Describe(workspace, "C::Unit");
+
+        // Assert: every path finds the one declaration
+        Assert.Equal("C::Unit", viaA.Element);
+        Assert.Equal("C::Unit", viaB.Element);
+        Assert.Equal("C::Unit", viaC.Element);
     }
 
     /// <summary>

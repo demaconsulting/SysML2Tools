@@ -401,6 +401,10 @@ sections:
           - QueryEngine_TryResolveElement_NameFromTwoPublicImports_IsAmbiguous
           - QueryEngine_TryResolveElement_PrivateImport_DoesNotResolve
           - QueryEngine_TryResolveElement_UnknownName_IsNotFound
+          - QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_ResolvesUniqueName
+          - QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_ReportsAmbiguousName
+          - QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_NotFoundAndPrivateImportDoNotResolve
+          - QueryEngine_TryResolveElement_PublicImportCycle_FindsMemberFromEveryPackage
 
       - id: SysML2Tools-Core-Query-LookupName
         title: >-

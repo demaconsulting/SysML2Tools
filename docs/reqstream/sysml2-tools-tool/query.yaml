@@ -163,6 +163,9 @@ sections:
           - Describe_PrivateImportName_ReportsNotFound
           - Describe_AmbiguousFacadeName_ReportsAmbiguityWithCandidates
           - Describe_RootAliasName_ReportsOwningNameAndLookupName
+          - QuerySelfModel_Describe_CoreUnitThroughFacade_ReportsOwningElement
+          - QuerySelfModel_Describe_ToolUnitThroughFacade_ReportsOwningElement
+          - QuerySelfModel_Describe_NonexistentNameThroughFacade_ReportsNotFound
 
       - id: SysML2Tools-Tool-Query-Find
         title: >-

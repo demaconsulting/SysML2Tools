@@ -31,10 +31,39 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 public sealed partial class NameResolver
 {
     /// <summary>
-    ///     The lookups the candidate enumeration is currently inside, so circular imports,
-    ///     aliases, and specializations contribute nothing on re-entry instead of recursing forever.
+    ///     The most evaluation rounds one <see cref="ResolveCandidates"/> call runs while chasing a
+    ///     fixed point through circular imports; a safety net, as real models settle in two or three.
     /// </summary>
-    private readonly HashSet<(string Name, string Namespace, Scope Scope)> _candidatesInProgress = new();
+    private const int MaxCandidateRounds = 32;
+
+    /// <summary>
+    ///     Identifies one memoized candidate lookup of a single enumeration round: a namespace's
+    ///     visible candidates for a name (<paramref name="AliasIndex"/> is -1), or the targets of
+    ///     one root alias (<paramref name="AliasIndex"/> indexes the registered root aliases).
+    /// </summary>
+    private readonly record struct CandidateKey(int AliasIndex, string Name, string Namespace, Scope Scope);
+
+    /// <summary>
+    ///     The lookups the current round is inside, so circular imports, aliases, and
+    ///     specializations are cut on re-entry instead of recursing forever (the spec's
+    ///     <c>excluded</c> set, KerML 8.3.2.4.2 and 8.3.2.4.5).
+    /// </summary>
+    private readonly HashSet<CandidateKey> _candidatesInProgress = new();
+
+    /// <summary>The lookups the current round has finished, each computed exactly once per round.</summary>
+    private readonly Dictionary<CandidateKey, List<string>> _candidateResults = new();
+
+    /// <summary>
+    ///     What the previous round found for each lookup; a cut on a lookup still in progress
+    ///     answers with this, so a cycle's content flows around it until the answers stop changing.
+    /// </summary>
+    private Dictionary<CandidateKey, List<string>> _candidateApproximations = new();
+
+    /// <summary>The top-level short-name scan of <see cref="TopLevelShortNameMatches"/>, by name.</summary>
+    private readonly Dictionary<string, List<string>> _topLevelShortNameMatches = new(StringComparer.Ordinal);
+
+    /// <summary>Whether the current round cut a lookup that was still in progress.</summary>
+    private bool _candidateCycleCut;
 
     /// <summary>
     ///     Resolves the qualified name <paramref name="reference"/> in the global namespace like
@@ -55,7 +84,78 @@ public sealed partial class NameResolver
     public IReadOnlyList<string> ResolveCandidates(string reference)
     {
         ArgumentNullException.ThrowIfNull(reference);
-        return ReferenceCandidates(reference, null, null);
+
+        // Every lookup is computed once per round and remembered, so shared sub-graphs of imports
+        // (a diamond of facades) cost one evaluation instead of one per path. A lookup cut short
+        // because it is still in progress (a cycle) answers with the previous round's result, and
+        // the rounds repeat until nothing changes, so a cycle contributes its full content
+        // regardless of where the walk entered it. An acyclic model settles in one round.
+        _candidateApproximations = new Dictionary<CandidateKey, List<string>>();
+        try
+        {
+            var round = 0;
+            while (true)
+            {
+                round++;
+                _candidateResults.Clear();
+                _candidatesInProgress.Clear();
+                _candidateCycleCut = false;
+                var result = ReferenceCandidates(reference, null, null);
+                if (!_candidateCycleCut || round >= MaxCandidateRounds || CandidateRoundSettled())
+                {
+                    return result.ToList();
+                }
+
+                _candidateApproximations = new Dictionary<CandidateKey, List<string>>(_candidateResults);
+            }
+        }
+        finally
+        {
+            _candidateResults.Clear();
+            _candidatesInProgress.Clear();
+            _candidateApproximations = new Dictionary<CandidateKey, List<string>>();
+        }
+    }
+
+    /// <summary>
+    ///     Returns whether the round just finished found, for every lookup it made, the same
+    ///     elements as the approximation it was given, so another round cannot change anything.
+    /// </summary>
+    private bool CandidateRoundSettled() =>
+        _candidateResults.All(entry =>
+            _candidateApproximations.TryGetValue(entry.Key, out var previous)
+                ? entry.Value.Count == previous.Count && entry.Value.ToHashSet(StringComparer.Ordinal).SetEquals(previous)
+                : entry.Value.Count == 0);
+
+    /// <summary>
+    ///     Computes <paramref name="compute"/> once per round for <paramref name="key"/>. A lookup
+    ///     re-entered while it is still being computed (a circular import, alias, or
+    ///     specialization) is cut and answers with the previous round's approximation.
+    /// </summary>
+    /// <returns>The candidates; shared between callers, so the caller must not modify the list.</returns>
+    private List<string> Memoized(CandidateKey key, Func<List<string>> compute)
+    {
+        if (_candidateResults.TryGetValue(key, out var done))
+        {
+            return done;
+        }
+
+        if (!_candidatesInProgress.Add(key))
+        {
+            _candidateCycleCut = true;
+            return _candidateApproximations.GetValueOrDefault(key) ?? [];
+        }
+
+        try
+        {
+            var computed = compute();
+            _candidateResults[key] = computed;
+            return computed;
+        }
+        finally
+        {
+            _candidatesInProgress.Remove(key);
+        }
     }
 
     /// <summary>
@@ -164,11 +264,29 @@ public sealed partial class NameResolver
         }
 
         candidates.AddRange(RootAliasCandidates(name, byShortName: false));
-        candidates.AddRange(_declarations
-            .Where(kvp => !kvp.Key.Contains("::", StringComparison.Ordinal) && NamesEqual(kvp.Value.ShortName, name))
-            .Select(kvp => kvp.Key));
+        candidates.AddRange(TopLevelShortNameMatches(name));
         candidates.AddRange(RootAliasCandidates(name, byShortName: true));
         return candidates.Distinct().ToList();
+    }
+
+    /// <summary>
+    ///     The top-level declarations whose short name is <paramref name="name"/>. The scan reads
+    ///     every declaration of the workspace, standard library included, and the answer depends on
+    ///     nothing but the name, so each name is scanned once for the resolver's lifetime rather
+    ///     than once per import of every namespace the enumeration visits.
+    /// </summary>
+    private List<string> TopLevelShortNameMatches(string name)
+    {
+        if (!_topLevelShortNameMatches.TryGetValue(name, out var matches))
+        {
+            matches = _declarations
+                .Where(kvp => !kvp.Key.Contains("::", StringComparison.Ordinal) && NamesEqual(kvp.Value.ShortName, name))
+                .Select(kvp => kvp.Key)
+                .ToList();
+            _topLevelShortNameMatches[name] = matches;
+        }
+
+        return matches;
     }
 
     /// <summary>
@@ -179,22 +297,19 @@ public sealed partial class NameResolver
     private List<string> RootAliasCandidates(string name, bool byShortName)
     {
         var candidates = new List<string>();
-        foreach (var (alias, rootImports) in _rootAliases)
+        for (var index = 0; index < _rootAliases.Count; index++)
         {
-            if (!NamesEqual(byShortName ? alias.ShortName : alias.Name, name) ||
-                !_rootAliasesInProgress.Add(alias))
+            var (alias, rootImports) = _rootAliases[index];
+            if (!NamesEqual(byShortName ? alias.ShortName : alias.Name, name))
             {
                 continue;
             }
 
-            try
-            {
-                candidates.AddRange(ReferenceCandidates(alias.TargetName, null, rootImports));
-            }
-            finally
-            {
-                _rootAliasesInProgress.Remove(alias);
-            }
+            // Each alias's targets are resolved once per round; an alias already being followed
+            // is cut (a cycle of aliases adds only what the previous round found).
+            candidates.AddRange(Memoized(
+                new CandidateKey(index, string.Empty, string.Empty, Scope.Visible),
+                () => ReferenceCandidates(alias.TargetName, null, rootImports)));
         }
 
         return candidates;
@@ -206,49 +321,40 @@ public sealed partial class NameResolver
     ///     layer that has any: the owned memberships, else the memberships the admitted imports
     ///     bring in, else the memberships inherited from every general type.
     /// </summary>
-    private List<string> VisibleCandidates(string name, string namespaceName, Scope scope)
+    private List<string> VisibleCandidates(string name, string namespaceName, Scope scope) =>
+        Memoized(
+            new CandidateKey(-1, name, namespaceName, scope),
+            () => VisibleCandidatesUncached(name, namespaceName, scope));
+
+    /// <summary>The uncached body of <see cref="VisibleCandidates"/>: owned, else imported, else inherited.</summary>
+    private List<string> VisibleCandidatesUncached(string name, string namespaceName, Scope scope)
     {
-        // Imports, aliases, and specializations may be circular: a lookup already in progress
-        // contributes no candidates.
-        var key = (name, namespaceName, scope);
-        if (!_candidatesInProgress.Add(key))
+        var owned = OwnedCandidates(name, namespaceName, scope);
+        if (owned.Count > 0 || !_declarations.TryGetValue(namespaceName, out var ns))
         {
-            return [];
+            return owned;
         }
 
-        try
+        var imported = ns.Children
+            .OfType<SysmlImportNode>()
+            .Where(import => Admits(import.Visibility, scope))
+            .SelectMany(import => ImportedCandidates(name, namespaceName, import))
+            .Distinct()
+            .ToList();
+        if (imported.Count > 0)
         {
-            var owned = OwnedCandidates(name, namespaceName, scope);
-            if (owned.Count > 0 || !_declarations.TryGetValue(namespaceName, out var ns))
-            {
-                return owned;
-            }
-
-            var imported = ns.Children
-                .OfType<SysmlImportNode>()
-                .Where(import => Admits(import.Visibility, scope))
-                .SelectMany(import => ImportedCandidates(name, namespaceName, import))
-                .Distinct()
-                .ToList();
-            if (imported.Count > 0)
-            {
-                return imported;
-            }
-
-            // Inherited memberships: every general type's, except the features the type's own
-            // features redefine (the targets of a redefinition are resolved without that exclusion).
-            var inheritedScope = InheritedScopeOf(scope);
-            return LookupGeneralTypes(namespaceName)
-                .SelectMany(general => VisibleCandidates(name, general, inheritedScope))
-                .Where(inherited => scope == Scope.RedefinitionTarget ||
-                                    !IsRedefinedByOwnedFeature(ns, namespaceName, inherited))
-                .Distinct()
-                .ToList();
+            return imported;
         }
-        finally
-        {
-            _candidatesInProgress.Remove(key);
-        }
+
+        // Inherited memberships: every general type's, except the features the type's own
+        // features redefine (the targets of a redefinition are resolved without that exclusion).
+        var inheritedScope = InheritedScopeOf(scope);
+        return LookupGeneralTypes(namespaceName)
+            .SelectMany(general => VisibleCandidates(name, general, inheritedScope))
+            .Where(inherited => scope == Scope.RedefinitionTarget ||
+                                !IsRedefinedByOwnedFeature(ns, namespaceName, inherited))
+            .Distinct()
+            .ToList();
     }
 
     /// <summary>

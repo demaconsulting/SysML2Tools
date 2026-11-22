@@ -202,10 +202,17 @@ instance serves one workspace.
     candidate of the target's visible memberships, and a recursive import every match at every
     depth (`RecursiveCandidates`, not just the least-nested one); a filtered import's conditions
     are applied to each candidate.
-  A lookup already in progress (`_candidatesInProgress`) contributes nothing, so circular imports,
-  aliases, and specializations terminate. It exists so a caller (the Query element lookup) can
-  reject an ambiguous name; `Resolve` and model resolution keep taking the first match. A dotted
-  feature chain falls back to `Resolve`.
+  Every lookup (a namespace's visible candidates for a name, or a root alias's targets) is
+  computed once per round and memoized, so shared sub-graphs of imports (a diamond of facades) cost
+  one evaluation instead of one per path. A lookup re-entered while still in progress
+  (`_candidatesInProgress`: circular imports, aliases, and specializations) is cut and answers with
+  the previous round's result; rounds repeat until no lookup's candidates change (an acyclic model
+  settles in one round, a safety cap bounds the rest), which is the spec's `excluded` set
+  (KerML 8.3.2.4.2, 8.3.2.4.5) made complete for a cycle. Enumeration is therefore polynomial in
+  the size of the import graph and terminates on cyclic and diamond graphs. It exists so a caller
+  (the Query element lookup) can reject an ambiguous name; `Resolve` and model resolution keep
+  taking the first match (their `Lookup` cache and provisional-miss tracking already visit each
+  lookup once). A dotted feature chain falls back to `Resolve`.
 - `RegisterFileRoots(scopes)` (internal): registers each file's `FileRootScope` (root aliases and
   root imports with the declarations they apply to) through `RegisterRootAliases` and
   `RegisterRootImports`. `ReferenceResolver` and `FilterExpressionEvaluator.CreateNameResolver` both
