@@ -1,8 +1,8 @@
 package SysML2ToolsCore {
-    private import SysML2ToolsCore_IoSubsystem::*;
-    private import SysML2ToolsCore_LayoutSubsystem::*;
-    private import SysML2ToolsCore_QuerySubsystem::*;
-    private import SysML2ToolsCore_RenderingSubsystem::*;
+    public import SysML2ToolsCore_IoSubsystem::*;
+    public import SysML2ToolsCore_LayoutSubsystem::*;
+    public import SysML2ToolsCore_QuerySubsystem::*;
+    public import SysML2ToolsCore_RenderingSubsystem::*;
     private import SoftwareItemMetadata::*;
     private import OtsDependencies::*;
 

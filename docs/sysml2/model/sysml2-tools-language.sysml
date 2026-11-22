@@ -1,7 +1,7 @@
 package SysML2ToolsLanguage {
-    private import SysML2ToolsLanguage_FilteringSubsystem::*;
-    private import SysML2ToolsLanguage_ParserSubsystem::*;
-    private import SysML2ToolsLanguage_SemanticSubsystem::*;
+    public import SysML2ToolsLanguage_FilteringSubsystem::*;
+    public import SysML2ToolsLanguage_ParserSubsystem::*;
+    public import SysML2ToolsLanguage_SemanticSubsystem::*;
     private import SoftwareItemMetadata::*;
     private import OtsDependencies::*;
 

@@ -1,5 +1,5 @@
 package SysML2ToolsLanguage_FilteringSubsystem {
-    private import SysML2ToolsLanguage_FilterExpressionEvaluator::*;
+    public import SysML2ToolsLanguage_FilterExpressionEvaluator::*;
     private import SoftwareItemMetadata::*;
 
     part def FilteringSubsystem {

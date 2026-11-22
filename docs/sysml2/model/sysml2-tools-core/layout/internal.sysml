@@ -1,14 +1,14 @@
 package SysML2ToolsCore_LayoutInternalSubsystem {
-    private import SysML2ToolsCore_ActionFlowViewLayoutStrategy::*;
-    private import SysML2ToolsCore_BrowserViewLayoutStrategy::*;
-    private import SysML2ToolsCore_ExposeScopeResolver::*;
-    private import SysML2ToolsCore_GeneralViewLayoutStrategy::*;
-    private import SysML2ToolsCore_GridViewLayoutStrategy::*;
-    private import SysML2ToolsCore_InterconnectionViewLayoutStrategy::*;
-    private import SysML2ToolsCore_LayeredPlacement::*;
-    private import SysML2ToolsCore_LayoutWarnings::*;
-    private import SysML2ToolsCore_SequenceViewLayoutStrategy::*;
-    private import SysML2ToolsCore_StateTransitionViewLayoutStrategy::*;
+    public import SysML2ToolsCore_ActionFlowViewLayoutStrategy::*;
+    public import SysML2ToolsCore_BrowserViewLayoutStrategy::*;
+    public import SysML2ToolsCore_ExposeScopeResolver::*;
+    public import SysML2ToolsCore_GeneralViewLayoutStrategy::*;
+    public import SysML2ToolsCore_GridViewLayoutStrategy::*;
+    public import SysML2ToolsCore_InterconnectionViewLayoutStrategy::*;
+    public import SysML2ToolsCore_LayeredPlacement::*;
+    public import SysML2ToolsCore_LayoutWarnings::*;
+    public import SysML2ToolsCore_SequenceViewLayoutStrategy::*;
+    public import SysML2ToolsCore_StateTransitionViewLayoutStrategy::*;
     private import SoftwareItemMetadata::*;
 
     part def LayoutInternalSubsystem {
