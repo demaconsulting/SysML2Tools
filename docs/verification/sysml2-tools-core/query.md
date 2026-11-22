@@ -379,8 +379,8 @@ are not found.
 **`QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_ResolvesUniqueName`**: A generated
 diamond of 20 levels of 2 facade packages, each re-exporting both packages of the next level by
 `public import` and the bottom level re-exporting the top (an import cycle), is loaded; a name
-declared once at the bottom resolves to that one declaration through the top facade. The lookup
-completing is the observable behavior: a walk of every path would not finish.
+declared once at the bottom resolves to that one declaration through the top facade. Completion of
+the lookup is the observable behavior: a walk of every path would not finish.
 
 **`QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_ReportsAmbiguousName`**: On the same
 diamond, a name declared by two bottom packages is not found and reports exactly those two
