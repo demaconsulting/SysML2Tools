@@ -1100,6 +1100,34 @@ sysml2tools query find --name Engine "src/**/*.sysml" --format json
 sysml2tools query describe --element Model::Vehicle --depth 2 --heading "Vehicle Report" "src/**/*.sysml"
 ```
 
+## Element Names
+
+`--element` accepts the element's owning qualified name (for example
+`SysML2ToolsCore_DiagramRenderer::DiagramRenderer`) and any other name that resolves to it under
+SysML v2 name resolution — the same resolution model references use:
+
+- A name reached through a facade package's `public import`. The visible memberships of a
+  namespace include its publicly imported memberships (KerML 1.0 §8.2.3.5.3), so with
+  `package SysML2ToolsCore { public import SysML2ToolsCore_DiagramRenderer::*; }`,
+  `SysML2ToolsCore::DiagramRenderer` names the same element. Chains of facades (system,
+  subsystem, unit) resolve too. A `private` import does not make a name visible, so a name
+  behind one is reported as not found.
+- A name given by an alias.
+
+The owning qualified name is looked up first; otherwise the argument is resolved as a qualified
+name from the global scope. An unknown or ambiguous name reports `element '<name>' not found in
+the workspace`, as before.
+
+The result always shows the element's owning qualified name. When the element was found under a
+different name, the result also shows that lookup name: Markdown adds a `Looked up as: <name>`
+summary bullet, and JSON adds a `LookupName` property beside `Element`. Both are absent when the
+element was found by its owning qualified name, so existing output is unchanged. `find` is a
+pattern search and is not affected.
+
+```bash
+sysml2tools query describe --element SysML2ToolsCore::DiagramRenderer "docs/sysml2/**/*.sysml"
+```
+
 ## Connection-Aware Impact Analysis
 
 By default, `query impact` follows only *reference* relationships — specialization, typing,
@@ -1200,7 +1228,7 @@ the same order, so either format can be relied on for automated comparisons.
 
 | Option | Description |
 | --- | --- |
-| `--element <name>`, `-e <name>` | Qualified name of the target element; required for every verb except `list`/`find` |
+| `--element <name>`, `-e <name>` | Target element name (see Element Names); required except for `list`/`find` |
 | `--format markdown\|json` | Output format (default: `markdown`); distinct from `render`'s `--format` (`svg`/`png`) |
 | `--output <file>` | Write to this **file** (default: stdout); `render`'s `--output` is a *directory* instead |
 | `--walk-depth <#>` | Max impact-walk depth (`impact` only); all relationship kinds count equally, unlimited default |

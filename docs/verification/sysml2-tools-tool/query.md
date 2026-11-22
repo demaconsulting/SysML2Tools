@@ -29,6 +29,9 @@ renderer behavior, and Core-side file-export helper behavior are verified separa
 - `--element`/`-e` is required for every verb except `list`/`find`; omitting it for a verb that
   requires it produces an `ArgumentException`.
 - `find` without `--kind`/`--name` produces an `ArgumentException`.
+- `--element` accepts a name reached through a facade package's `public import` (reported under
+  the owning qualified name together with the lookup name, in Markdown and JSON) for `describe`
+  and `used-by`; a name behind a private import reports the unchanged "not found" error.
 - `--format markdown` and `--format json` both parse and render without error; an
   unrecognized `--format` value produces an `ArgumentException`.
 - `--depth` and `--heading` affect Markdown output only and leave `--format json` output
@@ -143,7 +146,11 @@ not contain the query body.
 One or more `[Fact]` methods per verb use small inline fixtures and the full CLI path
 (`Context.Create` + `Program.RunAsync`) to prove that each verb-specific command-line shape
 reaches the Core Query API correctly. The detailed behavior of each verb itself is documented
-and verified in `docs/verification/sysml2-tools-core/query.md`.
+and verified in `docs/verification/sysml2-tools-core/query.md`. Facade-name scenarios
+(`Describe_FacadePublicImportName_ReportsOwningNameAndLookupName`,
+`Describe_FacadePublicImportName_JsonFormat_IncludesLookupName`,
+`UsedBy_FacadePublicImportName_ReportsReferencesToOwningElement`, and
+`Describe_PrivateImportName_ReportsNotFound`) prove that `--element` resolves through the CLI.
 
 #### QueryErrorPathTests.cs
 

@@ -81,8 +81,10 @@ flowchart TD
    code is 1 when any error was reported; unresolved references are warnings by default and
    errors with `--strict-unresolved`.
 4. For verbs that require a target element, `QueryCommand` resolves `QueryOptions.Element`
-   through `workspace.Declarations.TryGetValue`. Missing elements are reported as a CLI error;
-   Core never receives a `null` element from this path.
+   through Core's `QueryEngine.TryResolveElement`, which accepts the element's owning qualified
+   name or any name that resolves under SysML v2 name resolution (through a facade package's
+   `public import`, or an alias). Missing, ambiguous, or unresolved elements are reported as the
+   same CLI error as before; Core never receives a `null` element from this path.
 5. The command delegates verb execution to `QueryEngine.Execute`, so the CLI and every library
    caller share the same public Core dispatcher and verb implementations.
 6. `QueryCommand` renders results through `QueryResultRenderer.RenderMarkdown` or
@@ -172,6 +174,7 @@ flowchart TD
 | SysML2Tools-Tool-Query-NoFilesMatched | Zero-resolved-files guard in `QueryCommand.RunAsync` |
 | SysML2Tools-Tool-Query-OutputFormat | `QueryCommand.RunAsync`; `QueryResultRenderer.RenderMarkdown`/`RenderJson` |
 | SysML2Tools-Tool-Query-ElementNotFound | Element-lookup check in `QueryCommand.RunAsync` |
+| SysML2Tools-Tool-Query-ElementLookup | `QueryCommand.RunAsync` element lookup via `QueryEngine.TryResolveElement` |
 | SysML2Tools-Tool-Query-Find | `QueryCommand.RunAsync`'s `find`-filter validation; Core `QueryEngine.Find` dispatch |
 | SysML2Tools-Tool-Query-Help | `QueryCommand.PrintGeneralHelp`; `QueryCommand.PrintVerbHelp` |
 | SysML2Tools-Tool-Query-LocalizableHelpText | `QueryStrings` accessor, used by `PrintGeneralHelp` and `PrintVerbHelp` |

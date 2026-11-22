@@ -134,7 +134,7 @@ internal static class QueryCommand
         // Look up the target element for verbs that require one
         SysmlNode? element = null;
         if (QueryVerbParsing.RequiresElement(options.Verb) &&
-            !workspace.Declarations.TryGetValue(options.Element!, out element))
+            !QueryEngine.TryResolveElement(workspace, options.Element!, out element))
         {
             context.WriteError(
                 $"query {verbToken}: element '{options.Element}' not found in the workspace.");

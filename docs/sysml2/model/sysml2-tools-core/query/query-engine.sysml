@@ -9,7 +9,7 @@ package SysML2ToolsCore_QueryEngine {
 
         metadata info : SoftwareInfo {
             sourceFiles = ("src/DemaConsulting.SysML2Tools.Core/Query/QueryEngine.cs");
-            testFiles = ("test/DemaConsulting.SysML2Tools.Tests/Query/QueryEngineImpactTests.cs", "test/DemaConsulting.SysML2Tools.Tests/Query/QueryOmgFixtureTests.cs");
+            testFiles = ("test/DemaConsulting.SysML2Tools.Tests/Query/QueryEngineElementLookupTests.cs", "test/DemaConsulting.SysML2Tools.Tests/Query/QueryEngineImpactTests.cs", "test/DemaConsulting.SysML2Tools.Tests/Query/QueryOmgFixtureTests.cs");
             designFiles = ("docs/design/sysml2-tools-core/query.md");
             verificationFiles = ("docs/verification/sysml2-tools-core/query.md");
             requirementFiles = ("docs/reqstream/sysml2-tools-core/query.yaml");
@@ -22,5 +22,7 @@ package SysML2ToolsCore_QueryEngine {
         dependency QueryEngine to SysML2ToolsLanguage_SysmlNode::SysmlNode;
         dependency QueryEngine to SysML2ToolsLanguage_SysmlEdge::SysmlEdge;
         dependency QueryEngine to SysML2ToolsLanguage_SemanticIndex::SemanticIndex;
+        // Element lookup resolves names with the same NameResolver that resolves model references.
+        dependency QueryEngine to SysML2ToolsLanguage_NameResolver::NameResolver;
     }
 }

@@ -1180,4 +1180,106 @@ public class QueryVerbsTests
         Assert.DoesNotContain("Parts::Part", withoutStdlib);
         Assert.Contains("Parts::Part", withStdlib);
     }
+
+    /// <summary>
+    ///     'describe' accepts a name reached through a facade package's public import and
+    ///     reports the element's owning qualified name together with the name it was looked up by.
+    /// </summary>
+    [Fact]
+    public async Task Describe_FacadePublicImportName_ReportsOwningNameAndLookupName()
+    {
+        const string sysml = """
+            package UnitPkg {
+                part def Unit;
+            }
+
+            package Facade {
+                public import UnitPkg::*;
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Facade::Unit");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("# query describe: UnitPkg::Unit", output);
+        Assert.Contains("Looked up as: Facade::Unit", output);
+    }
+
+    /// <summary>
+    ///     JSON output of a facade-name lookup reports the owning qualified name in 'Element' and
+    ///     the lookup name in 'LookupName'.
+    /// </summary>
+    [Fact]
+    public async Task Describe_FacadePublicImportName_JsonFormat_IncludesLookupName()
+    {
+        const string sysml = """
+            package UnitPkg {
+                part def Unit;
+            }
+
+            package Facade {
+                public import UnitPkg::*;
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Facade::Unit", "--format", "json");
+
+        Assert.Equal(0, exitCode);
+        var jsonStart = output.IndexOf('{', StringComparison.Ordinal);
+        using var document = JsonDocument.Parse(output[jsonStart..]);
+        Assert.Equal("UnitPkg::Unit", document.RootElement.GetProperty("Element").GetString());
+        Assert.Equal("Facade::Unit", document.RootElement.GetProperty("LookupName").GetString());
+    }
+
+    /// <summary>
+    ///     Another element-argument verb ('used-by') resolves a facade name too, reporting the
+    ///     references to the element's owning qualified name.
+    /// </summary>
+    [Fact]
+    public async Task UsedBy_FacadePublicImportName_ReportsReferencesToOwningElement()
+    {
+        const string sysml = """
+            package UnitPkg {
+                part def Unit;
+                part def Special :> Unit;
+            }
+
+            package Facade {
+                public import UnitPkg::*;
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "used-by", "--element", "Facade::Unit");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("# query used-by: UnitPkg::Unit", output);
+        Assert.Contains("UnitPkg::Special", output);
+    }
+
+    /// <summary>
+    ///     A name behind a private import is not a visible membership, so the lookup reports the
+    ///     usual not-found error.
+    /// </summary>
+    [Fact]
+    public async Task Describe_PrivateImportName_ReportsNotFound()
+    {
+        const string sysml = """
+            package UnitPkg {
+                part def Unit;
+            }
+
+            package Hidden {
+                private import UnitPkg::*;
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Hidden::Unit");
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("element 'Hidden::Unit' not found in the workspace", output);
+    }
 }

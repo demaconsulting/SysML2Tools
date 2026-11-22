@@ -27,6 +27,7 @@ sections:
           - SysML2Tools-Tool-Query-NoFilesMatched
           - SysML2Tools-Tool-Query-OutputFormat
           - SysML2Tools-Tool-Query-ElementNotFound
+          - SysML2Tools-Tool-Query-ElementLookup
           - SysML2Tools-Tool-Query-Find
           - SysML2Tools-Tool-Query-Help
           - SysML2Tools-Tool-Query-ReportHeading
@@ -140,6 +141,25 @@ sections:
           silent empty result) helps users quickly detect typos in qualified names.
         tests:
           - Query_ElementNotFound_ReportsErrorAndNonZeroExitCode
+
+      - id: SysML2Tools-Tool-Query-ElementLookup
+        title: >-
+          The query command shall accept as `--element` the owning qualified name of an element
+          or any name that resolves to it under SysML v2 name resolution (through a facade
+          package's `public import`, or an alias), reporting the owning qualified name and, when
+          it differs, the name used.
+        justification: |
+          Agents and users are told to query `{System}::{Item}` through a facade package; the
+          command must accept the name the model itself resolves rather than only the owning
+          qualified name.
+        children:
+          - SysML2Tools-Core-Query-ElementLookup
+          - SysML2Tools-Core-Query-LookupName
+        tests:
+          - Describe_FacadePublicImportName_ReportsOwningNameAndLookupName
+          - Describe_FacadePublicImportName_JsonFormat_IncludesLookupName
+          - UsedBy_FacadePublicImportName_ReportsReferencesToOwningElement
+          - Describe_PrivateImportName_ReportsNotFound
 
       - id: SysML2Tools-Tool-Query-Find
         title: >-

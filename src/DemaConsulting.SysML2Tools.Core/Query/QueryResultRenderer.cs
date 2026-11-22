@@ -58,8 +58,15 @@ public static class QueryResultRenderer
             ""
         };
 
-        if (result.Summary.Count > 0)
+        // When the element was found under a name other than its owning qualified name (a
+        // facade public import or an alias), report the lookup name ahead of the verb's summary
+        if (result.Summary.Count > 0 || result.LookupName is not null)
         {
+            if (result.LookupName is not null)
+            {
+                lines.Add($"- Looked up as: {result.LookupName}");
+            }
+
             foreach (var line in result.Summary)
             {
                 lines.Add($"- {line}");
