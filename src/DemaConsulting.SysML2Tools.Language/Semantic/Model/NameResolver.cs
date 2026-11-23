@@ -41,7 +41,7 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 ///     any package) apply to the declarations of that file, as KerML scopes them.
 ///     </para>
 /// </remarks>
-public sealed partial class NameResolver
+public sealed class NameResolver
 {
     /// <summary>
     ///     The outcome of resolving a (possibly dotted) feature-chain reference.
@@ -346,6 +346,104 @@ public sealed partial class NameResolver
     /// </summary>
     internal string? Resolve(string reference, string? localNamespace, IReadOnlyList<SysmlImportNode>? fileRootImports) =>
         ResolveFeatureChain(reference, localNamespace, fileRootImports)?.Element;
+
+    /// <summary>
+    ///     Resolves the qualified name <paramref name="reference"/> in the global namespace exactly
+    ///     as <see cref="Resolve(string, string?)"/> does, and additionally reports when its final
+    ///     segment is ambiguous, so a caller that must not guess (the Query element lookup) can
+    ///     reject it.
+    /// </summary>
+    /// <remarks>
+    ///     Every segment but the last is resolved by <see cref="Resolve(string, string?)"/>; the
+    ///     last is then looked up by <see cref="FinalSegmentCandidates"/> in that one namespace. An
+    ///     ambiguity deeper than that (in an earlier segment, through a recursive import, or
+    ///     through an inherited member) follows the model's resolution, which takes the first match.
+    /// </remarks>
+    /// <param name="reference">The (possibly qualified) name to resolve.</param>
+    /// <param name="ambiguous">
+    ///     The qualified names of the distinct elements the final segment denotes when there are
+    ///     at least two; empty otherwise.
+    /// </param>
+    /// <returns>The resolved element's qualified name, or null when it does not resolve.</returns>
+    public string? ResolveUnambiguous(string reference, out IReadOnlyList<string> ambiguous)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        ambiguous = [];
+
+        // Only a qualified name has a namespace whose memberships can compete; a chain or a lone
+        // segment follows the model's resolution as it is.
+        var segments = SplitSegments(reference);
+        if (segments.Count >= 2 && SplitChain(reference).Count == 1)
+        {
+            // $:: names the global namespace itself, which has no owner to resolve.
+            var qualification = string.Join("::", segments.Take(segments.Count - 1));
+            var parent = qualification == "$" ? string.Empty : Resolve(qualification, null);
+            if (parent is null)
+            {
+                return null;
+            }
+
+            var candidates = parent.Length > 0 ? FinalSegmentCandidates(segments[^1], parent) : [];
+            if (candidates.Count > 1)
+            {
+                ambiguous = candidates;
+                return null;
+            }
+        }
+
+        return Resolve(reference, null);
+    }
+
+    /// <summary>
+    ///     Every distinct element the simple name <paramref name="name"/> denotes among the visible
+    ///     memberships of the single namespace <paramref name="namespaceName"/>: the owned ones
+    ///     (an alias contributing its target), else those its public imports bring in directly —
+    ///     a membership import's named element, or a namespace import's owned members. It does not
+    ///     recurse: an imported namespace's own imports, recursive imports, and inherited members
+    ///     are left to <see cref="Resolve(string, string?)"/>.
+    /// </summary>
+    private List<string> FinalSegmentCandidates(string name, string namespaceName)
+    {
+        var owned = EnumerateOwned(name, namespaceName, Scope.Visible)
+            .Select(membership => membership.Alias is { } alias
+                ? Resolve(alias.TargetName, namespaceName)
+                : membership.QualifiedName)
+            .OfType<string>()
+            .Distinct()
+            .ToList();
+        if (owned.Count > 0 || !_declarations.TryGetValue(namespaceName, out var ns))
+        {
+            return owned;
+        }
+
+        var imported = new List<string>();
+        foreach (var import in ns.Children.OfType<SysmlImportNode>().Where(i => Admits(i.Visibility, Scope.Visible)))
+        {
+            if (import.IsRecursive || Resolve(import.ImportedNamespace, namespaceName) is not { } target)
+            {
+                continue;
+            }
+
+            if (import.IsMembershipImport)
+            {
+                if (NamesEqual(SplitSegments(import.ImportedNamespace)[^1], name) && PassesImportFilter(import, target))
+                {
+                    imported.Add(target);
+                }
+
+                continue;
+            }
+
+            imported.AddRange(EnumerateOwned(name, target, import.IsImportAll ? Scope.Local : Scope.Visible)
+                .Select(membership => membership.Alias is { } alias
+                    ? Resolve(alias.TargetName, target)
+                    : membership.QualifiedName)
+                .OfType<string>()
+                .Where(candidate => PassesImportFilter(import, candidate)));
+        }
+
+        return imported.Distinct().ToList();
+    }
 
     /// <summary>
     ///     Resolves <paramref name="reference"/> like <see cref="Resolve(string, string?, IReadOnlyList{SysmlImportNode}?)"/>
@@ -1153,8 +1251,8 @@ public sealed partial class NameResolver
     /// <summary>
     ///     Enumerates, in lookup order, the memberships <paramref name="namespaceName"/> owns
     ///     (including aliases) that match <paramref name="name"/> and that <paramref name="scope"/>
-    ///     admits. Lazy, so <see cref="LookupOwned"/> stops at the first usable one while candidate
-    ///     enumeration (<see cref="OwnedCandidates"/>) takes them all.
+    ///     admits. Lazy, so <see cref="LookupOwned"/> stops at the first usable one while
+    ///     <see cref="FinalSegmentCandidates"/> takes them all.
     /// </summary>
     private IEnumerable<OwnedMembership> EnumerateOwned(string name, string namespaceName, Scope scope)
     {

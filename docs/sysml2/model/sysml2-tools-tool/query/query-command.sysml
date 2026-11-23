@@ -8,7 +8,7 @@ package SysML2ToolsTool_QueryCommand {
 
         metadata info : SoftwareInfo {
             sourceFiles = ("src/DemaConsulting.SysML2Tools.Tool/Query/QueryCommand.cs", "src/DemaConsulting.SysML2Tools.Tool/Query/QueryCliArgumentParser.cs", "src/DemaConsulting.SysML2Tools.Tool/Query/QueryStrings.cs");
-            testFiles = ("test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QuerySubsystemTests.cs", "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryVerbsTests.cs", "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryErrorPathTests.cs");
+            testFiles = ("test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QuerySubsystemTests.cs", "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryVerbsTests.cs", "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryErrorPathTests.cs", "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QuerySelfModelTests.cs");
             designFiles = ("docs/design/sysml2-tools-tool/query.md");
             verificationFiles = ("docs/verification/sysml2-tools-tool/query.md");
             requirementFiles = ("docs/reqstream/sysml2-tools-tool/query.yaml");

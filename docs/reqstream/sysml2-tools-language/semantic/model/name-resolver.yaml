@@ -24,15 +24,17 @@ sections:
 
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-Candidates
         title: >-
-          NameResolver shall offer a qualified-name resolution that reports every distinct element
-          the name can denote (none, one, or several), without changing how references resolve.
+          NameResolver shall offer a qualified-name resolution that rejects an ambiguous final
+          segment (one that names two or more distinct elements among the owned and directly
+          imported memberships of the namespace it is looked up in), without changing how
+          references resolve; deeper ambiguity follows the model's first-match resolution.
         justification: |
           Local resolution returns the first match among imported memberships, so a facade that
           publicly imports two namespaces exposing the same name resolves by import order. A
-          caller that must not guess (the Query element lookup) needs the ambiguity visible.
+          caller that must not guess (the Query element lookup) needs that ambiguity visible,
+          without a second, exhaustive resolution path that can run without end on real models.
         tests:
-          - NameResolver_ResolveCandidates_TwoCandidatesOnEveryPath_ReportsBoth
-          - NameResolver_ResolveCandidates_UnambiguousAndUnknownNames_ReportOneAndNone
+          - NameResolver_ResolveUnambiguous_FinalSegmentFromTwoPublicImports_ReportsBoth
 
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-LocalResolution
         title: >-

@@ -156,6 +156,22 @@ and verified in `docs/verification/sysml2-tools-core/query.md`. Facade-name scen
 `Describe_AmbiguousFacadeName_ReportsAmbiguityWithCandidates`, and
 `Describe_PrivateImportName_ReportsNotFound`) prove that `--element` resolves through the CLI.
 
+#### QuerySelfModelTests.cs
+
+Runs `query describe --element` over this repository's own `docs/sysml2` model, whose system,
+subsystem, and unit packages are chained by `public import` facades. The model is located by
+walking up from the test assembly.
+
+**`QuerySelfModel_Describe_CoreUnitThroughFacade_ReportsOwningElement`**: `SysML2ToolsCore::DiagramRenderer`
+is found and reported under its owning package with the facade name as the lookup name.
+
+**`QuerySelfModel_Describe_ToolUnitThroughFacade_ReportsOwningElement`**: `SysML2ToolsTool::RenderCommand`
+is found and reported under its owning package with the facade name as the lookup name.
+
+**`QuerySelfModel_Describe_NonexistentNameThroughFacade_ReportsNotFound`**:
+`SysML2ToolsCore::NoSuchThing` is reported as not found with exit code 1; the lookup completes
+rather than running without end.
+
 #### QueryErrorPathTests.cs
 
 Covers: element not found (`context.WriteError` contains "not found in the workspace");

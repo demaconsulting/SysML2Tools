@@ -1116,9 +1116,13 @@ SysML v2 name resolution — the same resolution model references use:
 
 The owning qualified name is looked up first; otherwise the argument is resolved as a qualified
 name from the global scope. An unknown name reports `element '<name>' not found in the
-workspace`, as before. A name that denotes several distinct elements (for example a facade that
-publicly imports two packages that both declare it) reports `element '<name>' is ambiguous in the
-workspace; it could be '<A>', '<B>'.` — use one of the listed owning qualified names.
+workspace`, as before. A final name segment that denotes several distinct elements in one package
+(for example a facade that publicly imports two packages that both declare it) reports
+`element '<name>' is ambiguous in the
+workspace; it could be '<A>', '<B>'.` — use one of the listed owning qualified names. Known
+limitation: an ambiguity deeper than that (in an earlier segment of the name, through a recursive
+`::**` import, or through an inherited member) is not detected; the name resolves as it does in the
+model, to the first match.
 
 The result always shows the element's owning qualified name. When the element was found under a
 different name, the result also shows that lookup name: Markdown adds a `Looked up as: <name>`

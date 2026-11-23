@@ -385,13 +385,15 @@ sections:
           qualified name in the global scope, so that a name reached through a facade package's
           `public import` (including a chain of facades), through an alias, or through an alias
           written at the file root finds the element, a name behind a private import does not,
-          and an unresolved name, or a name that denotes several distinct elements, is not found
-          (an ambiguous name reports its candidates).
+          and an unresolved name, or a final segment that denotes several distinct elements among
+          the owned and directly imported memberships of one namespace, is not found (an
+          ambiguous name reports its candidates; deeper ambiguity follows the model's resolution).
         justification: |
           The visible memberships of a namespace include its publicly imported memberships (KerML
           1.0 section 8.2.3.5.3), so `Facade::X` is a valid name for X, and the facade-package
           convention tells readers to query `{System}::{Item}`. Reusing the NameResolver that
-          resolves model references keeps one resolution path. Trying the owning qualified name
+          resolves model references keeps one resolution path, which terminates on real models
+          (an exhaustive enumeration of every candidate did not). Trying the owning qualified name
           first keeps existing lookups fast and unchanged.
         tests:
           - QueryEngine_TryResolveElement_FacadePublicImport_ReportsOwningNameAndLookupName
@@ -401,6 +403,12 @@ sections:
           - QueryEngine_TryResolveElement_NameFromTwoPublicImports_IsAmbiguous
           - QueryEngine_TryResolveElement_PrivateImport_DoesNotResolve
           - QueryEngine_TryResolveElement_UnknownName_IsNotFound
+          - QueryEngine_TryResolveElement_DeepFacadeDiamond_ResolvesUniqueName
+          - QueryEngine_TryResolveElement_DeepFacadeDiamond_ReportsAmbiguousFinalSegment
+          - QueryEngine_TryResolveElement_DeepFacadeDiamond_NotFoundAndPrivateImportDoNotResolve
+          - QueryEngine_TryResolveElement_DeepFacadeDiamond_SmallStackThread_ResolvesUniqueName
+          - QueryEngine_TryResolveElement_FacadeDiamondWithCycle_ResolvesUniqueAndNotFound
+          - QueryEngine_TryResolveElement_PublicImportCycle_FindsMemberFromEveryPackage
 
       - id: SysML2Tools-Core-Query-LookupName
         title: >-

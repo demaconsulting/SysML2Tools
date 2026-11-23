@@ -1035,6 +1035,7 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryTestFixtures.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryVerbsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryErrorPathTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QuerySelfModelTests.cs"
 
   - id: SysML2Tools-Tool-Export
     title: Review of SysML2 Tools Export subsystem implementation
