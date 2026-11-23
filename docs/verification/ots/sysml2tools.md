@@ -30,9 +30,9 @@ the results written by the published tool.
 
 Second, `lint.ps1` runs `dotnet sysml2tools lint --strict-unresolved 'docs/sysml2/**/*.sysml'`
 against the actual SysML2Tools model and fails the build on a non-zero exit code (syntax errors and,
-because of `--strict-unresolved` in the pinned release 0.3.0-beta.4, unresolved references) and on any
+because of `--strict-unresolved` in the pinned release 0.3.0-beta.6, unresolved references) and on any
 `warning:` line in the output. The lint rule is therefore zero errors and zero warnings: warnings such
-as duplicate root packages or import cycles do not change the exit code, so the output scan in
+as duplicate root packages do not change the exit code, so the output scan in
 `lint.ps1` is what makes them fail. The build-docs job runs
 `dotnet sysml2tools render --strict-unresolved` to produce one SVG file per declared view under
 `docs/design/generated/`. FileAssert then asserts that the overview SVG file exists, has a
