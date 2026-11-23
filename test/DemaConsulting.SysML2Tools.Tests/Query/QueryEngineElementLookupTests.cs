@@ -76,7 +76,10 @@ public class QueryEngineElementLookupTests
     private const int DiamondLevels = 20;
 
     /// <summary>The number of facade packages per level in the generated diamond fixture.</summary>
-    private const int DiamondWidth = 2;
+    private const int DiamondWidth = 3;
+
+    /// <summary>The number of facade levels in the cyclic diamond fixture.</summary>
+    private const int CycleLevels = 4;
 
     /// <summary>
     ///     Loads the fixture exactly as a non-CLI library caller would.
@@ -172,46 +175,58 @@ public class QueryEngineElementLookupTests
     }
 
     /// <summary>
-    ///     Generates a deep, wide diamond of facades: <see cref="DiamondLevels"/> levels of
-    ///     <see cref="DiamondWidth"/> packages, every package re-exporting every package of the
+    ///     Generates a deep, wide diamond of facades: <paramref name="levels"/> levels of
+    ///     <paramref name="width"/> packages, every package re-exporting every package of the
     ///     next level with <c>public import</c>, so the bottom level is reachable from the top by
-    ///     <c>DiamondWidth^(DiamondLevels - 1)</c> distinct paths; an enumeration that walks each
-    ///     path separately never finishes. The bottom level declares <c>Unique</c> in one package
-    ///     and <c>Shared</c> in two, and re-exports the top level, closing an import cycle through
-    ///     the whole diamond. A package that only privately imports the top level hides it all.
+    ///     <c>width^(levels - 1)</c> distinct paths. The bottom level declares <c>Unique</c> in
+    ///     one package and <c>Shared</c> in two, and, when <paramref name="cycle"/> is set,
+    ///     re-exports the top level, closing an import cycle through the whole diamond.
+    ///     <c>Conflicting</c> publicly imports both bottom packages that declare <c>Shared</c>, and
+    ///     <c>Hidden</c> only privately imports the top level.
     /// </summary>
+    /// <param name="levels">The number of levels.</param>
+    /// <param name="width">The number of packages per level (at least 2).</param>
+    /// <param name="cycle">Whether the bottom level re-exports the top level.</param>
     /// <returns>The generated SysML source.</returns>
-    private static string BuildDiamondFixture()
+    private static string BuildDiamondFixture(int levels, int width, bool cycle)
     {
         var text = new System.Text.StringBuilder();
-        for (var level = 0; level < DiamondLevels; level++)
+        for (var level = 0; level < levels; level++)
         {
-            for (var index = 0; index < DiamondWidth; index++)
+            for (var index = 0; index < width; index++)
             {
                 text.AppendLine($"package L{level}_{index} {{");
-                var bottom = level == DiamondLevels - 1;
+                var bottom = level == levels - 1;
 
-                // The bottom level declares the elements and closes the cycle back to the top;
-                // every other level re-exports each package of the level below it.
-                if (bottom)
+                // The bottom level declares the elements (and optionally closes the cycle back to
+                // the top); every other level re-exports each package of the level below it.
+                if (bottom && index < 2)
                 {
                     text.AppendLine("    part def Shared;");
-                    if (index == 0)
-                    {
-                        text.AppendLine("    part def Unique;");
-                    }
                 }
 
-                var targetLevel = bottom ? 0 : level + 1;
-                for (var target = 0; target < DiamondWidth; target++)
+                if (bottom && index == 0)
                 {
-                    text.AppendLine($"    public import L{targetLevel}_{target}::*;");
+                    text.AppendLine("    part def Unique;");
+                }
+
+                if (!bottom || cycle)
+                {
+                    var targetLevel = bottom ? 0 : level + 1;
+                    for (var target = 0; target < width; target++)
+                    {
+                        text.AppendLine($"    public import L{targetLevel}_{target}::*;");
+                    }
                 }
 
                 text.AppendLine("}");
             }
         }
 
+        text.AppendLine("package Conflicting {");
+        text.AppendLine($"    public import L{levels - 1}_0::*;");
+        text.AppendLine($"    public import L{levels - 1}_1::*;");
+        text.AppendLine("}");
         text.AppendLine("package Hidden {");
         text.AppendLine("    private import L0_0::*;");
         text.AppendLine("}");
@@ -220,14 +235,13 @@ public class QueryEngineElementLookupTests
 
     /// <summary>
     ///     A name declared once at the bottom of a deep, wide diamond of public-import facades
-    ///     (with an import cycle back to the top) resolves to that single declaration, and the
-    ///     lookup completes rather than walking every path of the diamond.
+    ///     resolves to that single declaration, and the lookup completes.
     /// </summary>
     [Fact]
-    public async Task QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_ResolvesUniqueName()
+    public async Task QueryEngine_TryResolveElement_DeepFacadeDiamond_ResolvesUniqueName()
     {
-        // Arrange: a generated diamond of facades closed into an import cycle
-        var workspace = await LoadAsync(BuildDiamondFixture());
+        // Arrange: a generated diamond of facades
+        var workspace = await LoadAsync(BuildDiamondFixture(DiamondLevels, DiamondWidth, cycle: false));
 
         // Act: describe the unique bottom-level element through the top-level facade
         var result = Describe(workspace, "L0_0::Unique");
@@ -238,17 +252,17 @@ public class QueryEngineElementLookupTests
     }
 
     /// <summary>
-    ///     A name declared by two bottom-level packages of the diamond is ambiguous through every
-    ///     path, so the lookup reports both candidates exactly once each.
+    ///     A name two public imports of one facade both expose is ambiguous, in a model that also
+    ///     holds the deep diamond.
     /// </summary>
     [Fact]
-    public async Task QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_ReportsAmbiguousName()
+    public async Task QueryEngine_TryResolveElement_DeepFacadeDiamond_ReportsAmbiguousFinalSegment()
     {
         // Arrange: a generated diamond whose bottom level has two declarations of Shared
-        var workspace = await LoadAsync(BuildDiamondFixture());
+        var workspace = await LoadAsync(BuildDiamondFixture(DiamondLevels, DiamondWidth, cycle: false));
 
         // Act
-        var found = QueryEngine.TryResolveElement(workspace, "L0_0::Shared", out var element, out var candidates);
+        var found = QueryEngine.TryResolveElement(workspace, "Conflicting::Shared", out var element, out var candidates);
 
         // Assert: not found, with exactly the two competing declarations reported
         Assert.False(found);
@@ -260,13 +274,13 @@ public class QueryEngineElementLookupTests
 
     /// <summary>
     ///     A name declared nowhere, and a name only reachable through a private import of the
-    ///     diamond, are not found, and neither lookup walks every path of the diamond forever.
+    ///     diamond, are not found.
     /// </summary>
     [Fact]
-    public async Task QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_NotFoundAndPrivateImportDoNotResolve()
+    public async Task QueryEngine_TryResolveElement_DeepFacadeDiamond_NotFoundAndPrivateImportDoNotResolve()
     {
-        // Arrange: a generated diamond closed into a cycle, plus a package importing it privately
-        var workspace = await LoadAsync(BuildDiamondFixture());
+        // Arrange: a generated diamond plus a package importing it privately
+        var workspace = await LoadAsync(BuildDiamondFixture(DiamondLevels, DiamondWidth, cycle: false));
 
         // Act: look up a missing name and a name behind the private import
         var missing = QueryEngine.TryResolveElement(workspace, "L0_0::NoSuchThing", out var missingElement, out var missingCandidates);
@@ -279,6 +293,62 @@ public class QueryEngineElementLookupTests
         Assert.False(hidden);
         Assert.Null(hiddenElement);
         Assert.Empty(hiddenCandidates);
+    }
+
+    /// <summary>
+    ///     A diamond of facades closed into an import cycle still resolves its unique name and
+    ///     still reports a missing one as not found.
+    /// </summary>
+    [Fact]
+    public async Task QueryEngine_TryResolveElement_FacadeDiamondWithCycle_ResolvesUniqueAndNotFound()
+    {
+        // Arrange: a small diamond whose bottom level re-exports the top
+        var workspace = await LoadAsync(BuildDiamondFixture(CycleLevels, 2, cycle: true));
+
+        // Act
+        var result = Describe(workspace, "L0_0::Unique");
+        var missing = QueryEngine.TryResolveElement(workspace, "L0_0::NoSuchThing", out var missingElement);
+
+        // Assert
+        Assert.Equal($"L{CycleLevels - 1}_0::Unique", result.Element);
+        Assert.False(missing);
+        Assert.Null(missingElement);
+    }
+
+    /// <summary>
+    ///     The deep-diamond lookup run on a thread with a 512 KB stack (the default of a macOS
+    ///     secondary thread) completes and finds the same declaration rather than overflowing the
+    ///     stack and ending the process.
+    /// </summary>
+    [Fact]
+    public async Task QueryEngine_TryResolveElement_DeepFacadeDiamond_SmallStackThread_ResolvesUniqueName()
+    {
+        // Arrange: a generated diamond of facades, loaded normally
+        var workspace = await LoadAsync(BuildDiamondFixture(DiamondLevels, DiamondWidth, cycle: false));
+
+        // Act: describe the unique bottom-level element from a thread with a 512 KB stack
+        QueryResult? result = null;
+        Exception? failure = null;
+        var thread = new Thread(
+            () =>
+            {
+                try
+                {
+                    result = Describe(workspace, "L0_0::Unique");
+                }
+                catch (Exception ex)
+                {
+                    failure = ex;
+                }
+            },
+            512 * 1024);
+        thread.Start();
+        thread.Join();
+
+        // Assert: the lookup finished and found the one declaration
+        Assert.Null(failure);
+        Assert.NotNull(result);
+        Assert.Equal($"L{DiamondLevels - 1}_0::Unique", result.Element);
     }
 
     /// <summary>

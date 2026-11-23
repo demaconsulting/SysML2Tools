@@ -124,8 +124,13 @@ flowchart TD
    (`FilterExpressionEvaluator.CreateNameResolver`), so no second resolution path exists. That
    resolver follows a facade package's `public import` (the visible memberships of a namespace
    include its publicly imported memberships, KerML 1.0 §8.2.3.5.3), including chains of
-   facades, and aliases, and never follows a private import. An ambiguous or unresolved name
-   yields no element, exactly as an unknown name always has.
+   facades, and aliases, and never follows a private import. `NameResolver.ResolveUnambiguous`
+   additionally rejects an ambiguous *final segment*: after resolving every earlier segment, the
+   last is looked up in that one namespace (owned, plus direct public imports, with no recursion),
+   and two or more distinct elements are reported as ambiguous. Known limitation: ambiguity in an
+   earlier segment, through a recursive import, or through inheritance follows the model's
+   resolution (first match). An ambiguous or unresolved name yields no element, exactly as an
+   unknown name always has.
 3. `Uses` reads outgoing semantic edges from `workspace.Index.GetOutgoingEdges`, filters
    stdlib targets unless `IncludeStdlib` is set, and emits one `QueryResultEntry` per outgoing
    relationship.

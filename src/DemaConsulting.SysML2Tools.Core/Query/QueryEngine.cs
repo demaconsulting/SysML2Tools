@@ -149,11 +149,13 @@ public static class QueryEngine
     ///     An exact owning-qualified-name match is tried first, for speed and backward
     ///     compatibility; otherwise the name is resolved as a qualified name in the global scope
     ///     by the same <see cref="NameResolver"/> that resolves model references, so no second
-    ///     resolution path exists. A name that denotes more than one distinct element (for
-    ///     example a facade that publicly imports two namespaces which both expose the name) is
-    ///     ambiguous and yields <see langword="false"/> rather than an arbitrary candidate, as does
-    ///     an unresolved name. Not thread-safe with respect to concurrent mutation of
-    ///     <paramref name="workspace"/>.
+    ///     resolution path exists. A final segment that denotes more than one distinct element in
+    ///     the one namespace it is looked up in (for example a facade that publicly imports two
+    ///     namespaces which both expose the name) is ambiguous and yields <see langword="false"/>
+    ///     rather than an arbitrary candidate, as does an unresolved name. Ambiguity deeper than
+    ///     that (an earlier segment, a recursive import, an inherited member) follows the model's
+    ///     resolution, which takes the first match. Not thread-safe with respect to concurrent
+    ///     mutation of <paramref name="workspace"/>.
     /// </remarks>
     /// <param name="workspace">The loaded workspace.</param>
     /// <param name="name">The name the caller supplied; must not be <see langword="null"/>.</param>
@@ -200,15 +202,15 @@ public static class QueryEngine
         }
 
         // Otherwise resolve the name in the global scope exactly as a model reference would be,
-        // refusing a name that denotes several distinct elements
-        var candidates = FilterExpressionEvaluator.CreateNameResolver(workspace).ResolveCandidates(name);
+        // refusing a final segment that denotes several distinct elements
+        var resolved = FilterExpressionEvaluator.CreateNameResolver(workspace).ResolveUnambiguous(name, out var candidates);
         if (candidates.Count > 1)
         {
             ambiguousCandidates = candidates;
         }
 
         element = null;
-        return candidates.Count == 1 && workspace.Declarations.TryGetValue(candidates[0], out element);
+        return resolved is not null && workspace.Declarations.TryGetValue(resolved, out element);
     }
     /// <summary>
     ///     Lists the elements a given element uses (its resolved outgoing supertype, typing, and

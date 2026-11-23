@@ -181,38 +181,17 @@ instance serves one workspace.
   resolved as above, and each later part by `Lookup(segment, current, Visible)` (the cache and
   the in-progress guard apply to every chain step). An internal overload additionally accepts the
   file-root imports for a reference whose local namespace is the file root itself.
-- `ResolveCandidates(reference)` (in `NameResolver.Candidates.cs`, the same partial class):
-  resolves a qualified name in the global namespace like `Resolve` but returns every distinct
-  element it can denote (none, one, or several) instead of the first. It mirrors the model's
-  resolution step for step and keeps every alternative, so no first-match shortcut remains:
-  - *First segment* (`FullCandidates`): the namespace, each owning namespace outward, the file's
-    root imports, then the global namespace (`GlobalCandidates`: a top-level declaration written
-    with or without quotes, every root alias by name, every top-level declaration by short name,
-    and every root alias by short name; an alias already being followed contributes nothing);
-    `$::` starts at the global namespace. The first layer with any candidate wins, as in the model.
-  - *Later segments*: every candidate of the visible memberships (`VisibleCandidates`) of each
-    element the previous segment may denote.
-  - *Memberships* (`VisibleCandidates`): the owned ones (`EnumerateOwned`, the same lazy
-    enumeration `LookupOwned` takes the first of; an alias contributes every candidate of its
-    target), else the ones the admitted imports bring in (`ImportedCandidates`), else the ones
-    inherited from every general type (minus redefined features). Owned before imported before
-    inherited is the model's precedence; ambiguity is reported within a layer.
-  - *Imports* (`ImportedCandidates`): the import's own target is resolved with candidates too;
-    a membership import contributes the named membership, a plain namespace import every
-    candidate of the target's visible memberships, and a recursive import every match at every
-    depth (`RecursiveCandidates`, not just the least-nested one); a filtered import's conditions
-    are applied to each candidate.
-  Every lookup (a namespace's visible candidates for a name, or a root alias's targets) is
-  computed once per round and memoized, so shared sub-graphs of imports (a diamond of facades) cost
-  one evaluation instead of one per path. A lookup re-entered while still in progress
-  (`_candidatesInProgress`: circular imports, aliases, and specializations) is cut and answers with
-  the previous round's result; rounds repeat until no lookup's candidates change (an acyclic model
-  settles in one round, a safety cap bounds the rest), which is the spec's `excluded` set
-  (KerML 8.3.2.4.2, 8.3.2.4.5) made complete for a cycle. Enumeration is therefore polynomial in
-  the size of the import graph and terminates on cyclic and diamond graphs. It exists so a caller
-  (the Query element lookup) can reject an ambiguous name; `Resolve` and model resolution keep
-  taking the first match (their `Lookup` cache and provisional-miss tracking already visit each
-  lookup once). A dotted feature chain falls back to `Resolve`.
+- `ResolveUnambiguous(reference, out ambiguous)`: resolves a qualified name in the global namespace
+  with `Resolve`, and additionally rejects an ambiguous *final segment*. Every segment but the last
+  is resolved by `Resolve`; the last is then looked up by `FinalSegmentCandidates` in that one
+  namespace only: its owned memberships (an alias contributing its target), else the memberships
+  its public non-recursive imports bring in directly (a membership import's named element, or a
+  namespace import's owned members, each passing a filtered import's conditions). If that names two
+  or more distinct elements they are returned in `ambiguous`; otherwise the result is the one
+  `Resolve` finds. Known limitation: an ambiguity in an earlier segment, through a recursive
+  (`::**`) import, through an imported namespace's own imports, or through inheritance is not
+  detected and follows the model's resolution, which takes the first match. No second resolution
+  path exists, so it terminates wherever `Resolve` does.
 - `RegisterFileRoots(scopes)` (internal): registers each file's `FileRootScope` (root aliases and
   root imports with the declarations they apply to) through `RegisterRootAliases` and
   `RegisterRootImports`. `ReferenceResolver` and `FilterExpressionEvaluator.CreateNameResolver` both
@@ -318,8 +297,8 @@ does not depend on which reference is resolved first. Null arguments throw
   `FilterExpressionEvaluator.CreateImportFilter`, file-root imports registered per file).
 - `FilterExpressionEvaluator.CreateNameResolver` (Language Filtering) constructs a public-mode one
   with a filtered-import predicate and the workspace's file-root scopes registered.
-- `QueryEngine.TryResolveElement` (Core Query) uses `ResolveCandidates` to look up an element
-  argument and to reject an ambiguous name.
+- `QueryEngine.TryResolveElement` (Core Query) uses `ResolveUnambiguous` to look up an element
+  argument and to reject an ambiguous final segment.
 - `GeneralViewLayoutStrategy`, `InterconnectionViewLayoutStrategy`, and `GridViewLayoutStrategy`
   (Core Layout) use it, as the last resolution step, to resolve the raw type, supertype,
   redefinition, and subsetting references the semantic pass left unresolved or could not be paired

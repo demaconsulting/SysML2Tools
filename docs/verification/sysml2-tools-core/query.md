@@ -376,19 +376,26 @@ imports the unit package does not make `Hidden::Unit` resolvable.
 **`QueryEngine_TryResolveElement_UnknownName_IsNotFound`**: Unknown members and unknown packages
 are not found.
 
-**`QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_ResolvesUniqueName`**: A generated
-diamond of 20 levels of 2 facade packages, each re-exporting both packages of the next level by
-`public import` and the bottom level re-exporting the top (an import cycle), is loaded; a name
-declared once at the bottom resolves to that one declaration through the top facade. Completion of
-the lookup is the observable behavior: a walk of every path would not finish.
+**`QueryEngine_TryResolveElement_DeepFacadeDiamond_ResolvesUniqueName`**: A generated diamond of
+20 levels of 3 facade packages, each re-exporting all packages of the next level by
+`public import`, is loaded; a name declared once at the bottom resolves to that one declaration
+through the top facade. Completion of the lookup is the observable behavior.
 
-**`QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_ReportsAmbiguousName`**: On the same
-diamond, a name declared by two bottom packages is not found and reports exactly those two
-candidates.
+**`QueryEngine_TryResolveElement_DeepFacadeDiamond_ReportsAmbiguousFinalSegment`**: In the same
+model, a package that publicly imports two bottom packages declaring the same name reports exactly
+those two candidates.
 
-**`QueryEngine_TryResolveElement_DeepFacadeDiamondWithCycle_NotFoundAndPrivateImportDoNotResolve`**:
-On the same diamond, an absent name and a name behind a package that only privately imports the top
-level are not found and report no candidates.
+**`QueryEngine_TryResolveElement_DeepFacadeDiamond_NotFoundAndPrivateImportDoNotResolve`**: In the
+same model, an absent name and a name behind a package that only privately imports the top level
+are not found and report no candidates.
+
+**`QueryEngine_TryResolveElement_DeepFacadeDiamond_SmallStackThread_ResolvesUniqueName`**: The
+same lookup run on a thread with a 512 KB stack (a macOS secondary thread's default) completes and
+finds the one declaration instead of overflowing the stack.
+
+**`QueryEngine_TryResolveElement_FacadeDiamondWithCycle_ResolvesUniqueAndNotFound`**: A small
+diamond whose bottom level re-exports the top (an import cycle) resolves its unique name and
+reports a missing one as not found.
 
 **`QueryEngine_TryResolveElement_PublicImportCycle_FindsMemberFromEveryPackage`**: Three packages
 that publicly import each other in a ring each expose the member declared in one of them.
