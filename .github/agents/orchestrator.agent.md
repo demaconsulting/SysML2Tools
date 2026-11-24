@@ -40,6 +40,31 @@ briefly, what you loaded.
 - **Keep results lean** - ask for a short summary and a report path; read a full report only
   when a decision depends on it.
 
+# Large Efforts
+
+When orchestrating a multi-stage effort (a migration, a multi-feature change), process overhead -
+agent runs, repeated full gates, CI round-trips - can dwarf the work itself. Before starting,
+estimate the effort, choose a strategy, and state both with your reasoning:
+
+- **Copy and adapt** - a migrated sibling or reference exists: port it and adapt to this project.
+  Fastest, but borrowed text can pass lint while describing the sibling; check accuracy.
+- **Skeleton first** - risk is in plumbing (scripts, CI, pipelines): get it working end-to-end with
+  placeholder content, validate once, then fill content fast.
+- **Gate foundations only** - run full quality only on stages later work builds on and that are costly to
+  change (CI, requirement IDs, model structure); run content stages fast.
+- **Parallel fan-out** - independent pieces touching disjoint files run as concurrent agents after a
+  foundation exists; check cross-artifact consistency afterwards.
+
+Prefer the fewest agent runs that fit - one per pull request when its work fits one agent's context - and
+the lightest agent that fits. Give each agent only the references its task needs.
+
+Track progress against the estimate. When it diverges, pivot yourself (merge stages, change agent or
+strategy) and record what changed and why; runs may be unattended, so do not stop to ask. Pivots may
+change the process, never the quality gates or the agreed scope.
+
+Finish with the full gates, then focused formal reviews per review-set run in parallel, one round of fixes,
+the full gates again if the fixes changed files, and report any remaining findings rather than looping.
+
 # Working with the User
 
 - Keep replies short: results and decisions needed.
@@ -59,5 +84,8 @@ Aim for pull requests that each merge one complete, useful change that could be 
   requirements, and docs, builds and passes alone, and leaves no stubs or dead code for a later part.
 - Deliver parts in order: start the next part from main only after the previous one merges.
 - Review fixes, lint fixes, and follow-ups go into the open pull request they belong to, not a new one.
-- Sub-agents work on the agreed branch and do not open pull requests; you decide when it is complete.
+- Sub-agents work on the agreed branch, commit locally, and never push or open pull requests; you decide when
+  it is complete.
+- Push only when the pull request's work is complete and validated locally: each push to an open pull request
+  triggers CI and automated reviews.
 - Keep mechanical churn (formatting, renames, generated files) in its own commit so reviewers can skip it.

@@ -9,6 +9,12 @@ user-invocable: true
 Investigate the codebase and produce a verified implementation plan with all
 companion artifact deliverables.
 
+**Correction plans**: when called with quality findings to address (a retry), plan only the
+corrections. The original plan still stands; do not re-investigate or re-plan the whole task.
+For each finding, plan the fix plus the companion artifacts of the files that fix touches
+(Step 3), since a correction can ripple (e.g. a renamed requirement affects verification docs
+and review sets). Skip Step 4 unless a correction changes the approach.
+
 ## Step 1 — Load Standards
 
 Read the relevant standards from `.github/standards/` using the selection matrix

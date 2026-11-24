@@ -120,9 +120,9 @@ Rules:
 - An **upward or sideways** reference (a unit using another unit, a subsystem, or the system)
   uses a `private import` of the specific item's package, **never** of a facade. A facade
   re-exports the item that imports it, so importing it back forms an import cycle. Cycles are
-  legal (KerML §8.2.3.5.1), but SysML2Tools reports `Circular import detected`, and the OMG
-  Pilot can no longer load the files one at a time because every file in the cycle needs
-  another one loaded first. A reference to a facade's own part def (the system or a subsystem)
+  legal (KerML §8.2.3.5.1) and SysML2Tools 0.3.0-beta.5 and later no longer warns about
+  them, but the OMG Pilot can no longer load the files one at a time because every file in the
+  cycle needs another one loaded first. A reference to a facade's own part def (the system or a subsystem)
   from below therefore uses the qualified name, with no import.
 - Where two items genuinely depend on each other, import in one direction only and use the
   qualified name in the other, e.g. `dependency {UnitName} to {SystemName}_{OtherUnit}::{OtherUnit};`.
@@ -403,7 +403,7 @@ also embed that subsystem's focused dependency view(s) alongside the query outpu
   `'docs/sysml2/common/**/*.sysml' 'docs/sysml2/model/**/*.sysml' 'docs/sysml2/views/design-views.sysml'`) — plain
   PowerShell (the default shell) is sufficient; no `shell: bash`/`shopt -s globstar` workaround is needed.
 - Add `sysml2tools` to `.config/dotnet-tools.json` (`demaconsulting.sysml2tools.tool`, minimum
-  version 0.3.0-beta.4) and to `.versionmark.yaml`'s captured tool list.
+  version 0.3.0-beta.6, which resolves facade paths in `query`) and to `.versionmark.yaml`'s captured tool list.
 
 ## Fallback
 
@@ -430,8 +430,8 @@ sync.
   per Package Structure
 - [ ] The system and subsystem packages are facades with `public import` of the packages they
   own (downward only); units use `private import` of exactly what they reference; upward and
-  sideways references import the specific item's package, never a facade, and lint reports no
-  `Circular import detected` warning
+  sideways references import the specific item's package, never a facade, so no import cycle
+  runs through a facade (lint no longer reports cycles, so check this by review)
 - [ ] View names follow the `SoftwareStructureView` / `{SystemName}View` /
   `{SubsystemName}View` convention (plus optional `{SubsystemName}{Theme}View` dependency
   views and `OtsView`)

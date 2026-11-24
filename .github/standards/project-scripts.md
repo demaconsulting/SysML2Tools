@@ -33,6 +33,55 @@ switches, valid `-Check` names, and examples for a repository is the output of
   the scanned `-Root` (fixture projects, for example).
 - **`fix.ps1` always exits 0** when it actually runs fixers. Usage and argument errors still exit 1.
 
+# Project Graph (build.ps1)
+
+The scoped build reads every `.csproj` under the project roots into a graph (`Get-ProjectGraph`) and selects
+the test projects a change affects: the owning project, every project that references it, and every project
+that links the changed file in.
+
+## Project Names and Aliases
+
+`-Project` accepts full or short names. `Resolve-ProjectName <graph> <name> [<aliases>]` resolves, in order:
+
+1. **Exact name** (case-insensitive).
+2. **Alias** from the optional alias map, whose target is itself resolved by these rules.
+3. **Unique suffix on whole dot-separated segments**: `Pdf` finds `X.Y.Pdf`, `Pdf.Rendering` finds
+   `X.Y.Pdf.Rendering`, `Tool.Tests` finds `X.Y.Tool.Tests`; `df` finds nothing. When several projects match, the
+   one named `<root prefix>.<name>` wins (for example `Tests` finds `X.Y.Tests` rather than `X.Y.Pdf.Tests`), where
+   the root prefix is the longest dotted prefix the `src/` projects share; otherwise the name is ambiguous and
+   resolution throws an error that lists the candidates.
+4. **`Core`**: the project whose name ends `.Core`, otherwise the project equal to the root prefix.
+
+An unknown name returns `$null`; the script prints the accepted names from `Get-ProjectNameList <graph> <aliases>`
+(projects, aliases, and `Core`) and exits 1; the same list feeds `-Help`. A repository whose project names no rule
+can derive keeps **data, not code**, in a `[PROJECT-SPECIFIC]` alias map, for example
+`$ProjectAliases = @{ Ots = 'OtsSoftwareTests'; App = 'DemaConsulting.Foo' }`, and passes it as the third argument.
+
+## Project Roots
+
+The graph scans `src`, `test`, and `tools` by default. A repository with projects in other folders (`demo`,
+`samples`, `benchmarks`) lists all of its roots once in a `$ProjectRoots` variable of `build.ps1` and passes it to
+`Get-ProjectGraph -Root $ProjectRoots`, so `-Changed` and `-Project` see those projects. Roots stay explicit on
+purpose: deriving them from the solution would pull in fixture projects that are test inputs, or opt-in suites kept
+outside the solution, and change the graph silently. Leave such folders out of `$ProjectRoots`.
+
+## Linked Items
+
+A project item of any type (`Compile`, `Content`, `None`, `EmbeddedResource`, `AvaloniaResource`, `Page`,
+`Resource`, ...) whose `Include` or `Update` path points outside the project folder links that file in, so a change
+to it selects the project. The same holds for the file-valued properties `ApplicationIcon`, `Win32Icon`,
+`ApplicationManifest`, `PackageIcon`, `PackageReadmeFile`, `PackageLicenseFile`, and `AssemblyOriginatorKeyFile`.
+Files that are only packed (`None` with `Pack="true"` and no `CopyToOutputDirectory` of `Always`, `PreserveNewest`, or
+`IfDifferent`) do not count; a `Reference` links the file named by its `HintPath`. Such files need no
+`$RuntimeReads` entry; that map is only for files tests read at run time through the repository root.
+
+## Test Platform
+
+The template `build.ps1` detects the test platform from `global.json` (`"test": { "runner":
+"Microsoft.Testing.Platform" }`) and passes the matching arguments, so a repository does not customize them:
+Microsoft.Testing.Platform runs `dotnet test --project <path> --report-trx` (the solution form for `-All`), while
+VSTest runs `dotnet test <path> --logger trx`; both write results to `artifacts/tests`.
+
 # Running the Scripts (ALL Agents)
 
 - **Iterate scoped.** While developing, run `-Changed` (or `-Check`, or `-Project` where the
@@ -55,8 +104,8 @@ switches, valid `-Check` names, and examples for a repository is the output of
   the module at `scripts/ProjectScripts.psm1`. Never edit it in a consuming repository; update it
   only by extracting a newer release. If it must change for every
   repository, change it in the Agents repository (`src/scripts/ProjectScripts.psm1`) instead.
-- **Repository-specific behavior** (extra checks or fixers, runtime-read maps, input filters) goes
-  in the `[PROJECT-SPECIFIC]` blocks of the scripts, never in the module.
+- **Repository-specific behavior** (extra checks or fixers, runtime-read maps, alias maps, project roots,
+  input filters) goes in the `[PROJECT-SPECIFIC]` blocks of the scripts, never in the module.
 - **`-All` must keep doing the full job.** Adding a check or fixer means `-All` runs it; it must
   also appear in the usage text and be a valid `-Check` name.
 - **Never remove or weaken a check** (or a test step) to make lint or tests pass.

@@ -16,7 +16,7 @@
 #     - changed-file discovery (merge-base with a base reference, plus uncommitted files)
 #     - Python virtual environment setup for yamllint and yamlfix
 #     - dotnet format scoping and ReviewMark pattern building
-#     - the .NET project graph: ProjectReference closure and linked items
+#     - the .NET project graph: ProjectReference closure, linked items, and short project names with aliases
 #
 # Each script imports it with:
 #   Import-Module (Join-Path $PSScriptRoot 'scripts/ProjectScripts.psm1') -Force
@@ -380,22 +380,95 @@ function Resolve-RepoPath {
     return $segments -join '/'
 }
 
+# Project item types whose Include is a name or a package, not a file path, so they can never link a file in from
+# outside the project folder. Every other item type is treated as a file item (Compile, None, Content,
+# EmbeddedResource, AvaloniaResource, Page, Resource, COMFileReference, Analyzer, AdditionalFiles, ...).
+# A Reference may name its file in a HintPath instead; Get-ProjectGraph reads that.
+$script:NonFileItems = @(
+    'PackageReference', 'PackageVersion', 'GlobalPackageReference', 'PackageDownload', 'DotNetCliToolReference',
+    'FrameworkReference', 'Reference', 'SDKReference', 'COMReference', 'Using', 'InternalsVisibleTo',
+    'AssemblyAttribute', 'ProjectCapability', 'TrimmerRootAssembly'
+)
+
+# Project properties whose value is a file path (relative to the project folder)
+$script:FileProperties = @(
+    'ApplicationIcon', 'Win32Icon', 'ApplicationManifest', 'Win32Manifest', 'PackageIcon', 'PackageReadmeFile',
+    'PackageLicenseFile', 'AssemblyOriginatorKeyFile'
+)
+
+function Get-LinkedFilePattern {
+    <#
+    .SYNOPSIS
+        Returns the regular expression of a project file path that points outside the project folder.
+    .DESCRIPTION
+        Used by Get-ProjectGraph for item Include/Update values and file-valued properties. Understands
+        $(MSBuildThisFileDirectory) and $(MSBuildProjectDirectory); a path with any other MSBuild property
+        cannot be resolved here and yields nothing. A path inside the project folder yields nothing too.
+    .PARAMETER Directory
+        Repository-relative directory of the project.
+    .PARAMETER Path
+        The path as written in the project file; may be a glob and may use either slash.
+    #>
+    param([string]$Directory, [string]$Path)
+
+    # A project at the repository root has no folder to point out of
+    if (-not $Directory) { return }
+
+    $part = ($Path -replace '\$\(MSBuildThisFileDirectory\)', '' -replace '\$\(MSBuildProjectDirectory\)[\\/]?', '').Trim()
+    if (-not $part -or $part.Contains('$(')) { return }
+
+    $resolved = Resolve-RepoPath $Directory $part
+    if (-not $resolved.StartsWith("$Directory/", [System.StringComparison]::OrdinalIgnoreCase)) {
+        return Convert-GlobToRegex $resolved
+    }
+}
+
+function Get-ItemMetadata {
+    <#
+    .SYNOPSIS
+        Reads one metadata value of a project item, written either as an attribute or as a child element.
+    .PARAMETER Item
+        The item XML element.
+    .PARAMETER Name
+        The metadata name, for example CopyToOutputDirectory.
+    #>
+    param($Item, [string]$Name)
+
+    $value = $Item.GetAttribute($Name)
+    if (-not $value) { $value = $Item.SelectSingleNode($Name)?.InnerText }
+    return "$value".Trim()
+}
+
 function Get-ProjectGraph {
     <#
     .SYNOPSIS
         Reads every .csproj under the given root folders into a project graph.
     .DESCRIPTION
         For each project records its folder, its ProjectReference names, and the files outside its
-        folder that it compiles, embeds, or copies (linked files, as regular expressions). This is the
+        folder that it uses (linked files, as regular expressions). This is the
         input of the scoped build: a changed file selects its project, every project referencing it,
         and every project that links the file in. Convention: src/ holds libraries, test/ holds test
         projects, and tools/ holds projects that are only built.
+
+        A linked file is any project item of any type (Compile, None, Content, EmbeddedResource,
+        AvaloniaResource, Page, Resource, ...) whose Include or Update path, or any of the file-valued
+        properties ApplicationIcon, Win32Icon, ApplicationManifest, PackageIcon, PackageReadmeFile,
+        PackageLicenseFile, and AssemblyOriginatorKeyFile, resolves to a place outside the project
+        folder. Items that name no file (PackageReference, Using, ...) are ignored, and so are files a
+        project only packs into its NuGet package (a None item with Pack=true and no copy to the output;
+        CopyToOutputDirectory counts only as Always, PreserveNewest, or IfDifferent). A Reference links
+        the file named by its HintPath.
+        Wildcards are supported, and $(MSBuildThisFileDirectory) and $(MSBuildProjectDirectory) are
+        understood; any other MSBuild property in a path is left unresolved and ignored.
 
         Projects are keyed by file name because ProjectReference entries are matched by file name.
         When two scanned projects share a file name (for example src/Foo/Foo.csproj and
         test/Foo/Foo.csproj) the graph would be ambiguous, so the function throws instead.
     .PARAMETER Root
-        Folders to scan for projects (missing folders are ignored).
+        Folders to scan for projects (missing folders are ignored). The default is src, test, and tools.
+        A repository with projects elsewhere (samples/, demo/, benchmarks/) passes its own list, kept in
+        one $ProjectRoots variable in build.ps1, for example @('src', 'test', 'tools', 'demo'); the list
+        is explicit on purpose, because fixture projects that are test inputs or opt-in suites must stay out.
     .OUTPUTS
         An ordered dictionary of project name to project record.
     .NOTES
@@ -419,24 +492,34 @@ function Get-ProjectGraph {
         $links = @()
         foreach ($item in $xml.SelectNodes('/Project/ItemGroup/*')) {
             $include = $item.GetAttribute('Include')
-            if (-not $include) { continue }
-
-            if ($item.LocalName -eq 'ProjectReference') {
+            if ($item.LocalName -eq 'ProjectReference' -and $include) {
                 $references += [System.IO.Path]::GetFileNameWithoutExtension(($include -replace '\\', '/'))
                 continue
             }
-            if ($item.LocalName -notin @('Compile', 'None', 'Content', 'EmbeddedResource')) { continue }
+            # Items that name no file (packages, namespaces, assembly metadata) cannot link a file in
+            if ($item.LocalName -in $script:NonFileItems) {
+                # An assembly reference by file: <Reference Include="X"><HintPath>..\lib\X.dll</HintPath></Reference>
+                if ($item.LocalName -eq 'Reference') { $links += Get-LinkedFilePattern $directory (Get-ItemMetadata $item 'HintPath') }
+                continue
+            }
 
-            # Files only packed into the NuGet package (README.md, Icon.png, licenses) do not affect tests
-            $pack = $item.GetAttribute('Pack') + $item.SelectSingleNode('Pack')?.InnerText
-            $copy = $item.GetAttribute('CopyToOutputDirectory') + $item.SelectSingleNode('CopyToOutputDirectory')?.InnerText
+            # Files only packed into the NuGet package (README.md, Icon.png, licenses) do not affect tests;
+            # only Always, PreserveNewest, and IfDifferent copy a file to the output ('Never' does not)
+            $pack = Get-ItemMetadata $item 'Pack'
+            $copy = (Get-ItemMetadata $item 'CopyToOutputDirectory') -in @('Always', 'PreserveNewest', 'IfDifferent')
             if ($item.LocalName -eq 'None' -and $pack -eq 'true' -and -not $copy) { continue }
 
-            foreach ($part in $include -split ';') {
-                $resolved = Resolve-RepoPath $directory $part.Trim()
-                if (-not $resolved.StartsWith("$directory/", [System.StringComparison]::OrdinalIgnoreCase)) {
-                    $links += Convert-GlobToRegex $resolved
+            foreach ($spec in @($include, $item.GetAttribute('Update'))) {
+                foreach ($part in $spec -split ';') {
+                    $links += Get-LinkedFilePattern $directory $part
                 }
+            }
+        }
+
+        # File-valued properties (an icon or manifest above the project folder) link a file in just like an item
+        foreach ($property in $xml.SelectNodes('/Project/PropertyGroup/*')) {
+            if ($property.LocalName -in $script:FileProperties) {
+                $links += Get-LinkedFilePattern $directory $property.InnerText
             }
         }
 
@@ -460,29 +543,120 @@ function Get-ProjectGraph {
     return $graph
 }
 
+function Get-RootProjectPrefix {
+    <#
+    .SYNOPSIS
+        Returns the longest common dotted prefix of the library projects (the product's root name).
+    .DESCRIPTION
+        Takes the projects under src/ (every project when there are none) and keeps the leading name
+        segments they all share: DemaConsulting.Foo, DemaConsulting.Foo.Core, DemaConsulting.Foo.Cli
+        give DemaConsulting.Foo. Projects whose name has no dot (a helper tool under src/) are ignored
+        unless that leaves nothing. Returns an empty string when the names share no leading segment.
+    .PARAMETER Graph
+        Project graph from Get-ProjectGraph.
+    #>
+    param($Graph)
+
+    $names = @($Graph.Keys | Where-Object { $Graph[$_].Directory -like 'src/*' })
+    if ($names.Count -eq 0) { $names = @($Graph.Keys) }
+    $dotted = @($names | Where-Object { $_.Contains('.') })
+    if ($dotted.Count -gt 0) { $names = $dotted }
+
+    $prefix = $null
+    foreach ($name in $names) {
+        $segments = $name -split '\.'
+        if ($null -eq $prefix) { $prefix = $segments; continue }
+        $length = 0
+        while ($length -lt $prefix.Count -and $length -lt $segments.Count -and $prefix[$length] -eq $segments[$length]) { $length++ }
+        $prefix = @($prefix | Select-Object -First $length)
+    }
+    return ($prefix -join '.')
+}
+
 function Resolve-ProjectName {
     <#
     .SYNOPSIS
         Resolves a full or short project name to the name used in the project graph.
     .DESCRIPTION
-        Lets callers type '-Project Svg' or '-Project Svg.Tests'. 'Core' means the core library,
-        taken to be the project under src/ with the shortest name (the others extend its name).
-        Returns $null when nothing matches.
+        Lets callers type '-Project Pdf' or '-Project Tool.Tests'. The name is resolved in this order:
+          1. an exact project name (case-insensitive);
+          2. a caller-supplied alias (-Aliases), whose target is itself resolved by the other rules;
+          3. a unique suffix match on dot-separated segments: 'Pdf' matches X.Y.Pdf, 'Pdf.Rendering'
+             matches X.Y.Pdf.Rendering, 'Tool.Tests' matches X.Y.Tool.Tests, but 'df' matches nothing.
+             When several projects match, the one named <root prefix>.<name> wins (the short name relative
+             to the product's root name, see Get-RootProjectPrefix); otherwise the name is ambiguous;
+          4. 'Core', when no project ends in '.Core': the project equal to the root prefix.
+        Returns $null when nothing matches. Throws an error that lists the candidates when the name is
+        ambiguous, and when an alias points at a project that does not exist.
     .PARAMETER Graph
         Project graph from Get-ProjectGraph.
     .PARAMETER Name
         The name as typed by the caller.
+    .PARAMETER Aliases
+        Optional map of alias to project name for projects whose names no rule can derive, for example
+        @{ Ots = 'OtsSoftwareTests'; App = 'DemaConsulting.Foo' }. Kept as data in the repository's build.ps1.
     #>
-    param($Graph, [string]$Name)
+    param($Graph, [string]$Name, [System.Collections.IDictionary]$Aliases = @{})
 
-    $core = $Graph.Keys | Where-Object { $Graph[$_].Directory -like 'src/*' } |
-        Sort-Object Length | Select-Object -First 1
-    if ($Name -eq 'Core') { return $core }
-    foreach ($candidate in @($Name, "$core.$Name")) {
-        $match = $Graph.Keys | Where-Object { $_ -eq $candidate }
-        if ($match) { return $match }
+    if (-not $Name -or -not $Name.Trim()) { return $null }
+    $Name = $Name.Trim()
+    $keys = @($Graph.Keys)
+
+    # 1. Exact name
+    $exact = $keys | Where-Object { $_ -eq $Name } | Select-Object -First 1
+    if ($exact) { return $exact }
+
+    # 2. Alias (resolved without aliases, so an alias cannot loop)
+    $aliasKey = if ($Aliases) { @($Aliases.Keys) | Where-Object { $_ -ieq $Name } | Select-Object -First 1 }
+    if ($aliasKey) {
+        $target = Resolve-ProjectName $Graph ([string]$Aliases[$aliasKey])
+        if (-not $target) {
+            throw "Alias '$aliasKey' points at '$($Aliases[$aliasKey])', which is not a project. Known projects: $($keys -join ', ')"
+        }
+        return $target
+    }
+
+    # 3. Suffix match on whole dot-separated segments
+    $found = @($keys | Where-Object { $_.EndsWith(".$Name", [System.StringComparison]::OrdinalIgnoreCase) })
+    $prefix = Get-RootProjectPrefix $Graph
+    if ($found.Count -gt 1 -and $prefix) {
+        $qualified = @($found | Where-Object { $_ -eq "$prefix.$Name" })
+        if ($qualified.Count -eq 1) { $found = $qualified }
+    }
+    if ($found.Count -gt 1) {
+        throw "Ambiguous project name '$Name': it matches $($found -join ', '). Use a longer name."
+    }
+    if ($found.Count -eq 1) { return $found[0] }
+
+    # 4. 'Core' with no .Core project is the project that carries the root name itself
+    if ($Name -eq 'Core' -and $prefix) {
+        return $keys | Where-Object { $_ -eq $prefix } | Select-Object -First 1
     }
     return $null
+}
+
+function Get-ProjectNameList {
+    <#
+    .SYNOPSIS
+        Lists the names a caller may pass to -Project: the projects, the aliases, and 'Core'.
+    .DESCRIPTION
+        For -Help text and 'unknown project' messages. 'Core' is listed when it resolves (and is not
+        already a project name or alias). Short suffixes such as 'Pdf' also work but are not listed one
+        by one; the full names already show them.
+    .PARAMETER Graph
+        Project graph from Get-ProjectGraph.
+    .PARAMETER Aliases
+        The same alias map passed to Resolve-ProjectName.
+    #>
+    param($Graph, [System.Collections.IDictionary]$Aliases = @{})
+
+    $list = [System.Collections.Generic.List[string]]::new()
+    foreach ($name in @($Graph.Keys) + @(if ($Aliases) { $Aliases.Keys })) {
+        if ($name -and -not $list.Contains($name)) { $list.Add($name) }
+    }
+    $core = try { Resolve-ProjectName $Graph 'Core' $Aliases } catch { $null }
+    if ($core -and -not $list.Contains('Core')) { $list.Add('Core') }
+    return $list.ToArray()
 }
 
 function Test-BuildConfigFile {
@@ -587,6 +761,7 @@ Export-ModuleMember -Function @(
     'Write-ScriptUsage', 'Test-ScopeArguments', 'Resolve-NameList',
     'Get-ChangedFiles', 'Test-AnyMatch', 'Convert-GlobToRegex', 'Get-ReviewMarkPattern', 'Get-DotnetFormatScope',
     'Get-VenvActivateScript', 'Initialize-PythonVenv', 'Convert-YamlLineEndings',
-    'Resolve-RepoPath', 'Get-ProjectGraph', 'Resolve-ProjectName', 'Test-BuildConfigFile', 'Test-BuildWideFile',
+    'Resolve-RepoPath', 'Get-LinkedFilePattern', 'Get-ProjectGraph', 'Get-RootProjectPrefix', 'Resolve-ProjectName', 'Get-ProjectNameList',
+    'Test-BuildConfigFile', 'Test-BuildWideFile',
     'Add-ChangedProjects', 'Expand-ReferencingProjects'
 )

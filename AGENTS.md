@@ -175,7 +175,9 @@ and exit 1.
 
 # Scoped Validation (ALL Agents Must Follow)
 
-`build.ps1 -Changed` (or `-Project`) selects the test projects a change affects through the project reference graph;
+`build.ps1 -Changed` (or `-Project`, which takes full or short names such as `Core`, `Language`, `Stdlib`, `Tool`,
+`Tests`, and `Tool.Tests`; `-Help` lists them) selects the test projects a change affects through the project
+reference graph;
 a build-wide file (solution, project, props/targets, `global.json`, `.editorconfig`, `nuget.config`, tool manifest,
 `build.ps1`, `scripts/ProjectScripts.psm1`) runs the full build and tests, and documentation-only changes build nothing.
 Both test projects read repository files at run time (`test/SysMLModels/`, `docs/gallery/`, `docs/sysml2/`), mapped
