@@ -30,7 +30,8 @@ Grade and validate software development work by ensuring compliance with project
    and FAIL if not updated; Review Sets are always in scope when the
    software item hierarchy changes (units or subsystems added, removed, or
    reorganized) and FAIL if review-sets were not updated
-4. **Validate tool compliance** using ReqStream, ReviewMark, and build tools
+4. **Validate tool compliance** using ReqStream, ReviewMark, and build tools; run the full gates
+   `pwsh ./build.ps1 -All` (code changes only) and `pwsh ./lint.ps1 -All` once, not scoped runs
 5. **Generate focused quality report** per the AGENTS.md reporting requirements - save to
    `.agent-logs/{agent-name}-{subject}-{unique-id}.md` and return the summary to the caller
 
@@ -82,7 +83,7 @@ Priority-ordered list of issues that MUST be resolved for the next retry:
 
 - Do language-specific quality checks from loaded standards pass?
 - Is code properly categorized (system/subsystem/unit/OTS/Shared Package)?
-- Does the build pass?
+- Does the build pass (`pwsh ./build.ps1 -All`)?
 
 ## Testing Compliance: (PASS|FAIL|N/A)
 

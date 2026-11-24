@@ -68,4 +68,4 @@ Key qualities demonstrated above:
 
 - [ ] Zero compiler warnings (`TreatWarningsAsErrors=true`)
 - [ ] XmlDoc documentation complete on all members (public, internal, protected, private)
-- [ ] `dotnet format` applied (run `pwsh ./fix.ps1`)
+- [ ] `dotnet format` applied (run `pwsh ./fix.ps1 -Changed`)

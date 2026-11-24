@@ -26,7 +26,7 @@ Before submitting this pull request, ensure you have completed the following:
 
 ### Build and Test
 
-- [ ] Code builds successfully and all tests pass: `pwsh ./build.ps1`
+- [ ] Code builds successfully and all tests pass: `pwsh ./build.ps1 -All`
 - [ ] Code produces zero warnings
 
 ### Code Quality
@@ -38,7 +38,7 @@ Before submitting this pull request, ensure you have completed the following:
 
 Please run the following checks before submitting:
 
-- [ ] **All linters pass**: `pwsh ./lint.ps1`
+- [ ] **All linters pass**: `pwsh ./lint.ps1 -All`
 
 ### Testing
 

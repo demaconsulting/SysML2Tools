@@ -6,18 +6,19 @@ user-invocable: true
 
 # Lint Fix Agent
 
-Fix all lint issues in the repository until `pwsh ./lint.ps1` exits cleanly.
+Fix all lint issues in the repository until `pwsh ./lint.ps1 -All` exits cleanly.
 This is the **pre-PR lint sweep** - run it once before pull request
 submission, not during normal development.
 
 # Workflow (MANDATORY)
 
-1. **Auto-fix pass**: Run `pwsh ./fix.ps1` to silently apply all
+1. **Auto-fix pass**: Run `pwsh ./fix.ps1 -All` to silently apply all
    automatic fixes (dotnet format, lintmark, yamlfix).
 
 2. **Fix loop** (maximum 5 iterations):
 
-   a. Run `pwsh ./lint.ps1` and capture the full output.
+   a. Run `pwsh ./lint.ps1 -All` and capture the full output. (You may re-check individual fixes
+      with `-Changed` or `-Check <names>` while iterating, but the pass that ends the loop must be `-All`.)
 
    b. If exit code is 0 - the repository is lint-clean. Proceed to the report.
 
@@ -49,21 +50,21 @@ submission, not during normal development.
   6. `.textlint.yaml` is a protected configuration file. Explain every change to
      it in the report.
 
-- **LintMark line length (`line-length`, `MD013`)**: Run `pwsh ./fix.ps1` (or `dotnet lintmark --fix`), which
-  re-wraps over-length paragraphs automatically. Only lines LintMark cannot break remain: a single long URL, link, or
-  code span, a heading, or a table row. Fix these by shortening the content, using reference-style links, or
+- **LintMark line length (`line-length`, `MD013`)**: Run `pwsh ./fix.ps1 -Check lintmark` (or `dotnet lintmark --fix`),
+  which re-wraps over-length paragraphs automatically. Only lines LintMark cannot break remain: a single long URL, link,
+  or code span, a heading, or a table row. Fix these by shortening the content, using reference-style links, or
   restructuring the table. **Pipe-tables that cannot be wrapped without breaking structure** are a special case -
   convert them to a bullet list if the data reads naturally that way, or rewrite as a
   [grid table](https://pandoc.org/MANUAL.html#tables) if a tabular layout is essential. Do not get stuck trying to
   squeeze a wide pipe-table into 120 characters.
 
-- **LintMark other rules** (`dotnet lintmark`): Formatting rules are fixed by `pwsh ./fix.ps1`. The lint-only rules
-  (heading increment, duplicate headings, missing alt text, broken link fragments, undefined or unused link
-  references, emphasis or link spacing, table too wide) need a manual fix: apply the specific fix indicated in the
+- **LintMark other rules** (`dotnet lintmark`): Formatting rules are fixed by `pwsh ./fix.ps1 -Check lintmark`. The
+  lint-only rules (heading increment, duplicate headings, missing alt text, broken link fragments, undefined or unused
+  link references, emphasis or link spacing, table too wide) need a manual fix: apply the specific fix indicated in the
   output (`file:line:col: rule-id message`).
 
 - **yamllint errors**: Fix indentation, trailing spaces, or missing document
-  markers as indicated. Run `pwsh ./fix.ps1` again if structural YAML
+  markers as indicated. Run `pwsh ./fix.ps1 -Check yamlfix` again if structural YAML
   issues appear - yamlfix may handle them.
 
 - **reqstream / reviewmark / versionmark failures**: Fix the referenced

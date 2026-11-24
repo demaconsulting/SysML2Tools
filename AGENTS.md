@@ -73,8 +73,15 @@ yet cover something.
 - **`package.json`** - Node.js dependencies for Mermaid rendering in document builds
 - **`requirements.yaml`** - Root requirements file with includes
 - **`pip-requirements.txt`** - Python dependencies for yamllint and yamlfix
-- **`fix.ps1`** - Applies all auto-fixers silently (dotnet format, LintMark, YAML). Always exits 0.
-- **`build.ps1`** - Builds the solution and runs all tests.
+- **`fix.ps1`** - Applies the auto-fixers (dotnet format, LintMark, YAML); a fixer run always exits 0.
+  Requires a scope; see `pwsh ./fix.ps1 -Help`.
+- **`build.ps1`** - Builds the solution and runs the tests. Requires a scope (`-All` is the full build);
+  see `pwsh ./build.ps1 -Help`.
+- **`lint.ps1`** - Runs the lint checks (`-All` is the CI merge gate). Requires a scope; see
+  `pwsh ./lint.ps1 -Help`.
+- **`scripts/ProjectScripts.psm1`** - PowerShell module with the scoping logic the three scripts share.
+  Delivered by the Agents release zip and shared verbatim across repositories: never edit it here
+  (see *Project Scripts*).
 
 # Standards Application (ALL Agents Must Follow)
 
@@ -95,6 +102,7 @@ from `.github/standards/`. Use this matrix to determine which to load:
 - **Any documentation**: `technical-documentation.md`
 - **Diagrams in documentation**: `diagram-documentation.md` (and the `canvasnet` skill for tooling)
 - **Reading PDF or Office documents**: the `docdown` skill
+- **Project scripts** (changing `build.ps1`, `lint.ps1`, `fix.ps1`, or `scripts/`): `project-scripts.md`
 
 Load only the standards relevant to your specific task scope.
 
@@ -138,7 +146,8 @@ After making changes, run the auto-fix pass. This applies all available fixers
 silently and **always exits 0** - agents do not need to respond to its output.
 
 ```pwsh
-pwsh ./fix.ps1
+pwsh ./fix.ps1 -Changed   # during development: only the fixers for the changed file types
+pwsh ./fix.ps1 -All       # everything; run before the pull request
 ```
 
 This automatically handles: `dotnet format`, Markdown formatting (LintMark), and YAML
@@ -147,8 +156,31 @@ responsibility - invoke the lint-fix agent once before submitting a pull request
 
 ## CI Quality Tools
 
-CI runs `lint.ps1` which checks: lintmark, textlint, yamllint, dotnet format,
+CI runs `lint.ps1 -All` which checks: lintmark, textlint, yamllint, dotnet format,
 reqstream, versionmark, reviewmark, and sysml2tools.
+
+# Efficient Validation (ALL Agents)
+
+Full `build.ps1 -All` and `lint.ps1 -All` runs can take many minutes on large repositories. Spend
+them once, not after every edit. The scripts require a scope: with no arguments they print usage
+and exit 1.
+
+- **While iterating**, use `-Changed` (or `lint.ps1`/`fix.ps1 -Check`, or `build.ps1 -Project`) so only the
+  affected work runs; add `-DryRun` to see the selection without running anything
+- **Before handing back**, run the full gates your agent requires once (`build.ps1 -All`,
+  `lint.ps1 -All`); re-run them only if you change files after they pass
+- **Documentation-only changes** need no build
+- Run `pwsh ./<script> -Help` for the switches of a repository; do not guess
+- Never report a targeted check as the full gate - state which full gates ran in your report
+
+# Scoped Validation (ALL Agents Must Follow)
+
+`build.ps1 -Changed` (or `-Project`) selects the test projects a change affects through the project reference graph;
+a build-wide file (solution, project, props/targets, `global.json`, `.editorconfig`, `nuget.config`, tool manifest,
+`build.ps1`, `scripts/ProjectScripts.psm1`) runs the full build and tests, and documentation-only changes build nothing.
+Both test projects read repository files at run time (`test/SysMLModels/`, `docs/gallery/`, `docs/sysml2/`), mapped
+to them by `$RuntimeReads` in `build.ps1`; keep it in step if a test starts reading another file. Every build,
+scoped or full, first regenerates `stdlib.json.gz` with StdlibGen.
 
 # Scope Discipline (ALL Agents Must Follow)
 
@@ -178,9 +210,15 @@ requires it and the modification preserves the documented design intent:
 steps, update tool versions, and add optional parameters that focus a run (for example one library in a
 multi-library repository, or headless tests without GUI automation). Two rules keep them trustworthy:
 
-- Run with no arguments, each script still does its full job (CI and the agents rely on that); slow or
+- Run with no arguments, each script prints an error and its usage and exits 1 (a scope must be chosen).
+  `-All` must still do the script's full job (CI and the agents rely on that); slow or
   environment-dependent test tiers may be opt-in switches of `build.ps1`.
 - Never remove or weaken a check to make lint or tests pass.
+
+The shared scoping logic lives in `scripts/ProjectScripts.psm1`, delivered by the Agents release zip (extracted into the
+repository root; source of truth: `src/scripts/ProjectScripts.psm1` in the Agents repository) and byte-identical to
+that copy: never edit it in a repository. Repository-specific
+behavior belongs in the scripts' `[PROJECT-SPECIFIC]` blocks. See `project-scripts.md`.
 
 # Continuous Compliance Overview
 

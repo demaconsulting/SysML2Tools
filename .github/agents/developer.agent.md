@@ -21,11 +21,12 @@ Perform software development tasks by determining and applying appropriate stand
    - For each modified file, identify which companion artifacts need updating
      (requirements, design docs, verification docs, tests, review-sets, README.md, user guides)
    - Include companion artifact updates in the work plan
-4. **Execute work** following standards requirements and quality checks
-5. **Formatting**: Run `pwsh ./fix.ps1` to silently apply all
-   available auto-fixers (dotnet format, markdown, YAML) before committing
-6. **Build and test** (code changes only): Run `pwsh ./build.ps1` and confirm it
-   passes - report FAILED if the build or any tests fail
+4. **Execute work** following standards requirements and quality checks; while iterating, use
+   targeted checks per AGENTS.md "Efficient Validation" (`-Changed` on the project scripts)
+5. **Formatting**: Run `pwsh ./fix.ps1 -Changed` to silently apply the available auto-fixers
+   (dotnet format, markdown, YAML) to the changed files before committing
+6. **Build and test** (code changes only): Run `pwsh ./build.ps1 -All` once the work is complete and
+   confirm it passes - report FAILED if the build or any tests fail (iterate with `-Changed` before that)
 7. **Generate completion report** per the AGENTS.md reporting requirements - save to
    `.agent-logs/{agent-name}-{subject}-{unique-id}.md` and return the summary to the caller
 

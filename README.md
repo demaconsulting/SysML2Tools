@@ -379,7 +379,9 @@ API reference documentation alongside its assembly.
 ## Building
 
 ```pwsh
-pwsh ./build.ps1
+pwsh ./build.ps1 -All       # full build and all tests
+pwsh ./build.ps1 -Changed   # only the test projects affected by your changes
+pwsh ./build.ps1 -Help      # all switches
 ```
 
 ## User Guide

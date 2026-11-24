@@ -130,8 +130,8 @@ Instead use **verbal references** - plain prose that identifies the target by na
 
 # Markdown Format Requirements
 
-Follow `.lintmark.yaml` (LintMark) formatting standards. Run `pwsh ./fix.ps1` to auto-fix these;
-`pwsh ./lint.ps1` (`dotnet lintmark`) reports whatever remains:
+Follow `.lintmark.yaml` (LintMark) formatting standards. Run `pwsh ./fix.ps1 -Changed` to auto-fix these;
+`pwsh ./lint.ps1 -Changed` (`dotnet lintmark`) reports whatever remains (`-All` before the pull request):
 
 - **120 Character Line Limit**: Keep lines 120 characters or fewer. `fix.ps1` re-wraps over-length paragraphs;
   headings, table rows, and unbreakable URLs, links, or code spans must be shortened by hand.
