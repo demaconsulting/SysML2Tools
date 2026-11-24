@@ -89,12 +89,16 @@ Key qualities demonstrated above:
 Apply clang-format using the repository `.clang-format` configuration:
 
 - **Format file**: `clang-format -i my_file.cpp`
-- Run `pwsh ./fix.ps1` to apply across the project
+- The template `fix.ps1` has no clang-format fixer. A C/C++ repository adds one in the `[PROJECT-SPECIFIC]`
+  block of `fix.ps1` (a `-Check` name in the fixer table plus a run step); until then, run `clang-format -i`
+  directly. Once the fixer exists, run `pwsh ./fix.ps1 -Changed` to apply it to the changed files (`-All` for the
+  whole project)
 
 # Quality Checks
 
 - [ ] Zero compiler warnings (`-Wall -Wextra -Werror`)
 - [ ] Doxygen documentation complete on all symbols
-- [ ] clang-format applied (run `pwsh ./fix.ps1`)
+- [ ] clang-format applied (`clang-format -i`, or `pwsh ./fix.ps1 -Changed` once the repository's `fix.ps1` has a
+  clang-format fixer)
 - [ ] All headers protected with `#pragma once`
 - [ ] No raw owning pointers - use `std::unique_ptr` or `std::shared_ptr`

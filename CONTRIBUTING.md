@@ -217,12 +217,16 @@ All tests must pass with zero warnings.
 ### 2. Linting
 
 ```pwsh
-# After making changes: applies dotnet format, markdown, and YAML fixes silently
-pwsh ./fix.ps1
+# While iterating: only the fixers and checks for the files you changed
+pwsh ./fix.ps1 -Changed
+pwsh ./lint.ps1 -Changed
 
-# Before submitting a pull request: all linters must pass
-pwsh ./lint.ps1
+# Before submitting a pull request: apply all fixers, then all linters must pass
+pwsh ./fix.ps1 -All
+pwsh ./lint.ps1 -All
 ```
+
+Run `pwsh ./lint.ps1 -Help` (or `fix.ps1`, `build.ps1`) for all switches; each script requires a scope.
 
 ### 3. Code Coverage
 
