@@ -31,8 +31,8 @@ The state-transitions include retrying a limited number of times:
 Call the **planning** agent as a sub-agent (custom agent from `.github/agents/`) with:
 
 - **context**: the user's request + any previous quality findings + retry context
-- **goal**: produce a verified implementation plan, or a targeted plan to address
-  the identified quality issues if this is a retry
+- **goal**: produce a verified implementation plan, or on a retry a correction plan covering
+  only the identified quality issues (the original plan still stands)
 
 Once the planning sub-agent finishes:
 
