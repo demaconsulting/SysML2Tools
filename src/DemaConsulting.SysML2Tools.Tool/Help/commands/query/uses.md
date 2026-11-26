@@ -1,6 +1,6 @@
 ---
 title: query uses verb
-summary: List the elements that a given element uses, such as its supertypes, types, and imports.
+summary: List the elements that a given element uses, such as its supertypes and the types of its features.
 tags:
   - reference
 order: 1
@@ -23,9 +23,16 @@ examples:
 
 It answers "what does this element depend on?" with the elements that
 the element references directly: its supertypes, the types of its
-features, its imports, the requirements it satisfies, and the targets
-of explicit `dependency` statements. The command that
-[[#run]] prints shows a supertype and a satisfied requirement.
+features, the requirements it satisfies, and the targets of explicit
+`dependency` statements. The command that [[#run]] prints shows a
+supertype and a satisfied requirement.
+
+Imports are not reported: a package that imports another, such as
+`import Lib::*;`, lists no `import` entry, and the imported elements
+list no user for it, here or in [[commands/query/used-by]] and
+[[commands/query/dependencies]]. The types of features are reported
+on the features, not on their owner: `part engine : Engine;` in `Car`
+is a `typing` entry of `Car::engine`.
 
 The Markdown report has a `**Uses**` table; `Kind` is the kind of the
 reference, such as `supertype`, `typing`, or `dependency`, and `Detail`

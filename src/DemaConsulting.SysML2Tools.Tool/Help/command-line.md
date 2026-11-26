@@ -30,6 +30,11 @@ examples:
     language: shell
     description: Hide the console output and keep it in a log file.
     content: '{{tool}} --silent --log output.log --version'
+  - name: silent-output
+    kind: command
+    language: shell
+    description: Run a query silently and keep its report in a file.
+    content: '{{tool}} --silent query list --kind "part def" --output parts.md vehicle.sysml'
   - name: unknown-option
     kind: command
     language: shell
@@ -46,7 +51,7 @@ come before or after the command.
 | --- | --- |
 | `-v`, `--version` | Print only the version. |
 | `-?`, `-h`, `--help` | Print the short usage text. |
-| `--silent` | Hide console output. Errors still set exit code 1. |
+| `--silent` | Hide all console output, also query and export results. |
 | `--log <file>` | Also write the output to a file. |
 | `--validate` | Run the self-tests; see [[self-validation]]. |
 | `--results <file>` | Write the self-test results as `.trx` or `.xml`. |
@@ -60,6 +65,14 @@ version and skips everything else. Without it, the tool prints a banner,
 then handles the first of `--help`, `--validate`, or the command. With
 no command, it prints `No command specified.` and exits 0. The command
 that [[#silent-log]] prints writes the version to the log file only.
+
+**Silent runs.** `--silent` hides everything a command prints on the
+console, including the report of `query` and the JSON of `export`
+when they have no `--output`, so `{{tool}} --silent query ...` prints
+nothing. When you need the result, add `--output <file>`, which holds
+only the result, as in the command that [[#silent-output]] prints.
+`--log <file>` also keeps it, after the banner and loading messages.
+Errors still set exit code 1.
 
 **Short usage.** `--help` alone prints the commands and options, as the
 command that [[#usage]] prints shows. After a command, it prints the

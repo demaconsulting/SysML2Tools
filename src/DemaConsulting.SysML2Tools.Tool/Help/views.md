@@ -83,6 +83,14 @@ cannot be combined with `--view` or `--auto`.
 content is marked with an ellipsis, never left out silently
 ([[#depth]]).
 
+**Limit of interconnection views.** A connection between a port on
+the boundary of the drawn element and a port of a part inside it is
+not drawn. For a part def `Torch` with `port supply`, a part `lamp`,
+and `connect supply to lamp.pwrIn;`, the view of `Torch` shows the
+port `supply` and the part `lamp`, but no line between them, and
+prints no warning. Connections between ports of inner parts, such as
+`connect battery.outlet to lamp.pwrIn;`, are drawn.
+
 **Formats.** SVG is the default; `--format png` writes PNG images, which
 look the same on every platform. A PNG wider or taller than 8192 pixels
 is scaled down with a warning; use SVG for a full-size diagram.

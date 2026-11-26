@@ -92,5 +92,7 @@ bullets), and `Entries`; each entry has `QualifiedName`, `Kind`,
 
 **Files.** `--output` names a file, not a folder ([[#output]]), and
 the file holds only the report. On the console, the report follows the
-banner and the loading messages. The command exits 1 when the model has
+banner and the loading messages, and the global `--silent` hides it,
+so add `--output` when you use `--silent`; see [[command-line]]. The
+command exits 1 when the model has
 an error, as [[commands/lint]] does, and when the element is not found.

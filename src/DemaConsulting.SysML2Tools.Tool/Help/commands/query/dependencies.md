@@ -27,7 +27,8 @@ The Markdown report has no table. It lists the outgoing references as
 `- Used by **Name** (kind)`, with the common prefix of the qualified
 names removed; see the command that [[#run]] prints.
 Explicit
-`dependency` statements appear with the kind `dependency`.
+`dependency` statements appear with the kind `dependency`; imports
+do not appear in either direction.
 
 The JSON entries keep the full qualified names, list the outgoing
 entries first, and add `Direction`: 0 for outgoing, 1 for incoming.

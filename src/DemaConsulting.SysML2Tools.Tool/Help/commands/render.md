@@ -66,7 +66,9 @@ only that view, and a name that the model lacks is an error that lists
 the views it has ([[#missing-view]]). A model with no view writes
 nothing and prints `No view declarations found in the workspace`,
 unless `--auto` is given. [[views]] explains view kinds, `expose`, and
-the views made on demand with `--view-type` and `--view-target`.
+the views made on demand with `--view-type` and `--view-target`, and
+notes that an interconnection view leaves out the connections between
+a boundary port and a part inside the element.
 
 **Diagnostics.** The problems that [[commands/lint]] reports are
 printed the same way, and the views are still drawn. The command exits
