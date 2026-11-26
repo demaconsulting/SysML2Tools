@@ -90,9 +90,8 @@ internal static class LintCommand
     /// </summary>
     /// <param name="context">The CLI context for output.</param>
     /// <remarks>
-    ///     The single source of truth for both <c>lint --help</c> and <c>help lint</c> — see
-    ///     <see cref="Help.HelpCommand"/> and <c>Program.RunAsync</c>'s command-aware help
-    ///     dispatch.
+    ///     Backs <c>lint --help</c> through <c>Program.RunAsync</c>'s command-aware help dispatch; the
+    ///     long-form reference is the <c>lint</c> help card printed by <c>help lint</c>.
     /// </remarks>
     public static void PrintHelp(Context context)
     {

@@ -46,7 +46,7 @@ This user guide covers:
 - Linting SysML v2 workspaces with the `lint` command
 - Rendering diagrams with the `render` command
 - Querying the semantic model with the `query` command
-- Getting command and verb-specific help with the `help` command
+- Built-in help topics, command and verb cards, and worked examples with the `help` command
 - Global CLI options
 - View selection and depth limiting
 - Self-validation for tool qualification evidence
@@ -1052,10 +1052,12 @@ model-comprehension and analysis questions via 12 verbs. Every verb accepts
 standard-library elements (excluded by default). Output is always sorted alphabetically by
 qualified name, regardless of format, for stable and reproducible results.
 
-`query <verb> --help` (and `help query <verb>`) shows a real example invocation for that
-verb and a schema hint describing the Markdown/JSON output shape; `query --help` (and
-`help query`, with no verb) shows a "typical workflow" note recommending `list`/`find` first
-to discover exact qualified names before using an element-scoped verb.
+`query <verb> --help` shows a real example invocation for that verb and a schema hint describing
+the Markdown/JSON output shape; `query --help` (with no verb) shows a "typical workflow" note
+recommending `list`/`find` first to discover exact qualified names before using an
+element-scoped verb. `help query` and `help query <verb>` print the longer help cards of the
+command and of each verb, with examples that run against the sample model of
+`sysml2tools help sysml-models` (see [Built-in Help](#built-in-help)).
 
 ```bash
 # What does this element depend on? (outgoing edges: supertypes, typing, imports)
@@ -1439,34 +1441,34 @@ The following global options are accepted before the verb:
 | `--depth <#>` | Set heading depth for validation output (default: 1) |
 | `--log <file>` | Write all output to a log file |
 
-## Getting Help
+The usage information that `--help` prints ends with a pointer to the built-in help. After a
+command, `--help` prints the short usage of that command (`lint --help`, `query --help`,
+`query <verb> --help`).
 
-In addition to the global `-?`/`-h`/`--help` flag (see the table above), `help` is also a
-first-class top-level command: `sysml2tools help [command] [verb]`. Both forms produce
-identical output for the same target — `help <command>` and `<command> --help` share a
-single source of truth for each command's help text, so neither can drift out of sync with
-the other.
+## Built-in Help
+
+The `help` command prints help topics that explain each task with worked examples, for people and
+for AI agents that have only the installed tool. List the topics, then print one with its examples:
 
 ```bash
-# Top-level help (same as bare --help)
 sysml2tools help
+sysml2tools help getting-started
+```
 
-# Command-specific help (identical to `lint --help`/`render --help`/`export --help`)
+`sysml2tools help <command>` prints the card of a command (the same card as
+`sysml2tools help commands <command>`), and `sysml2tools help query <verb>` the card of one query
+verb:
+
+```bash
 sysml2tools help lint
-sysml2tools help render
 sysml2tools help export
-
-# Query verb overview (identical to `query --help`)
-sysml2tools help query
-
-# Query verb-specific help (identical to `query <verb> --help`)
 sysml2tools help query hierarchy
 ```
 
-An unrecognized command or verb (e.g., `sysml2tools help bogus`, `sysml2tools help query
-bogus-verb`) reports a clear error naming the invalid token rather than crashing. Note that
-`--silent` suppresses `help`'s console output exactly as it suppresses every other command's
-output — there is no special case that lets `help` bypass `--silent`.
+Add `--search <words>` to find a topic, `--example <name>` to print one example of a topic, and
+`--json` to get any help answer as JSON. `help` is a command, not an option: it must be the first
+argument, and `--silent` and `--log` do not apply to it. It exits with code 0 on success, and with
+code 2 after printing a hint for an unknown topic or a wrong help argument.
 
 # Self-Validation
 

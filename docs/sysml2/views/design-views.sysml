@@ -9,7 +9,7 @@
 //     nests its direct subsystem part boxes (one level, no unit trees).
 //   - OtsView: the shared OTS package as a package frame of part defs.
 //   - {System}View: the system def plus its direct subsystems as part nodes. The Tool system owns
-//     nine parts, which as one tree row is too wide, so it is an interconnection view whose part
+//     eight parts, which as one tree row is too wide, so it is an interconnection view whose part
 //     boxes wrap into rows.
 //   - {Subsystem}View: for a subsystem with a few units, the subsystem def as the tree root with
 //     its unit part usages as part nodes (diamond edges), the unit defs, and the suppliers of the
@@ -66,7 +66,7 @@ package SysML2ToolsDesignViews {
     }
 
     view ToolView : InterconnectionView {
-        doc /* The Tool system with its nine direct parts as part boxes (an interconnection view, because nine part nodes in one tree row are too wide). */
+        doc /* The Tool system with its eight direct parts as part boxes (an interconnection view, because eight part nodes in one tree row are too wide). */
         expose SysML2ToolsTool::SysML2ToolsToolSystem;
     }
 
@@ -145,9 +145,11 @@ package SysML2ToolsDesignViews {
     }
 
     view ToolCliView : GeneralView {
-        doc /* The subsystem def with its unit part nodes, the unit defs, and the suppliers of their dependency statements. */
+        doc /* The subsystem def with its unit part nodes, the unit defs, and the suppliers of their dependency statements. Hub dependencies (Program) are omitted; query used-by lists their users. */
         expose SysML2ToolsTool_CliSubsystem::CliSubsystem;
         expose SysML2ToolsTool_Context::Context;
+        expose SysML2ToolsTool_HelpCommand::HelpCommand;
+        expose OtsDependencies::HelpCards;
         filter not (@SysML::Documentation);
     }
 
@@ -167,16 +169,6 @@ package SysML2ToolsDesignViews {
         expose SysML2ToolsCore_DiagramRenderer::DiagramRenderer;
         expose SysML2ToolsLanguage_WorkspaceLoader::WorkspaceLoader;
         expose SysML2ToolsTool_DiagnosticFormatter::DiagnosticFormatter;
-        filter not (@SysML::Documentation);
-    }
-
-    view ToolHelpView : GeneralView {
-        doc /* The subsystem def with its unit part nodes, the unit defs, and the suppliers of their dependency statements. Hub dependencies (Context, Program) are omitted; query used-by lists their users. */
-        expose SysML2ToolsTool_HelpSubsystem::HelpSubsystem;
-        expose SysML2ToolsTool_HelpCommand::HelpCommand;
-        expose SysML2ToolsTool_LintCommand::LintCommand;
-        expose SysML2ToolsTool_QueryCommand::QueryCommand;
-        expose SysML2ToolsTool_RenderCommand::RenderCommand;
         filter not (@SysML::Documentation);
     }
 

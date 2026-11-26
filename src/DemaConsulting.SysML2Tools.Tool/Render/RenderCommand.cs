@@ -325,8 +325,8 @@ internal static class RenderCommand
     /// </summary>
     /// <param name="context">The CLI context for output.</param>
     /// <remarks>
-    /// The single source of truth for both <c>render --help</c> and <c>help render</c> — see
-    /// <see cref="Help.HelpCommand"/> and <c>Program.RunAsync</c>'s command-aware help dispatch.
+    /// Backs <c>render --help</c> through <c>Program.RunAsync</c>'s command-aware help dispatch; the
+    /// long-form reference is the <c>render</c> help card printed by <c>help render</c>.
     /// </remarks>
     public static void PrintHelp(Context context)
     {

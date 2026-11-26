@@ -49,6 +49,7 @@
 
   <!-- Runtime Dependencies -->
   <ItemGroup>
+    <PackageReference Include="DemaConsulting.HelpCards" Version="0.1.0-beta.3" />
     <PackageReference Include="DemaConsulting.TestResults" Version="1.10.0" />
   </ItemGroup>
 

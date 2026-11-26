@@ -36,6 +36,25 @@ sections:
         tests:
           - Program_Run_WithValidateFlag_RunsValidation
 
+      - id: Template-Program-HelpCommand
+        title: >-
+          The Program class shall answer the `help` command before the command-line options are
+          parsed and return its exit code.
+        justification: |
+          The `help` command is not an option, so the option parser would reject it. Offering
+          the arguments to the help command first lets `sysml2tools help` work while every
+          other run continues to the option parser unchanged.
+        tests:
+          - Program_Main_WithHelpVerb_PrintsHelpIndex
+
+      - id: Template-Program-HelpFooter
+        title: The Program class shall end its usage information with a pointer to the help command.
+        justification: |
+          The short usage text stays short and still tells a reader where the help topics
+          with worked examples are.
+        tests:
+          - Program_Run_WithHelpFlag_DisplaysUsageInformation
+
       - id: Template-Program-ExitCode
         title: The Program class shall return a non-zero exit code on failure.
         justification: |

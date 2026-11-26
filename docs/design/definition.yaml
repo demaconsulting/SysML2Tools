@@ -75,9 +75,9 @@ input-files:
   - docs/design/sysml2-tools-tool/program.md
   - docs/design/sysml2-tools-tool/cli.md
   - docs/design/sysml2-tools-tool/cli/context.md
+  - docs/design/sysml2-tools-tool/cli/help-command.md
   - docs/design/sysml2-tools-tool/lint.md
   - docs/design/sysml2-tools-tool/render.md
-  - docs/design/sysml2-tools-tool/help.md
   - docs/design/sysml2-tools-tool/query.md
   - docs/design/sysml2-tools-tool/export.md
   - docs/design/sysml2-tools-tool/self-test.md
@@ -89,6 +89,7 @@ input-files:
   - docs/design/ots/antlr4.md
   - docs/design/ots/buildmark.md
   - docs/design/ots/fileassert.md
+  - docs/design/ots/help-cards.md
   - docs/design/ots/pandoc.md
   - docs/design/ots/reqstream.md
   - docs/design/ots/reviewmark.md

@@ -12,10 +12,10 @@ outputs; no internal implementation details are assumed.
 (e.g., "standard error is empty") are not possible at this level; all assertions are made
 against the combined output.
 
-Detailed, per-subsystem verification for each of the tool's eight subsystems (`Cli`, `Lint`,
-`Render`, `Help`, `Query`, `Export`, `SelfTest`, `Utilities`) is tracked separately under
-`docs/verification/sysml2-tools-tool/*.md` (`cli.md`, `lint.md`, `render.md`, `help.md`,
-`query.md`, `export.md`, `self-test.md`, `utilities.md`), matching the subsystem list in
+Detailed, per-subsystem verification for each of the tool's seven subsystems (`Cli`, `Lint`,
+`Render`, `Query`, `Export`, `SelfTest`, `Utilities`) is tracked separately under
+`docs/verification/sysml2-tools-tool/*.md` (`cli.md`, `lint.md`, `render.md`, `query.md`,
+`export.md`, `self-test.md`, `utilities.md`), matching the subsystem list in
 `docs/design/sysml2-tools-tool.md`.
 
 ## Test Environment
@@ -28,6 +28,8 @@ created and cleaned up within each test.
 
 - All integration tests pass with zero failures across all supported platforms.
 - Exit code 0 is returned for all valid invocations.
+- Exit code 2 is returned when the `help` command names an unknown topic.
+- Every command example of the help cards gives the result that its card states.
 - Exit code non-zero is returned for all invalid argument combinations.
 - Results files are created at the specified paths when `--results` is used with `--validate`.
 - Silent mode (`--silent`) produces empty combined output.
@@ -94,3 +96,19 @@ path and the tool exits with code 0. This scenario is tested by
 flag is combined with `--results <path>.bad` (unsupported extension); the tool exits with a
 non-zero code and no file is created at the specified path. This scenario is tested by
 `SysML2Tools_ValidateWithBadExtension_ExtensionInvalid_ReturnsNonZero`.
+
+**SysML2Tools_HelpTopics_HelpVerb_ListsTopics**: The `help` command is passed as the sole
+argument; the combined output lists every root topic with its command, contains no banner, and
+the tool exits with code 0. This scenario is tested by
+`SysML2Tools_HelpTopics_HelpVerb_ListsTopics`.
+
+**SysML2Tools_HelpTopics_UnknownTopic_ReturnsUsageError**: The arguments `help no-such-topic`
+name a topic that does not exist; the tool exits with code 2 and the combined output names the
+topic. This scenario is tested by `SysML2Tools_HelpTopics_UnknownTopic_ReturnsUsageError`.
+
+**SysML2Tools_HelpExamples_AllCommandExamples_GiveStatedResults**: The catalog that the tool
+ships is built, the shared sample model in `TestData/HelpExamples` is checked to be the one the
+`sysml-models` card shows, and every command example of every card is run against the built tool
+in a scratch folder that holds the sample model; each run gives the exit code and output fragment
+that its card states, and at least one command example exists. This scenario is tested by
+`SysML2Tools_HelpExamples_AllCommandExamples_GiveStatedResults`.

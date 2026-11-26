@@ -9,7 +9,7 @@ package SysML2ToolsTool_Program {
     private import SoftwareItemMetadata::*;
 
     part def Program {
-        doc /* Entry point and execution orchestrator: creates the context from the command line, dispatches to the help, validation, and command handlers, and returns the exit code. */
+        doc /* Entry point and execution orchestrator: answers the help command first, otherwise creates the context from the command line, dispatches to the validation and command handlers, and returns the exit code. */
 
         metadata info : SoftwareInfo {
             sourceFiles = ("src/DemaConsulting.SysML2Tools.Tool/Program.cs", "src/DemaConsulting.SysML2Tools.Tool/ProgramStrings.cs");

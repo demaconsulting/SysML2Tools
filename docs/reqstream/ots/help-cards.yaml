@@ -1,0 +1,36 @@
+---
+# HelpCards OTS Software Requirements
+#
+# Requirements for the DemaConsulting.HelpCards library, which serves the built-in help
+# of the tool from Markdown help cards embedded in the tool assembly.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: HelpCards Requirements
+        requirements:
+          - id: SysML2Tools-OTS-HelpCards-Cli
+            title: >-
+              HelpCards shall answer the help command of a tool from the help cards embedded in the
+              tool assembly.
+            justification: |
+              The tool serves `sysml2tools help` to people and AI agents through the command-line
+              helper of DemaConsulting.HelpCards, whose build targets embed the cards in the
+              assembly so the tool package needs no loose files.
+            tags: [ots]
+            tests:
+              - HelpCommand_TryRun_HelpVerb_PrintsTopicIndexAndReturnsZero
+              - SysML2Tools_HelpTopics_HelpVerb_ListsTopics
+
+          - id: SysML2Tools-OTS-HelpCards-Testing
+            title: >-
+              HelpCards shall report defects in help cards, and differences between the stated and the
+              actual results of their command examples, to the tests of a tool.
+            justification: |
+              Help that disagrees with the tool is worse than no help. The validator and the example
+              runner of the package let the test suite fail on a defective card or an example that
+              no longer gives the result its card states.
+            tags: [ots]
+            tests:
+              - HelpCommand_CreateOptions_ShippedCatalog_PassesValidation
+              - SysML2Tools_HelpExamples_AllCommandExamples_GiveStatedResults

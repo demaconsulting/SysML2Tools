@@ -7,7 +7,8 @@ test exercises `Context.Create` and `Program.Run` together, treating the pair as
 subsystem interface. Tests pass controlled argument arrays and assert on captured console output,
 file-system side-effects, and exit codes. `Validation` (part of the `SelfTest` subsystem)
 executes its real logic in scenarios that exercise the `--validate` path; no mocking is applied
-at any level.
+at any level. The help command is exercised through `HelpCommand.TryRun` with the real help cards
+embedded in the tool assembly.
 
 ### Test Environment
 
@@ -85,3 +86,24 @@ at the specified path and exit code is 0. This scenario is tested by
 are passed; the heading depth is set to 2 and exit code is 0, confirming the `--depth` flag is
 correctly parsed and propagated through `Context`. This scenario is tested by
 `CliSubsystem_DepthFlow_ContextAndProgram_AdjustsHeadingDepth`.
+
+**CliSubsystem_HelpCommand_TopicRequested_PrintsTopic**: Arguments `["help", "command-line"]` are
+offered to `HelpCommand.TryRun`, which answers with the command-line topic and exit code 0. This
+scenario is tested by `CliSubsystem_HelpCommand_TopicRequested_PrintsTopic`.
+
+**CliSubsystem_StrictUnresolved_IsDocumentedInEveryCommandHelp**: The top-level `--help` and the
+`--help` usage of `lint`, `render`, `export`, `query`, and every query verb are printed through
+`Context.Create` and `Program.RunAsync`; each lists `--strict-unresolved`, none mentions the removed
+`--warn-unresolved`, and each exits with code 0. This scenario is tested by
+`CliSubsystem_StrictUnresolved_IsDocumentedInEveryCommandHelp`.
+
+**CliSubsystem_LintHelp_DescribesWarningsAndStrictUnresolved**: `lint --help` prints the usage line,
+states that syntax errors give a non-zero exit code while unresolved references and tool-specific
+render selectors are warnings, and describes `--strict-unresolved`. This scenario is tested by
+`CliSubsystem_LintHelp_DescribesWarningsAndStrictUnresolved`.
+
+**CliSubsystem_StrictUnresolved_WordingIsAccuratePerCommand**: The `--help` usage of `lint`,
+`render`, `query`, and every query verb states exit code 1 for models with unresolved references,
+the `export --help` usage states Severity 2 in the JSON diagnostics with the exit code unaffected,
+and the top-level usage lists the flag for all four commands. This scenario is tested by
+`CliSubsystem_StrictUnresolved_WordingIsAccuratePerCommand`.

@@ -3,7 +3,8 @@
 #
 # PURPOSE:
 # - Define requirements for the SysML2Tools Cli subsystem
-# - The Cli subsystem spans Context.cs (command-line argument parsing and I/O)
+# - The Cli subsystem spans Context.cs (command-line argument parsing and I/O) and
+#   HelpCommand.cs (the built-in help command)
 # - Subsystem requirements describe the externally visible command-line interface behavior
 
 sections:
@@ -60,7 +61,7 @@ sections:
           Users need access to command-line usage documentation without requiring
           external resources.
         children:
-          - SysML2Tools-Tool-Context-HelpDispatch
+          - SysML2Tools-Tool-Cli-StrictUnresolvedDocumented
         tests:
           - CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits
           - CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits_WithShortQuestionFlag
@@ -149,3 +150,33 @@ sections:
           prevents breakage when upgrading to newer tool versions.
         tests:
           - CliSubsystem_ResultAliasFlow_ContextAndProgram_WritesResultsFile
+
+      - id: SysML2Tools-Tool-Cli-StrictUnresolvedDocumented
+        title: >-
+          The usage text of the tool and of the lint, render, export, and query commands (query's
+          general usage and every verb's usage) shall list the `--strict-unresolved` option, each
+          command's usage shall describe that command's own behavior (lint, render, and query: exit
+          code 1 for models that have unresolved references; export: Severity 2 in the JSON
+          diagnostics with the exit code unaffected), and the lint usage shall state that unresolved
+          references are warnings by default and describe the strict option that makes them errors.
+        justification: |
+          Unresolved references only become errors when the user opts in, so a user who wants
+          that behavior must be able to find the option, and a user reading a command's usage must
+          learn what the option actually does for that command (export reports the severity in its
+          JSON but, unlike lint, render, and query, does not change the exit code).
+        tests:
+          - CliSubsystem_StrictUnresolved_IsDocumentedInEveryCommandHelp
+          - CliSubsystem_LintHelp_DescribesWarningsAndStrictUnresolved
+          - CliSubsystem_StrictUnresolved_WordingIsAccuratePerCommand
+
+      - id: Template-Cli-HelpTopics
+        title: The Cli subsystem shall answer the `help` command from built-in help cards.
+        justification: |
+          Users and AI agents need help topics with worked examples from the installed tool.
+        children:
+          - SysML2Tools-Tool-HelpCommand-HelpVerb
+          - SysML2Tools-Tool-HelpCommand-CommandCards
+          - SysML2Tools-Tool-HelpCommand-ValidCards
+          - SysML2Tools-Tool-HelpCommand-LineWidth
+        tests:
+          - CliSubsystem_HelpCommand_TopicRequested_PrintsTopic

@@ -53,9 +53,9 @@ analysis][workflow]
 - **`export` Command**: Dumps the resolved semantic model (declarations, edges,
   diagnostics) as a single JSON document or as JSON Lines (JSONL), for bulk/offline
   AI-assisted analysis of an entire workspace at once
-- **`help` Command**: Print help for the tool itself, a specific command
-  (`lint`/`render`/`query`/`export`), or a specific `query` verb — identical output to the
-  corresponding `<command> --help`
+- **Built-in Help**: `sysml2tools help` serves Markdown help cards
+  ([DemaConsulting.HelpCards][link-helpcards]) with topics, a card for every command and
+  `query` verb, runnable examples, search, and JSON output for AI agents
 - **GeneralView Layout**: Top-to-bottom block diagrams in the SysML v2 graphical notation: package
   folders with the name in the tab, definition and usage nodes (parts, nested parts, ports with
   content), and the notation glyphs for specialization, composite and reference membership, typing,
@@ -207,19 +207,20 @@ JSON/JSONL output shape.
 ### Getting Help
 
 ```bash
-# Top-level help (same as bare --help)
+# List the built-in help topics, then read one
 sysml2tools help
+sysml2tools help getting-started
 
-# Command-specific help (identical to `lint --help`/`render --help`/`export --help`)
+# The card of a command, or of one query verb, with examples
 sysml2tools help lint
-sysml2tools help render
-sysml2tools help export
-
-# Query verb overview (identical to `query --help`)
-sysml2tools help query
-
-# Query verb-specific help (identical to `query <verb> --help`)
 sysml2tools help query hierarchy
+
+# Find a topic
+sysml2tools help --search glob
+
+# Short usage of the tool or of one command
+sysml2tools --help
+sysml2tools lint --help
 ```
 
 ### Global Flags
@@ -248,7 +249,7 @@ sysml2tools --silent --log output.log
 sysml2tools [-v|--version] [-?|-h|--help] [--silent]
             [--validate] [--result|--results <file>] [--depth <#>] [--log <file>]
             [<verb> [verb-options] [<globs>]]
-sysml2tools help [lint|render|query [<query-verb>]|export]
+sysml2tools help [topic]
 ```
 
 `<verb>` is `lint`, `render`, `export`, or `query <query-verb>` (12 query verbs — see the
@@ -323,12 +324,13 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--filter <expr>` | Narrow output using a Phase 1 filter expression (see `render`'s `--filter`); after `--target` |
 | `--strict-unresolved` | Report unresolved references as errors (`Severity` 2 in the JSON; exit code unaffected) |
 
-### `help` Options
+### `help` Command
 
-| Option | Description |
-| --- | --- |
-| `[command]` | Optional: `lint`, `render`, `query`, or `export`; omit for top-level help |
-| `[verb]` | Optional; only meaningful when `command` is `query` — one of the 12 supported query verbs |
+`help` must be the first argument. `help` alone lists the topics; `help <topic>` prints a topic,
+`help <command>` the card of a command, and `help query <verb>` the card of a query verb. Add
+`--search <words>` to find a topic, `--example <name>` to print one example, and `--json` for JSON.
+`--silent` and `--log` do not apply to it. It exits with code 0, or 2 for an unknown topic or a wrong
+help argument.
 
 ## View Selection
 
@@ -425,4 +427,5 @@ By contributing to this project, you agree that your contributions will be licen
 [link-quality]: https://sonarcloud.io/dashboard?id=demaconsulting_SysML2Tools
 [link-security]: https://sonarcloud.io/dashboard?id=demaconsulting_SysML2Tools
 [link-nuget]: https://www.nuget.org/packages/DemaConsulting.SysML2Tools.Tool
+[link-helpcards]: https://www.nuget.org/packages/DemaConsulting.HelpCards
 [dotnet-download]: https://dotnet.microsoft.com/download

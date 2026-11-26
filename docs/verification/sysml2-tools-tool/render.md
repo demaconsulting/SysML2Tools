@@ -52,8 +52,7 @@ on context output and exit code. File-writing scenarios use a temporary director
 - Unsupported `--format` value throws `ArgumentException` when `RunAsync` executes (not at
   `Context.Create` parse time)
 - `render --help` prints render-specific usage and options (not the generic top-level command
-  list), and is identical to `help render`'s output (see the Help subsystem verification
-  document).
+  list).
 - A workspace with two views — one with an `expose <target>;` statement naming a resolvable
   target, one with a bogus `expose thisIdentifierDoesNotExistAnywhere;` statement — produces
   two output files whose content DIFFERS, and the bogus view's unresolved exposed name is
@@ -201,8 +200,7 @@ validation.
 
 Verifies that `render --help` prints the render-specific usage line and its `--output`/
 `--auto` flags, and does not print the generic top-level `"Commands:"` section — a
-regression-proofing test added alongside the `help` command's command-aware `--help` dispatch
-(see `docs/design/sysml2-tools-tool/help.md`).
+regression-proofing test for `Program.RunAsync`'s command-aware `--help` dispatch.
 
 #### RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic
 

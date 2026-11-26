@@ -7,7 +7,8 @@
 The `Cli` subsystem is the boundary between the host environment's command-line invocation and
 the tool's internal logic. It owns argument parsing, output channel management, and exit-code
 tracking. All other subsystems receive a `Context` object from this subsystem to read parsed
-flags and write output. The `Cli` subsystem contains one unit: `Context`.
+flags and write output. The `Cli` subsystem contains two units: `Context` and `HelpCommand`,
+which answers the `help` command from the built-in help cards.
 
 ### Interfaces
 
@@ -45,6 +46,22 @@ flags and write output. The `Cli` subsystem contains one unit: `Context`.
 - *Contract*: Returns 1 if `WriteError` has been called at least once; returns 0 otherwise.
 - *Constraints*: Read-only.
 
+**HelpCommand.TryRun**: Answers the `help` command from the help cards embedded in the assembly.
+
+- *Type*: In-process .NET instance method.
+- *Role*: Provider.
+- *Contract*: Returns `true` and the exit code of the help command when the first argument is
+  `help`; returns `false` without any work otherwise. `help <command>` and
+  `help query <verb>` print the card of that command or verb.
+- *Constraints*: Called before `Context.Create`, so `--silent` and `--log` do not apply.
+
+**HelpCommand.Footer**: The one-line pointer to the help command that ends the usage text.
+
+- *Type*: In-process .NET property.
+- *Role*: Provider.
+- *Contract*: Returns the sentence without building the card catalog.
+- *Constraints*: None.
+
 **Context.Dispose**: Releases the log file `StreamWriter`.
 
 - *Type*: In-process .NET method (`IDisposable`).
@@ -55,12 +72,15 @@ flags and write output. The `Cli` subsystem contains one unit: `Context`.
 
 ### Design
 
-The `Cli` subsystem contains only the `Context` unit; there is no subsystem-level code of its
-own. All behavior is provided by `Context`. The `Program` unit creates a `Context` at the start
-of each invocation and passes it to all other units that produce output.
+The `Cli` subsystem contains the `Context` and `HelpCommand` units; there is no subsystem-level
+code of its own. The `Program` unit first offers the arguments to `HelpCommand`, then creates a
+`Context` at the start of each other invocation and passes it to all other units that produce
+output.
 
-The subsystem has no dependencies on other tool subsystems; it uses only .NET BCL types
-(`Console`, `StreamWriter`).
+`Context` has no dependencies on other tool subsystems; it uses only .NET BCL types
+(`Console`, `StreamWriter`). `HelpCommand` is the only unit that uses the HelpCards OTS
+library, and it reads the command names from `SysmlCommand` so that `help <command>` stays in
+step with the commands that `Context` accepts.
 
 Error handling flows from `Context.Create` to `Program.Main`: argument parsing errors propagate
 as `ArgumentException`; log-file errors propagate as `InvalidOperationException`. Both are

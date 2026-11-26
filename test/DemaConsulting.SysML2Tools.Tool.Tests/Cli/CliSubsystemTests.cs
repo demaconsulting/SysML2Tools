@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 using DemaConsulting.SysML2Tools.Cli;
+using DemaConsulting.SysML2Tools.Query;
 
 namespace DemaConsulting.SysML2Tools.Tests.Cli;
 
@@ -443,6 +444,140 @@ public class CliSubsystemTests
             {
                 File.Delete(logFile);
             }
+        }
+    }
+
+    /// <summary>
+    ///     Test that the help command prints a requested topic from the built-in help cards.
+    /// </summary>
+    [Fact]
+    public void CliSubsystem_HelpCommand_TopicRequested_PrintsTopic()
+    {
+        // Arrange: a help command that writes to memory
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var command = HelpCommand.Create(output, error);
+
+        // Act: ask for the command-line topic
+        var answered = command.TryRun(["help", "command-line"], out var exitCode);
+
+        // Assert: the topic card is printed and the exit code is success
+        Assert.True(answered);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("# Command-line options", output.ToString());
+    }
+
+    /// <summary>
+    ///     Test that the short usage of the top level, lint, render, export, and query (general and every
+    ///     verb) documents the <c>--strict-unresolved</c> flag, and that the removed
+    ///     <c>--warn-unresolved</c> flag appears in none of them.
+    /// </summary>
+    [Fact]
+    public async Task CliSubsystem_StrictUnresolved_IsDocumentedInEveryCommandHelp()
+    {
+        // Arrange: every --help invocation that describes a command accepting the flag
+        var invocations = new[]
+        {
+            new[] { "--help" },
+            new[] { "lint", "--help" },
+            new[] { "render", "--help" },
+            new[] { "export", "--help" },
+            new[] { "query", "--help" },
+        }.Concat(QueryVerbParsing.AllTokens.Select(verb => new[] { "query", verb, "--help" }));
+
+        foreach (var args in invocations)
+        {
+            // Act: print the usage
+            var (output, exitCode) = await RunHelpAsync(args);
+
+            // Assert: the flag is documented, the removed flag is not, and the usage succeeds
+            Assert.Contains("--strict-unresolved", output);
+            Assert.DoesNotContain("--warn-unresolved", output);
+            Assert.Equal(0, exitCode);
+        }
+    }
+
+    /// <summary>
+    ///     Test that the lint usage states that syntax errors are errors with a non-zero exit code, that
+    ///     unresolved references are warnings, and documents the strict flag.
+    /// </summary>
+    [Fact]
+    public async Task CliSubsystem_LintHelp_DescribesWarningsAndStrictUnresolved()
+    {
+        // Arrange / Act: print the lint usage
+        var (output, _) = await RunHelpAsync("lint", "--help");
+
+        // Assert: the usage line, the error and warning split, and the strict flag are described
+        Assert.Contains("Usage: sysml2tools lint [--strict-unresolved] <files...>", output);
+        Assert.Contains("unresolved references and tool-specific render", output);
+        Assert.Contains("are warnings", output);
+        Assert.Contains("non-zero", output);
+        Assert.Contains("Report unresolved references as errors instead of warnings", output);
+    }
+
+    /// <summary>
+    ///     Test that each command's <c>--strict-unresolved</c> usage describes that command's own
+    ///     behavior: lint, render, and query (general and every verb) state the exit code 1, while export
+    ///     states that the JSON diagnostics carry Severity 2 and the exit code is unaffected. The
+    ///     top-level usage still lists the flag and all four commands.
+    /// </summary>
+    [Fact]
+    public async Task CliSubsystem_StrictUnresolved_WordingIsAccuratePerCommand()
+    {
+        // Arrange: the headline and the exit-code wording of the flag
+        const string headline = "Report unresolved references as errors instead of warnings";
+        const string exitCodeOne = "(exit code 1 for models that have any)";
+        var exitCodeInvocations = new[]
+        {
+            new[] { "lint", "--help" },
+            new[] { "render", "--help" },
+            new[] { "query", "--help" },
+        }.Concat(QueryVerbParsing.AllTokens.Select(verb => new[] { "query", verb, "--help" }));
+
+        // Act / Assert: lint, render and query (general and every verb) report exit code 1
+        foreach (var args in exitCodeInvocations)
+        {
+            var (output, _) = await RunHelpAsync(args);
+            Assert.Contains(headline, output);
+            Assert.Contains(exitCodeOne, output);
+        }
+
+        // Act / Assert: export reports Severity 2 and an unaffected exit code, not exit code 1
+        var (exportOutput, exportExitCode) = await RunHelpAsync("export", "--help");
+        Assert.Contains(headline, exportOutput);
+        Assert.Contains("Severity 2 in the JSON diagnostics", exportOutput);
+        Assert.Contains("exit code unaffected", exportOutput);
+        Assert.DoesNotContain(exitCodeOne, exportOutput);
+        Assert.Equal(0, exportExitCode);
+
+        // Act / Assert: the top-level usage still lists the flag and all four commands
+        var (topLevelOutput, _) = await RunHelpAsync("--help");
+        Assert.Contains("--strict-unresolved", topLevelOutput);
+        Assert.Contains("lint, render, query, export", topLevelOutput);
+    }
+
+    /// <summary>
+    ///     Runs the given arguments through <see cref="Context.Create"/> and <see cref="Program.RunAsync"/>
+    ///     and returns the captured standard output and the exit code.
+    /// </summary>
+    /// <param name="args">The command-line arguments.</param>
+    /// <returns>The captured standard output and the exit code of the context.</returns>
+    private static async Task<(string Output, int ExitCode)> RunHelpAsync(params string[] args)
+    {
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            using var context = Context.Create(args);
+            await Program.RunAsync(context);
+
+            return (outWriter.ToString(), context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
         }
     }
 }

@@ -24,6 +24,7 @@ needs-review:
   - "docs/verification/**/*.md"   # Verification documentation files
   - "docs/user_guide/**/*.md"     # User guide documentation
   - "docs/sysml2/**/*.sysml"      # SysML2 architecture model
+  - "src/**/Help/**"              # Built-in help cards
   - "!**/obj/**"                  # Exclude build output
   - "!**/bin/**"                  # Exclude build output
   - "!**/generated/**"            # Exclude generated documentation
@@ -917,6 +918,21 @@ reviews:
       - "src/**/Cli/GlobalArguments.cs"
       - "src/**/Cli/GlobalArgumentParser.cs"
 
+  - id: SysML2Tools-Tool-Cli-HelpCommand
+    title: Review of SysML2 Tools HelpCommand unit implementation and help cards
+    context:
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+      - docs/design/sysml2-tools-tool/cli.md
+      - docs/reqstream/sysml2-tools-tool/cli.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-tool/cli/help-command.yaml"
+      - "docs/design/sysml2-tools-tool/cli/help-command.md"
+      - "docs/verification/sysml2-tools-tool/cli/help-command.md"
+      - "src/**/Cli/HelpCommand.cs"
+      - "src/**/Help/**"
+      - "test/**/Cli/HelpCommandTests.cs"
+
   # SysML2Tools Tool - SelfTest
   - id: SysML2Tools-Tool-SelfTest
     title: Review of SysML2 Tools SelfTest subsystem architecture and interfaces
@@ -1053,18 +1069,6 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Export/ExportSubsystemTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Export/ExportRenderingTests.cs"
 
-  - id: SysML2Tools-Tool-Help
-    title: Review of SysML2 Tools Help subsystem implementation
-    context:
-      - docs/design/sysml2-tools-tool.md
-      - docs/reqstream/sysml2-tools-tool.yaml
-    paths:
-      - "docs/reqstream/sysml2-tools-tool/help.yaml"
-      - "docs/design/sysml2-tools-tool/help.md"
-      - "docs/verification/sysml2-tools-tool/help.md"
-      - "src/**/Help/*.cs"
-      - "test/**/Help/*.cs"
-
   # OTS Items
   - id: OTS-BuildMark
     title: Review of BuildMark OTS verification evidence
@@ -1079,6 +1083,13 @@ reviews:
       - "docs/reqstream/ots/fileassert.yaml"
       - "docs/design/ots/fileassert.md"
       - "docs/verification/ots/fileassert.md"
+
+  - id: OTS-HelpCards
+    title: Review of HelpCards OTS verification evidence
+    paths:
+      - "docs/reqstream/ots/help-cards.yaml"
+      - "docs/design/ots/help-cards.md"
+      - "docs/verification/ots/help-cards.md"
 
   - id: OTS-Pandoc
     title: Review of Pandoc OTS verification evidence

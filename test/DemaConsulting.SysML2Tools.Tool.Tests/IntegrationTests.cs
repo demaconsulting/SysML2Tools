@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using DemaConsulting.HelpCards.Catalog;
+using DemaConsulting.HelpCards.Testing;
+using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Utilities;
 
 namespace DemaConsulting.SysML2Tools.Tests;
@@ -366,6 +369,95 @@ public class IntegrationTests
         // Assert: output contains level-3 markdown headings
         Assert.Equal(0, exitCode);
         Assert.Contains("###", output);
+    }
+
+    /// <summary>
+    ///     Test that the help verb lists the help topics.
+    /// </summary>
+    [Fact]
+    public void SysML2Tools_HelpTopics_HelpVerb_ListsTopics()
+    {
+        // Arrange: (none — constructor initializes _dllPath)
+
+        // Act: run the tool with the help verb
+        var exitCode = Runner.Run(
+            out var output,
+            "dotnet",
+            _dllPath,
+            "help");
+
+        // Assert: every topic is listed with its command, without the banner
+        Assert.Equal(0, exitCode);
+        foreach (var topic in HelpCommand.RootCardIds)
+        {
+            Assert.Contains($"{HelpCommand.ToolName} help {topic}", output);
+        }
+
+        Assert.DoesNotContain("Copyright", output);
+    }
+
+    /// <summary>
+    ///     Test that an unknown help topic returns the usage-error exit code.
+    /// </summary>
+    [Fact]
+    public void SysML2Tools_HelpTopics_UnknownTopic_ReturnsUsageError()
+    {
+        // Arrange: (none — constructor initializes _dllPath)
+
+        // Act: ask for a topic that does not exist
+        var exitCode = Runner.Run(
+            out var output,
+            "dotnet",
+            _dllPath,
+            "help",
+            "no-such-topic");
+
+        // Assert: exit code 2 and a message that names the topic
+        Assert.Equal(2, exitCode);
+        Assert.Contains("no-such-topic", output);
+    }
+
+    /// <summary>
+    ///     Test that every command example in the help cards gives the result that its card states.
+    /// </summary>
+    [Fact]
+    public void SysML2Tools_HelpExamples_AllCommandExamples_GiveStatedResults()
+    {
+        // Arrange: the catalog the tool ships, and the model files that the examples of every card read. The
+        // shared sample model must be the one the sysml-models card shows, so that a user who saves it from
+        // the help gets the results that the other cards state.
+        var catalog = HelpCatalog.Create(HelpCommand.CreateOptions().GetCatalogConfiguration());
+        var exampleFiles = Directory.GetFiles(
+            PathHelpers.SafePathCombine(AppContext.BaseDirectory, Path.Combine("TestData", "HelpExamples")));
+        var sample = catalog.Find("sysml-models")!.Examples.Single(example => example.Name == "sample");
+        var sampleFile = exampleFiles.Single(file => Path.GetFileName(file) == sample.FileName);
+        Assert.Equal(sample.Content, File.ReadAllText(sampleFile).ReplaceLineEndings("\n").TrimEnd('\n'));
+
+        // Act: run every command example against the built tool in the runner's scratch folder; the runner
+        // compares the exit codes and the 'expect' fragments. A model file is copied in only when the card did
+        // not save its own file of that name, so a card's own source example is the one its commands read.
+        var report = HelpExampleRunner.Run(catalog, invocation =>
+        {
+            foreach (var file in exampleFiles)
+            {
+                var target = PathHelpers.SafePathCombine(invocation.WorkingDirectory, Path.GetFileName(file));
+                if (!File.Exists(target))
+                {
+                    File.Copy(file, target);
+                }
+            }
+
+            var exitCode = Runner.RunInDirectory(
+                out var output,
+                invocation.WorkingDirectory,
+                "dotnet",
+                [_dllPath, .. invocation.Arguments]);
+            return new HelpExampleOutcome(exitCode, output);
+        });
+
+        // Assert: the cards hold command examples, and every one gave the result its card states
+        Assert.True(report.CommandsRun > 0, "The help cards contain no command examples.");
+        report.AssertSucceeded();
     }
 }
 
