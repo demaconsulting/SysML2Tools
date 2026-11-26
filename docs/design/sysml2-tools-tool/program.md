@@ -20,14 +20,17 @@ locally.
 **Main**: Entry point for the tool process.
 
 - *Parameters*: `string[] args` — command-line arguments from the host environment.
-- *Returns*: `int` — exit code; 0 for success, 1 for expected errors.
+- *Returns*: `int` — exit code; 0 for success, 1 for expected errors, or the exit code of the
+  help command (see *Help Command* in the system design).
 - *Preconditions*: None.
 - *Postconditions*: Exit code reflects whether any errors were reported during execution.
 
-Creates a `Context` using `Context.Create(args)`, calls `Run(context)`, and returns
-`context.ExitCode`. Catches `ArgumentException` and `InvalidOperationException` — writes
-`"Error: {message}"` to stderr and returns 1. Catches any other `Exception` — writes
-`"Unexpected error: {message}"` to stderr and re-throws so the runtime can record it.
+First offers the arguments to `HelpCommand.Default.TryRun`; when the first argument is `help`, the help command answers
+from the help cards and `Main` returns its exit code without creating a `Context`, so `--silent` and `--log` do not
+apply to it. Otherwise creates a `Context` using `Context.Create(args)`, calls `Run(context)`, and returns
+`context.ExitCode`. Catches `ArgumentException` and `InvalidOperationException` — writes `"Error: {message}"` to stderr
+and returns 1. Catches any other `Exception` — writes `"Unexpected error: {message}"` to stderr and re-throws so the
+runtime can record it.
 
 **Run**: Dispatches execution based on parsed flags.
 
@@ -41,25 +44,23 @@ Inspects flags in priority order: (1) if `context.Version` is true, calls
 below) and returns if triggered; (4) if `context.Validate` is true, calls
 `Validation.Run(context)`; (5) otherwise calls `RunToolLogic(context)`.
 
-**Help dispatch** (within `Run`/`RunAsync`, not a separate method): if `context.Command ==
-SysmlCommand.Help`, calls `Help.HelpCommand.Run(context)` and returns — **regardless of
-`context.Help`**, so bare `sysml2tools help` works without also requiring `--help`. Otherwise,
-if `context.Help` is true, dispatch is command-aware: `SysmlCommand.Lint` →
-`LintCommand.PrintHelp`; `SysmlCommand.Render` → `RenderCommand.PrintHelp`;
-`SysmlCommand.Query` → `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp` (depending on whether a
-verb was parsed); otherwise → `PrintTopLevelHelp`. Every branch delegates to the same
-single-source-of-truth methods that `Help.HelpCommand.Run` itself calls, so `<command>
---help` and `help <command>` never duplicate help text.
+**Help dispatch** (within `Run`/`RunAsync`, not a separate method): if `context.Help` is true,
+dispatch is command-aware: `SysmlCommand.Lint` → `LintCommand.PrintHelp`;
+`SysmlCommand.Render` → `RenderCommand.PrintHelp`; `SysmlCommand.Query` →
+`QueryCommand.PrintGeneralHelp`/`PrintVerbHelp` (depending on whether a verb was parsed);
+`SysmlCommand.Export` → `ExportCommand.PrintHelp`; otherwise → `PrintTopLevelHelp`. The
+`help` command itself never reaches `Run`: `Main` answers it from the help cards before the
+options are parsed.
 
 **PrintBanner**: Writes the tool name, version, and copyright line to `context`.
 
 - *Parameters*: `Context context` — output target.
 - *Returns*: `void`.
 
-**PrintTopLevelHelp**: Writes the top-level usage synopsis (command list) and global options
-table to `context`. Internal (not private), so `Help.HelpCommand` can call it directly for
-bare `help`/`--help` invocations — the single source of truth for top-level help text. The `lint`
-command line reads "Parse files and report syntax errors and unresolved references", and the
+**PrintTopLevelHelp**: Writes the top-level usage synopsis, the `sysml2tools help [topic]` usage
+line (`TopLevel_UsageHelp`), the command list, and the global options table to `context`, and
+ends with a blank line and `HelpCommand.Default.Footer`, the pointer to the help command. The
+`lint` command line reads "Parse files and report syntax errors and unresolved references", and the
 options list ends with `--strict-unresolved` (reports unresolved references as errors, not
 warnings; for `lint`, `render`, `query`, and `export`), sourced from the
 `TopLevel_CommandLint` and `TopLevel_OptionStrictUnresolved` resource strings.
@@ -88,6 +89,8 @@ propagate to `Main`.
   `Context.WriteError` for all output.
 - **Validation** — `Program.Run` calls `Validation.Run(context)` when the `--validate` flag is
   set.
+- **HelpCommand** — `Program.Main` calls `HelpCommand.Default.TryRun` before `Context.Create`,
+  and `PrintTopLevelHelp` ends with `HelpCommand.Default.Footer`.
 
 ### Localization / Resource Strings
 

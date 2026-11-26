@@ -83,9 +83,9 @@ text as written, or of the owning declaration when the text was not located (see
 `LintCommand.PrintHelp(Context context)` prints `lint`'s usage line (`lint [--strict-unresolved]
 <files...>`), a description (syntax errors are errors and give a non-zero exit code; unresolved
 references and tool-specific render selectors are warnings), and an Options
-section listing `--strict-unresolved`. This is the single source of truth for both `lint --help` (dispatched from
-`Program.RunAsync`'s command-aware help block) and `help lint` (dispatched from
-`Help.HelpCommand.Run`); neither entry point duplicates the help text. Every line printed by
+section listing `--strict-unresolved`. It backs `lint --help`, dispatched from
+`Program.RunAsync`'s command-aware help block; `help lint` prints the `lint` help card instead
+(see the HelpCommand design). Every line printed by
 `PrintHelp` is sourced from `LintStrings`, a hand-written, culture-aware `ResourceManager`
 accessor over `Lint/LintStrings.resx` — see `docs/design/sysml2-tools-tool/program.md`'s
 "Localization / Resource Strings" section for the rationale (hand-written vs. Visual

@@ -1,0 +1,58 @@
+---
+# Software Unit Requirements for the HelpCommand Class
+#
+# The HelpCommand class answers the `sysml2tools help` command from the help cards that are
+# embedded in the tool assembly. It is the only unit that uses the HelpCards library.
+
+sections:
+  - title: HelpCommand Unit Requirements
+    requirements:
+      - id: SysML2Tools-Tool-HelpCommand-HelpVerb
+        title: >-
+          The HelpCommand class shall answer the `help` verb from the help cards embedded in the
+          tool assembly.
+        justification: |
+          A user or an AI agent that has only the installed tool must be able to learn it from
+          `sysml2tools help`. The cards travel inside the assembly, so the help works wherever
+          the tool is installed.
+        children:
+          - SysML2Tools-OTS-HelpCards-Cli
+        tests:
+          - HelpCommand_TryRun_HelpVerb_PrintsTopicIndexAndReturnsZero
+
+      - id: SysML2Tools-Tool-HelpCommand-CommandCards
+        title: >-
+          The HelpCommand class shall print the card of a command for `help <command>` and
+          `help commands <command>`, and the card of a query verb for `help query <verb>`, for
+          every command and query verb that the tool accepts.
+        justification: |
+          Before the help cards, `sysml2tools help lint` and `sysml2tools help query <verb>`
+          printed the help of that command or verb, and users and scripts still type them. The
+          command cards are children of the `commands` topic, so the help command routes a
+          command name to that topic; deriving the names from the command enumeration keeps
+          the routing in step with the commands that the parser accepts.
+        tests:
+          - HelpCommand_TryRun_EveryRegisteredCommand_PrintsCommandCard
+          - HelpCommand_TryRun_EveryQueryVerb_PrintsVerbCard
+          - HelpCommand_TryRun_CommandNameAfterValueOption_PrintsCommandCard
+
+      - id: SysML2Tools-Tool-HelpCommand-ValidCards
+        title: >-
+          The HelpCommand class shall serve only help cards that pass validation with the expected
+          set of topics and purpose tags.
+        justification: |
+          A defective card, a missing topic, or a card without a purpose would give users wrong
+          or hard-to-find guidance. Validating the shipped catalog, with warnings treated as
+          errors, keeps the help correct before release.
+        children:
+          - SysML2Tools-OTS-HelpCards-Testing
+        tests:
+          - HelpCommand_CreateOptions_ShippedCatalog_PassesValidation
+
+      - id: SysML2Tools-Tool-HelpCommand-LineWidth
+        title: The HelpCommand class shall print every help card in lines of at most 120 characters.
+        justification: |
+          Help is read in terminals and CI logs. Expanded links and tokens make printed lines
+          longer than the card source, so the printed width is what must stay readable.
+        tests:
+          - HelpCommand_TryRun_EveryCard_FitsMaximumLineWidth

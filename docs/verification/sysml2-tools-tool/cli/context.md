@@ -18,8 +18,8 @@ N/A - standard test environment.
 - `ArgumentException` is thrown for all unknown or malformed arguments.
 - `ExitCode` is 1 after `WriteError` is called and 0 otherwise.
 - The boolean `--strict-unresolved` option is parsed for `lint`, `render`, `export`, and
-  `query` (defaulting to false) and is rejected for `help`; any other spelling of an
-  unresolved-reference option is rejected as an unsupported argument.
+  `query` (defaulting to false); any other spelling of an unresolved-reference option is
+  rejected as an unsupported argument.
 - Silent mode suppresses console output but does not affect the log file.
 
 #### Test Scenarios
@@ -259,33 +259,6 @@ deferred to `RenderCommand.RunAsync`, mirroring `query`'s `--format` validation 
 scenario is tested by
 `Context_Create_RenderCommand_WithUnsupportedFormatValue_DoesNotThrowAtParseTime`.
 
-**Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions**: `Context.Create` is called
-with `["help"]`; `Command` equals `SysmlCommand.Help`, `HelpCommand` is non-null with both
-`TargetCommand` and `TargetVerb` null, and `Lint`/`Render`/`Query` all remain null. This
-scenario is tested by `Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions`.
-
-**Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand** /
-**Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand**: `Context.Create` is called
-with `["help", "lint"]` / `["help", "render"]`; `HelpCommand.TargetCommand` equals `"lint"` /
-`"render"` respectively, with `TargetVerb` null. These scenarios are tested by
-`Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand` and
-`Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand`.
-
-**Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb**: `Context.Create`
-is called with `["help", "query", "uses"]`; `HelpCommand.TargetCommand` equals `"query"` and
-`HelpCommand.TargetVerb` equals `"uses"`. This scenario is tested by
-`Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb`.
-
-**Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException**: `Context.Create` is
-called with `["help", "bogus-command"]`; an `ArgumentException` containing
-`"bogus-command"` is thrown. This scenario is tested by
-`Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException`.
-
-**Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException**: `Context.Create` is
-called with `["help", "query", "bogus-verb"]`; an `ArgumentException` containing
-`"bogus-verb"` is thrown (reusing `QueryVerbParsing.Parse`'s error message). This scenario is
-tested by `Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException`.
-
 **Context_Create_LintCommand_WithStrictUnresolved_SetsStrictUnresolved** /
 **Context_Create_LintCommand_WithoutStrictUnresolved_DefaultsFalse**: `Context.Create` is called
 with `["lint", "--strict-unresolved", "a.sysml"]` and `["lint", "a.sysml"]`;
@@ -315,11 +288,6 @@ called with `["query", "list", "--strict-unresolved", "a.sysml"]` and
 first. These scenarios are tested by
 `Context_Create_QueryCommand_WithStrictUnresolved_SetsQueryStrictUnresolved` and
 `Context_Create_QueryCommand_WithoutStrictUnresolved_DefaultsFalse`.
-
-**Context_Create_HelpCommand_StrictUnresolvedFlag_ThrowsArgumentException**: `Context.Create` is
-called with `["help", "--strict-unresolved"]`; an `ArgumentException` is thrown because the flag
-is out of scope for `help`. This scenario is tested by
-`Context_Create_HelpCommand_StrictUnresolvedFlag_ThrowsArgumentException`.
 
 **Context_Create_WarnUnresolvedFlag_ThrowsArgumentException**: `Context.Create` is called for
 each of `lint`, `render`, `export`, and `query` with the former opt-out spelling of the

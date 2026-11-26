@@ -33,7 +33,7 @@ The following topics are out of scope:
   for it is intentional, not a decomposition gap.
 
 The OTS software items whose integration design is covered are ANTLR4, BuildMark,
-DemaConsulting.Rendering, FileAssert, Pandoc, ReqStream, ReviewMark, SarifMark, SonarMark,
+DemaConsulting.Rendering, FileAssert, HelpCards, Pandoc, ReqStream, ReviewMark, SarifMark, SonarMark,
 SysML2Tools, VersionMark, WeasyPrint, and xUnit.
 
 ## Software Structure
@@ -115,10 +115,10 @@ reviewers an explicit navigation aid from design to code:
       `QueryResultSerializerContext`, `QueryResultExporter`)
     - **Utilities/** — shared helper used by the Query subsystem (`QualifiedNameShortener`)
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
-    - **Cli/** — command-line interface subsystem
+    - **Cli/** — command-line interface subsystem, including `HelpCommand.cs` for the built-in help
+    - **Help/** — built-in help cards (Markdown with front matter), embedded in the assembly
     - **Lint/** — lint command subsystem
     - **Render/** — render command subsystem
-    - **Help/** — help command subsystem
     - **Query/** — query command subsystem
     - **Export/** — export command subsystem
     - **SelfTest/** — self-validation subsystem
@@ -129,10 +129,9 @@ reviewers an explicit navigation aid from design to code:
   - **sysml2-tools-stdlib.md** — stdlib library design
   - **sysml2-tools-core/** — core library unit/subsystem design
   - **sysml2-tools-tool/** — DemaConsulting.SysML2Tools.Tool unit/subsystem design
-    - **cli/** — Cli subsystem design
+    - **cli/** — Cli subsystem design (`context.md`, `help-command.md`)
     - **lint/** — Lint subsystem design
     - **render/** — Render subsystem design (render.md)
-    - **help.md** — Help subsystem design
     - **query.md** — Query subsystem design
     - **export.md** — Export subsystem design
     - **self-test/** — SelfTest subsystem design

@@ -1122,16 +1122,6 @@ public class ContextTests
     }
 
     /// <summary>
-    ///     Test that <c>--strict-unresolved</c> is rejected by the help command (out of scope).
-    /// </summary>
-    [Fact]
-    public void Context_Create_HelpCommand_StrictUnresolvedFlag_ThrowsArgumentException()
-    {
-        // Act & Assert
-        Assert.Throws<ArgumentException>(() => Context.Create(["help", "--strict-unresolved"]));
-    }
-
-    /// <summary>
     ///     Test that the removed <c>--warn-unresolved</c> option is rejected as unsupported by
     ///     the lint, render, export and query commands.
     /// </summary>
@@ -1258,98 +1248,6 @@ public class ContextTests
 
         // Assert: the raw value is captured without eager validation
         Assert.Equal("xml", context.Render!.Format);
-    }
-
-    /// <summary>
-    ///     Test creating a context with the 'help' command token (no further args) sets Command to
-    ///     SysmlCommand.Help and populates HelpCommand with both fields null.
-    /// </summary>
-    [Fact]
-    public void Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions()
-    {
-        // Act
-        using var context = Context.Create(["help"]);
-
-        // Assert
-        Assert.Equal(SysmlCommand.Help, context.Command);
-        Assert.NotNull(context.HelpCommand);
-        Assert.Null(context.HelpCommand.TargetCommand);
-        Assert.Null(context.HelpCommand.TargetVerb);
-        Assert.Null(context.Lint);
-        Assert.Null(context.Render);
-        Assert.Null(context.Query);
-    }
-
-    /// <summary>
-    ///     Test creating a context with 'help lint' sets HelpCommand.TargetCommand to "lint".
-    /// </summary>
-    [Fact]
-    public void Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand()
-    {
-        // Act
-        using var context = Context.Create(["help", "lint"]);
-
-        // Assert
-        Assert.Equal(SysmlCommand.Help, context.Command);
-        Assert.NotNull(context.HelpCommand);
-        Assert.Equal("lint", context.HelpCommand.TargetCommand);
-        Assert.Null(context.HelpCommand.TargetVerb);
-    }
-
-    /// <summary>
-    ///     Test creating a context with 'help render' sets HelpCommand.TargetCommand to "render".
-    /// </summary>
-    [Fact]
-    public void Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand()
-    {
-        // Act
-        using var context = Context.Create(["help", "render"]);
-
-        // Assert
-        Assert.Equal(SysmlCommand.Help, context.Command);
-        Assert.NotNull(context.HelpCommand);
-        Assert.Equal("render", context.HelpCommand.TargetCommand);
-        Assert.Null(context.HelpCommand.TargetVerb);
-    }
-
-    /// <summary>
-    ///     Test creating a context with 'help query uses' sets both TargetCommand and TargetVerb.
-    /// </summary>
-    [Fact]
-    public void Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb()
-    {
-        // Act
-        using var context = Context.Create(["help", "query", "uses"]);
-
-        // Assert
-        Assert.Equal(SysmlCommand.Help, context.Command);
-        Assert.NotNull(context.HelpCommand);
-        Assert.Equal("query", context.HelpCommand.TargetCommand);
-        Assert.Equal("uses", context.HelpCommand.TargetVerb);
-    }
-
-    /// <summary>
-    ///     Test creating a context with 'help bogus-command' throws ArgumentException naming the
-    ///     unrecognized target.
-    /// </summary>
-    [Fact]
-    public void Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException()
-    {
-        // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => Context.Create(["help", "bogus-command"]));
-        Assert.Contains("bogus-command", exception.Message);
-    }
-
-    /// <summary>
-    ///     Test creating a context with 'help query bogus-verb' throws ArgumentException naming
-    ///     the unrecognized verb.
-    /// </summary>
-    [Fact]
-    public void Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException()
-    {
-        // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => Context.Create(["help", "query", "bogus-verb"]));
-        Assert.Contains("bogus-verb", exception.Message);
     }
 }
 

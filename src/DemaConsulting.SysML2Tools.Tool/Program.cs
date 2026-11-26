@@ -22,7 +22,6 @@ using System.Globalization;
 using System.Reflection;
 using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Export;
-using DemaConsulting.SysML2Tools.Help;
 using DemaConsulting.SysML2Tools.Lint;
 using DemaConsulting.SysML2Tools.Query;
 using DemaConsulting.SysML2Tools.Render;
@@ -64,15 +63,23 @@ internal static class Program
     /// <returns>Exit code: 0 for success, non-zero for failure.</returns>
     /// <exception cref="Exception">Thrown when an unexpected error occurs; re-thrown after writing to stderr.</exception>
     /// <remarks>
-    ///     <see cref="ArgumentException"/> and <see cref="InvalidOperationException"/> are treated as
-    ///     expected errors: their messages are written to stderr and exit code 1 is returned without
-    ///     a stack trace. Any other exception is written to stderr and then re-thrown so that the
+    ///     The <c>help</c> command is offered the arguments first: it is not an option, so it is answered
+    ///     from the help cards before the options are parsed, and <c>--silent</c> and <c>--log</c> do not
+    ///     apply to it. <see cref="ArgumentException"/> and <see cref="InvalidOperationException"/> are
+    ///     treated as expected errors: their messages are written to stderr and exit code 1 is returned
+    ///     without a stack trace. Any other exception is written to stderr and then re-thrown so that the
     ///     runtime can record it in event logs.
     /// </remarks>
     public static async Task<int> Main(string[] args)
     {
         try
         {
+            // Answer the help command from the help cards before the options are parsed
+            if (HelpCommand.Default.TryRun(args, out var helpExitCode))
+            {
+                return helpExitCode;
+            }
+
             // Create context from command-line arguments
             using var context = Context.Create(args);
 
@@ -122,19 +129,11 @@ internal static class Program
         // Print application banner
         PrintBanner(context);
 
-        // Priority 2: Help. The 'help' command (Command == Help) always prints help and returns,
-        // regardless of the 'context.Help' flag — this lets bare 'sysml2tools help' work without
-        // also requiring '--help'. Otherwise, when the global '--help'/'-h'/'-?' flag was
-        // supplied, dispatch is command-aware so 'lint --help'/'render --help'/'query --help'
-        // (and 'query <verb> --help') show command/verb-specific detail instead of the generic
-        // top-level help; every branch here delegates to the same single-source-of-truth methods
-        // used by the 'help' command (see HelpCommand.Run), so neither path duplicates help text.
-        if (context.Command == SysmlCommand.Help)
-        {
-            HelpCommand.Run(context);
-            return;
-        }
-
+        // Priority 2: Help. When the global '--help'/'-h'/'-?' flag was supplied, dispatch is
+        // command-aware so 'lint --help'/'render --help'/'query --help'/'export --help' (and
+        // 'query <verb> --help') show the short usage of that command or verb instead of the
+        // generic top-level usage. The 'help' command itself is answered by HelpCommand in Main
+        // before a context exists.
         if (context.Help)
         {
             switch (context.Command)
@@ -198,13 +197,13 @@ internal static class Program
     /// </summary>
     /// <param name="context">The context for output.</param>
     /// <remarks>
-    ///     Widened to <see langword="internal"/> (from <see langword="private"/>) so that
-    ///     <see cref="Help.HelpCommand"/> can call it directly for bare <c>help</c>/<c>--help</c>
-    ///     invocations, making this method the single source of truth for top-level help text.
+    ///     The usage ends with the pointer to the <c>help</c> command, so the short usage stays short and
+    ///     still tells a reader where the help topics and examples are.
     /// </remarks>
-    internal static void PrintTopLevelHelp(Context context)
+    private static void PrintTopLevelHelp(Context context)
     {
         context.WriteLine(ProgramStrings.TopLevel_Usage);
+        context.WriteLine(ProgramStrings.TopLevel_UsageHelp);
         context.WriteLine("");
         context.WriteLine(ProgramStrings.TopLevel_CommandsHeader);
         context.WriteLine(ProgramStrings.TopLevel_CommandLint);
@@ -214,8 +213,6 @@ internal static class Program
         context.WriteLine(ProgramStrings.TopLevel_CommandQuery3);
         context.WriteLine(ProgramStrings.TopLevel_CommandExport1);
         context.WriteLine(ProgramStrings.TopLevel_CommandExport2);
-        context.WriteLine(ProgramStrings.TopLevel_CommandHelp1);
-        context.WriteLine(ProgramStrings.TopLevel_CommandHelp2);
         context.WriteLine("");
         context.WriteLine(ProgramStrings.TopLevel_OptionsHeader);
         context.WriteLine(ProgramStrings.TopLevel_OptionVersion);
@@ -239,6 +236,8 @@ internal static class Program
         context.WriteLine(ProgramStrings.TopLevel_OptionName);
         context.WriteLine(ProgramStrings.TopLevel_OptionIncludeStdlib);
         context.WriteLine(ProgramStrings.TopLevel_OptionStrictUnresolved);
+        context.WriteLine("");
+        context.WriteLine(HelpCommand.Default.Footer);
     }
 
     /// <summary>

@@ -68,4 +68,9 @@
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Tool\DemaConsulting.SysML2Tools.Tool.csproj" />
   </ItemGroup>
 
+  <!-- Input files of the help examples, copied next to the tests -->
+  <ItemGroup>
+    <None Update="TestData\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

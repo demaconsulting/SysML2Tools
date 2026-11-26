@@ -52,6 +52,9 @@ internal static class ProgramStrings
     /// <summary>Gets the top-level usage line.</summary>
     public static string TopLevel_Usage => ResourceManager.GetString(nameof(TopLevel_Usage))!;
 
+    /// <summary>Gets the top-level usage line of the 'help' command.</summary>
+    public static string TopLevel_UsageHelp => ResourceManager.GetString(nameof(TopLevel_UsageHelp))!;
+
     /// <summary>Gets the "Commands:" header line.</summary>
     public static string TopLevel_CommandsHeader => ResourceManager.GetString(nameof(TopLevel_CommandsHeader))!;
 
@@ -75,12 +78,6 @@ internal static class ProgramStrings
 
     /// <summary>Gets the second line of the 'export' command summary.</summary>
     public static string TopLevel_CommandExport2 => ResourceManager.GetString(nameof(TopLevel_CommandExport2))!;
-
-    /// <summary>Gets the first line of the 'help' command summary.</summary>
-    public static string TopLevel_CommandHelp1 => ResourceManager.GetString(nameof(TopLevel_CommandHelp1))!;
-
-    /// <summary>Gets the second line of the 'help' command summary.</summary>
-    public static string TopLevel_CommandHelp2 => ResourceManager.GetString(nameof(TopLevel_CommandHelp2))!;
 
     /// <summary>Gets the "Options:" header line.</summary>
     public static string TopLevel_OptionsHeader => ResourceManager.GetString(nameof(TopLevel_OptionsHeader))!;

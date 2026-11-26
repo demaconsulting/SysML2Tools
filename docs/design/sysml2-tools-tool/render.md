@@ -116,9 +116,8 @@ Entry point for the render command. Steps:
 `--strict-unresolved`; the last is a two-line description sourced from
 `Render_OptionStrictUnresolved1`/`Render_OptionStrictUnresolved2`, whose second line states the
 exit code 1 for models that have unresolved references).
-This is the single source of truth for both `render --help`
-(dispatched from `Program.RunAsync`'s command-aware help block) and `help render` (dispatched
-from `Help.HelpCommand.Run`); neither entry point duplicates the help text. Every line printed
+It backs `render --help`, dispatched from `Program.RunAsync`'s command-aware help block;
+`help render` prints the `render` help card instead (see the HelpCommand design). Every line printed
 by `PrintHelp` is sourced from `RenderStrings`, a hand-written, culture-aware `ResourceManager`
 accessor over `Render/RenderStrings.resx` — see `docs/design/sysml2-tools-tool/program.md`'s
 "Localization / Resource Strings" section for the rationale and the zero-code-change

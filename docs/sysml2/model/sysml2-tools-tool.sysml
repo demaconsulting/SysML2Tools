@@ -1,7 +1,6 @@
 package SysML2ToolsTool {
     public import SysML2ToolsTool_CliSubsystem::*;
     public import SysML2ToolsTool_ExportSubsystem::*;
-    public import SysML2ToolsTool_HelpSubsystem::*;
     public import SysML2ToolsTool_LintSubsystem::*;
     public import SysML2ToolsTool_Program::*;
     public import SysML2ToolsTool_QuerySubsystem::*;
@@ -13,7 +12,7 @@ package SysML2ToolsTool {
     doc /* DemaConsulting.SysML2Tools.Tool is the dotnet tool: a thin command-line wrapper and orchestration around the Language, Stdlib, and Core libraries. */
 
     part def SysML2ToolsToolSystem {
-        doc /* The Tool system as a whole: program entry point and the cli, lint, render, help, query, export, self-test, and utilities subsystems. */
+        doc /* The Tool system as a whole: program entry point and the cli, lint, render, query, export, self-test, and utilities subsystems. */
 
         metadata info : SoftwareInfo {
             testFiles = ("test/DemaConsulting.SysML2Tools.Tool.Tests/IntegrationTests.cs");
@@ -26,7 +25,6 @@ package SysML2ToolsTool {
         part cli : CliSubsystem;
         part lint : LintSubsystem;
         part renderSubsystem : RenderSubsystem;
-        part help : HelpSubsystem;
         part query : QuerySubsystem;
         part export : ExportSubsystem;
         part selfTest : SelfTestSubsystem;

@@ -48,8 +48,7 @@ temporary directory and clean them up after each test.
   package split across files with an import in each part produces that warning and no
   unresolved reference, in either order on the command line.
 - `lint --help` prints lint-specific usage (`lint [--strict-unresolved] <files...>`) that
-  describes the warning default and the `--strict-unresolved` option, and is
-  identical to `help lint`'s output (see the Help subsystem verification document).
+  describes the warning default and the `--strict-unresolved` option.
 
 ### Test Scenarios
 
@@ -173,9 +172,8 @@ distinct from the others'). Satisfies `SysML2Tools-Tool-Lint-DuplicateDeclaratio
 
 Verifies that `lint --help` prints the lint-specific usage line
 (`Usage: sysml2tools lint [--strict-unresolved] <files...>`), lists `--strict-unresolved`, and
-does not print the generic top-level `"Commands:"` section — a regression-proofing test added
-alongside the `help` command's command-aware `--help` dispatch (see
-`docs/design/sysml2-tools-tool/help.md`). Satisfies
+does not print the generic top-level `"Commands:"` section — a regression-proofing test for
+`Program.RunAsync`'s command-aware `--help` dispatch. Satisfies
 `SysML2Tools-Tool-Lint-StrictUnresolved`.
 
 #### LintSubsystem_Patterns_RecursiveGlob_ResolvesNestedFiles (LintSubsystemTests.cs)

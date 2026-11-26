@@ -200,15 +200,13 @@ sections:
       - id: SysML2Tools-Tool-Context-StrictUnresolved
         title: >-
           The Context class shall parse the boolean `--strict-unresolved` option for the lint,
-          render, export, and query commands (defaulting to false when absent), reject it for
-          the help command, and reject any other spelling of an unresolved-reference option as
-          an unsupported argument.
+          render, export, and query commands (defaulting to false when absent), and reject any
+          other spelling of an unresolved-reference option as an unsupported argument.
         justification: |
           Promoting unresolved references to errors is a per-invocation choice that every
-          command that loads a workspace must receive from the command line, and the help
-          command, which loads nothing, has no use for it. Centralizing the parsing in Context
-          keeps one consistent place for argument handling while query's own option record stays
-          unchanged.
+          command that loads a workspace must receive from the command line. Centralizing the
+          parsing in Context keeps one consistent place for argument handling while query's own
+          option record stays unchanged.
         tests:
           - Context_Create_LintCommand_WithStrictUnresolved_SetsStrictUnresolved
           - Context_Create_LintCommand_WithoutStrictUnresolved_DefaultsFalse
@@ -218,7 +216,6 @@ sections:
           - Context_Create_ExportCommand_WithoutStrictUnresolved_DefaultsFalse
           - Context_Create_QueryCommand_WithStrictUnresolved_SetsQueryStrictUnresolved
           - Context_Create_QueryCommand_WithoutStrictUnresolved_DefaultsFalse
-          - Context_Create_HelpCommand_StrictUnresolvedFlag_ThrowsArgumentException
           - Context_Create_WarnUnresolvedFlag_ThrowsArgumentException
 
       - id: SysML2Tools-Tool-Context-QueryVerbRequired
@@ -235,23 +232,3 @@ sections:
         tests:
           - Context_Create_QueryCommand_NoVerbNoHelp_ThrowsArgumentException
           - Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull
-
-      - id: SysML2Tools-Tool-Context-HelpDispatch
-        title: >-
-          The Context class shall recognize `help` as a command token, dispatching to
-          HelpArgumentParser and populating the HelpCommand property (distinct from the
-          existing boolean Help flag property) with the parsed target command/verb.
-        justification: |
-          Making `help` a genuine top-level command (rather than only a global flag) lets
-          `sysml2tools help [command] [verb]` be parsed through the same per-command dispatch
-          pattern already used for lint/render/query, keeping Context's argument-parsing
-          architecture uniform across all four commands.
-        children:
-          - SysML2Tools-Tool-Help-Grammar
-        tests:
-          - Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions
-          - Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand
-          - Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand
-          - Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb
-          - Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException
-          - Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException

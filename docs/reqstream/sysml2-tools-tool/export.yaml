@@ -155,8 +155,8 @@ sections:
 
       - id: SysML2Tools-Tool-Export-Help
         title: >-
-          The export command shall render help text (via `export --help` or `help export`)
-          describing its flags, including an explicit note that --output names a file (not
+          The export command shall render help text (via `export --help`) describing its
+          flags, including an explicit note that --output names a file (not
           a directory, unlike render's --output of the same name).
         justification: |
           Given the --output flag's collision-in-meaning with render's --output, explicit

@@ -386,9 +386,8 @@ internal static class ExportCommand
     /// </summary>
     /// <param name="context">The CLI context for output.</param>
     /// <remarks>
-    ///     The single source of truth for both <c>export --help</c> and <c>help export</c> — see
-    ///     <see cref="Help.HelpCommand"/> and <c>Program.RunAsync</c>'s command-aware help
-    ///     dispatch.
+    ///     Backs <c>export --help</c> through <c>Program.RunAsync</c>'s command-aware help dispatch; the
+    ///     long-form reference is the <c>export</c> help card printed by <c>help export</c>.
     /// </remarks>
     public static void PrintHelp(Context context)
     {

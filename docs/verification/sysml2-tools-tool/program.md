@@ -17,6 +17,8 @@ N/A - standard test environment.
 - Exit code 0 is returned for all valid flag combinations.
 - Exit code 1 is returned when invalid arguments are supplied to `Program.Main`.
 - `Program.Version` returns a non-empty, non-null string.
+- The `help` command is answered before the options are parsed, and the usage information ends
+  with the pointer to the help command.
 
 ### Test Scenarios
 
@@ -26,8 +28,14 @@ appear, the banner prefix does not appear, and exit code is 0, confirming versio
 with no banner. This scenario is tested by `Program_Run_WithVersionFlag_DisplaysVersionOnly`.
 
 **Program_Run_WithHelpFlag_DisplaysUsageInformation**: `Program.Run` is called with a context
-from `["--help"]`; the output contains "Usage:", "Options:", "--version", and "--help" and exit
-code is 0. This scenario is tested by `Program_Run_WithHelpFlag_DisplaysUsageInformation`.
+from `["--help"]`; the output contains "Usage:", "Options:", "--version", "--help", and the
+`sysml2tools help [topic]` usage line, ends with the pointer to the help command, and exit code
+is 0. This scenario is tested by `Program_Run_WithHelpFlag_DisplaysUsageInformation`.
+
+**Program_Main_WithHelpVerb_PrintsHelpIndex**: `Program.Main` is invoked with `["help"]`, which
+is not an option; the captured console output contains the help topic index and no banner, and
+the exit code is 0, confirming the help command is answered before the options are parsed. This
+scenario is tested by `Program_Main_WithHelpVerb_PrintsHelpIndex`.
 
 **Program_Run_WithValidateFlag_RunsValidation**: `Program.Run` is called with a context from
 `["--validate"]`; the output contains "Total Tests:" and exit code is 0, confirming the

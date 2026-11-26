@@ -91,8 +91,8 @@ internal static class GlobalArgumentParser
                     break;
 
                 // The command token is only recognized on its first occurrence; once a command
-                // has been selected, a later literal "lint"/"render"/"query" token is treated as
-                // an ordinary per-command argument (e.g., a file named "query").
+                // has been selected, a later literal "lint"/"render"/"query"/"export" token is
+                // treated as an ordinary per-command argument (e.g., a file named "query").
                 case "lint" when command == SysmlCommand.None:
                     command = SysmlCommand.Lint;
                     break;
@@ -107,10 +107,6 @@ internal static class GlobalArgumentParser
 
                 case "export" when command == SysmlCommand.None:
                     command = SysmlCommand.Export;
-                    break;
-
-                case "help" when command == SysmlCommand.None:
-                    command = SysmlCommand.Help;
                     break;
 
                 default:

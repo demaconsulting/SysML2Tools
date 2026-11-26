@@ -72,9 +72,9 @@ input-files:
   - docs/verification/sysml2-tools-tool/program.md
   - docs/verification/sysml2-tools-tool/cli.md
   - docs/verification/sysml2-tools-tool/cli/context.md
+  - docs/verification/sysml2-tools-tool/cli/help-command.md
   - docs/verification/sysml2-tools-tool/lint.md
   - docs/verification/sysml2-tools-tool/render.md
-  - docs/verification/sysml2-tools-tool/help.md
   - docs/verification/sysml2-tools-tool/query.md
   - docs/verification/sysml2-tools-tool/export.md
   - docs/verification/sysml2-tools-tool/self-test.md
@@ -87,6 +87,7 @@ input-files:
   - docs/verification/ots/buildmark.md
   - docs/verification/ots/dema-rendering.md
   - docs/verification/ots/fileassert.md
+  - docs/verification/ots/help-cards.md
   - docs/verification/ots/pandoc.md
   - docs/verification/ots/reqstream.md
   - docs/verification/ots/reviewmark.md

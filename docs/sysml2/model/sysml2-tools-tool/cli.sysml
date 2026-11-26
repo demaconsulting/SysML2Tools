@@ -1,9 +1,10 @@
 package SysML2ToolsTool_CliSubsystem {
     public import SysML2ToolsTool_Context::*;
+    public import SysML2ToolsTool_HelpCommand::*;
     private import SoftwareItemMetadata::*;
 
     part def CliSubsystem {
-        doc /* Command-line argument parsing and I/O. */
+        doc /* Command-line argument parsing and I/O, and the built-in help command. */
 
         metadata info : SoftwareInfo {
             testFiles = ("test/DemaConsulting.SysML2Tools.Tool.Tests/Cli/CliSubsystemTests.cs");
@@ -13,5 +14,6 @@ package SysML2ToolsTool_CliSubsystem {
         }
 
         part context : Context;
+        part helpCommand : HelpCommand;
     }
 }

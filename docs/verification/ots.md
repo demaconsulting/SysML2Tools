@@ -21,6 +21,7 @@ The following OTS items have verification evidence in this section:
 - DemaConsulting.Rendering (*dema-rendering.md*) — layout intermediate representation, layered
   layout algorithm, and SVG/PNG renderers
 - FileAssert (*fileassert.md*) — document assertion tool
+- HelpCards (*help-cards.md*) — built-in help library (runtime)
 - Pandoc (*pandoc.md*) — Markdown-to-HTML conversion tool
 - ReqStream (*reqstream.md*) — requirements traceability tool
 - ReviewMark (*reviewmark.md*) — file review enforcement tool

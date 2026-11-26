@@ -67,6 +67,9 @@
   <data name="TopLevel_Usage" xml:space="preserve">
     <value>Usage: sysml2tools [options] &lt;command&gt; [files...]</value>
   </data>
+  <data name="TopLevel_UsageHelp" xml:space="preserve">
+    <value>       sysml2tools help [topic]</value>
+  </data>
   <data name="TopLevel_CommandsHeader" xml:space="preserve">
     <value>Commands:</value>
   </data>
@@ -90,12 +93,6 @@
   </data>
   <data name="TopLevel_CommandExport2" xml:space="preserve">
     <value>                             Lines (declarations, edges, diagnostics)</value>
-  </data>
-  <data name="TopLevel_CommandHelp1" xml:space="preserve">
-    <value>  help [command] [verb]      Print help for the tool, a command, or (for 'query')</value>
-  </data>
-  <data name="TopLevel_CommandHelp2" xml:space="preserve">
-    <value>                             a specific verb</value>
   </data>
   <data name="TopLevel_OptionsHeader" xml:space="preserve">
     <value>Options:</value>

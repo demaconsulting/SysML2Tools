@@ -55,11 +55,11 @@ includes:
   - docs/reqstream/sysml2-tools-tool/program.yaml
   - docs/reqstream/sysml2-tools-tool/cli.yaml
   - docs/reqstream/sysml2-tools-tool/cli/context.yaml
+  - docs/reqstream/sysml2-tools-tool/cli/help-command.yaml
   - docs/reqstream/sysml2-tools-tool/lint.yaml
   - docs/reqstream/sysml2-tools-tool/render.yaml
   - docs/reqstream/sysml2-tools-tool/query.yaml
   - docs/reqstream/sysml2-tools-tool/export.yaml
-  - docs/reqstream/sysml2-tools-tool/help.yaml
   - docs/reqstream/sysml2-tools-tool/self-test.yaml
   - docs/reqstream/sysml2-tools-tool/self-test/validation.yaml
   - docs/reqstream/sysml2-tools-tool/utilities.yaml
@@ -78,4 +78,5 @@ includes:
   - docs/reqstream/ots/pandoc.yaml
   - docs/reqstream/ots/weasyprint.yaml
   - docs/reqstream/ots/fileassert.yaml
+  - docs/reqstream/ots/help-cards.yaml
   - docs/reqstream/ots/sysml2tools.yaml
